@@ -93,6 +93,52 @@ class StorageTests(unittest.TestCase):
         exported = json.loads(output.read_text(encoding="utf-8"))
         self.assertEqual(exported["cases"][0]["body"], "中文提示词")
 
+    def test_interrupted_first_migration_is_retried_on_next_start(self):
+        source = self.write_legacy({
+            "cases": [{"id": "c-retry", "body": "恢复迁移"}],
+            "modules": [{"id": "m-retry", "body": "模块"}],
+        })
+        # Simulate a database whose schema exists but migration marker was not committed.
+        import sqlite3
+        db = self.home / "prompt_library.sqlite3"
+        con = sqlite3.connect(db)
+        con.executescript("""
+            CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE assets (
+                id TEXT PRIMARY KEY,
+                kind TEXT NOT NULL CHECK(kind IN ('case','module')),
+                payload_json TEXT NOT NULL,
+                created_at TEXT,
+                updated_at TEXT
+            );
+            CREATE TABLE attachments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                asset_id TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+                relative_path TEXT NOT NULL,
+                media_type TEXT NOT NULL DEFAULT 'image',
+                role TEXT NOT NULL DEFAULT 'reference',
+                sha256 TEXT,
+                created_at TEXT,
+                UNIQUE(asset_id, relative_path, role)
+            );
+            INSERT INTO metadata(key,value) VALUES('schema_version','1');
+        """)
+        con.commit()
+        con.close()
+        store = Storage(self.home, legacy_json=source)
+        loaded = store.load_data()
+        self.assertEqual(loaded["cases"][0]["id"], "c-retry")
+        self.assertEqual(loaded["modules"][0]["id"], "m-retry")
+
+    def test_duplicate_ids_are_rejected_on_save(self):
+        store = Storage(self.home)
+        with self.assertRaises(StorageError):
+            store.save_data({
+                "cases": [{"id": "same"}],
+                "modules": [{"id": "same"}],
+            })
+        self.assertEqual(store.load_data()["cases"], [])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
