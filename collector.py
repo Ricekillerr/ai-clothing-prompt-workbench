@@ -34,7 +34,8 @@ def sha256_file(path: Path) -> str:
 
 
 def scan_folder(folder: Path, recursive: bool = True,
-                extensions: Iterable[str] | None = None) -> list[dict]:
+                extensions: Iterable[str] | None = None,
+                previous: dict[str, dict] | None = None) -> list[dict]:
     """Return metadata for supported files; never move, rename, or modify sources."""
     root = Path(folder).expanduser().resolve(strict=True)
     if not root.is_dir():
@@ -54,15 +55,20 @@ def scan_folder(folder: Path, recursive: bool = True,
             stat = candidate.stat()
             if stat.st_size <= 0:
                 continue
+            canonical = str(candidate.resolve())
+            old = (previous or {}).get(canonical)
+            unchanged = bool(old and old.get("size") == stat.st_size
+                             and old.get("modified_ns") == stat.st_mtime_ns
+                             and old.get("sha256"))
             found.append({
-                "path": str(candidate.resolve()),
+                "path": canonical,
                 "relative_path": candidate.relative_to(root).as_posix(),
                 "name": candidate.name,
                 "extension": candidate.suffix.lower(),
                 "media_type": classify(candidate),
                 "size": stat.st_size,
                 "modified_ns": stat.st_mtime_ns,
-                "sha256": sha256_file(candidate),
+                "sha256": old["sha256"] if unchanged else sha256_file(candidate),
             })
         except (OSError, ValueError):
             # Files changing during a scan are retried on the next scan.
