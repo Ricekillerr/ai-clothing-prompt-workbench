@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import sqlite3
 import tempfile
 from pathlib import Path
@@ -153,14 +152,31 @@ class Storage:
         try:
             with self._connect() as con:
                 con.execute("BEGIN IMMEDIATE")
-                con.execute("DELETE FROM assets")
+                incoming_ids = {
+                    str(item["id"])
+                    for key in ("cases", "modules")
+                    for item in data[key]
+                }
+                # Upsert existing assets first so attachment rows remain linked.
                 for key, kind in (("cases", "case"), ("modules", "module")):
                     for item in data[key]:
                         con.execute(
-                            "INSERT INTO assets(id,kind,payload_json,created_at,updated_at) VALUES(?,?,?,?,?)",
+                            """INSERT INTO assets(id,kind,payload_json,created_at,updated_at)
+                               VALUES(?,?,?,?,?)
+                               ON CONFLICT(id) DO UPDATE SET
+                                 kind=excluded.kind,
+                                 payload_json=excluded.payload_json,
+                                 created_at=excluded.created_at,
+                                 updated_at=excluded.updated_at""",
                             (str(item["id"]), kind, json.dumps(item, ensure_ascii=False),
                              item.get("created_at"), item.get("updated_at")),
                         )
+                existing_ids = {
+                    row[0] for row in con.execute("SELECT id FROM assets").fetchall()
+                }
+                removed_ids = existing_ids - incoming_ids
+                if removed_ids:
+                    con.executemany("DELETE FROM assets WHERE id=?", [(x,) for x in removed_ids])
         except Exception as exc:
             raise StorageError(f"保存失败，事务已回滚：{exc}") from exc
 
