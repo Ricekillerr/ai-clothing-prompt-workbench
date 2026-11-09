@@ -6,6 +6,7 @@ from urllib.parse import unquote, quote
 from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from storage import Storage
+from collector import scan_folder
 
 APP_VERSION = "0.5.0"
 GITHUB_OWNER = "Ricekillerr"
@@ -119,6 +120,8 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/data":
             self.send_bytes(200, json.dumps(load_data(), ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
         elif path == "/api/version": self.send_json(200, {"version": APP_VERSION})
+        elif path == "/api/scan/sources": self.send_json(200, {"sources": STORAGE.list_scan_sources()})
+        elif path == "/api/scan/pending": self.send_json(200, {"items": STORAGE.list_pending_ingest()})
         elif path == "/api/update/check":
             try: self.send_json(200, check_remote_update())
             except Exception as e: self.send_json(200, {"ok": False, "current_version": APP_VERSION, "error": str(e)})
@@ -136,6 +139,21 @@ class Handler(BaseHTTPRequestHandler):
                 if not isinstance(d, dict): raise ValueError("数据格式不正确")
                 d.setdefault("cases", []); d.setdefault("modules", []); save_data(d)
                 self.send_json(200, {"ok": True})
+            elif self.path == "/api/scan/source":
+                folder = str(d.get("folder", "")).strip()
+                if not folder: raise ValueError("请提供需要扫描的文件夹路径")
+                source_id = STORAGE.register_scan_source(folder, bool(d.get("recursive", True)))
+                self.send_json(200, {"ok": True, "source_id": source_id})
+            elif self.path == "/api/scan/run":
+                source_id = str(d.get("source_id", "")).strip()
+                source = next((x for x in STORAGE.list_scan_sources() if x["id"] == source_id), None)
+                if not source: raise ValueError("扫描来源不存在")
+                previous = STORAGE.get_scan_snapshot(source_id)
+                items = scan_folder(Path(source["folder_path"]), bool(source["recursive"]), previous=previous)
+                summary = STORAGE.save_scan_results(source_id, items)
+                self.send_json(200, {"ok": True, "summary": summary})
+            elif self.path == "/api/scan/source":
+                raise ValueError("接口方法不正确")
             elif self.path == "/api/image":
                 ext = Path(d.get("name", "image.png")).suffix.lower()
                 if ext not in (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"): ext = ".png"
