@@ -139,6 +139,51 @@ class StorageTests(unittest.TestCase):
             })
         self.assertEqual(store.load_data()["cases"], [])
 
+    def test_scan_source_and_ingest_queue_preserve_approved_unchanged_file(self):
+        store = Storage(self.home)
+        source_dir = self.home / "history"
+        source_dir.mkdir()
+        source_id = store.register_scan_source(str(source_dir))
+        item = {
+            "path": str(source_dir / "sample.png"),
+            "relative_path": "sample.png",
+            "name": "sample.png",
+            "extension": ".png",
+            "media_type": "image",
+            "size": 12,
+            "modified_ns": 123,
+            "sha256": "a" * 64,
+        }
+        first = store.save_scan_results(source_id, [item])
+        self.assertEqual(first["added"], 1)
+        self.assertEqual(len(store.list_pending_ingest(source_id)), 1)
+        store.set_ingest_status(item["path"], "approved")
+        second = store.save_scan_results(source_id, [item])
+        self.assertEqual(second["unchanged"], 1)
+        self.assertEqual(store.list_pending_ingest(source_id), [])
+
+    def test_changed_ingest_content_returns_to_pending(self):
+        store = Storage(self.home)
+        source_dir = self.home / "history"
+        source_dir.mkdir()
+        source_id = store.register_scan_source(str(source_dir))
+        item = {
+            "path": str(source_dir / "prompt.txt"),
+            "relative_path": "prompt.txt",
+            "name": "prompt.txt",
+            "extension": ".txt",
+            "media_type": "text",
+            "size": 3,
+            "modified_ns": 1,
+            "sha256": "b" * 64,
+        }
+        store.save_scan_results(source_id, [item])
+        store.set_ingest_status(item["path"], "ignored")
+        changed = dict(item, size=4, modified_ns=2, sha256="c" * 64)
+        result = store.save_scan_results(source_id, [changed])
+        self.assertEqual(result["changed"], 1)
+        self.assertEqual(len(store.list_pending_ingest(source_id)), 1)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
