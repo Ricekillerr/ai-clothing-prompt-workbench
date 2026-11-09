@@ -1,14 +1,12 @@
 {
-  "version": "0.4.2",
-  "notes": "V0.4.2 兼容升级：本次仅更新旧版程序允许替换的主程序、网页界面和启动脚本；暂不替换 updater.py 与版本说明文件，避免旧版白名单拦截。用户提示词数据和参考图片保存在独立目录，不受影响。",
+  "version": "0.4.3",
+  "notes": "V0.4.3 更新器兼容引导版本。扩展主程序与独立更新器的文件白名单，为后续 V0.5.0 新增 storage.py 做准备。本版本不切换数据库、不迁移或改写用户数据。",
   "files": [
     "ai_prompt_workbench.py",
-    "index.html",
-    "启动AI服装提示词工作台.bat"
+    "updater.py"
   ],
   "sha256": {
-    "ai_prompt_workbench.py": "918f0350f13b512027e81b3f829c8a289b39b07bc75a62f950dbdfcd0f628dfe",
-    "index.html": "7555ead2bf1983aa3fb41798b6d0b6339a8d1859925fac8e342f821240278f07",
-    "启动AI服装提示词工作台.bat": "a6e5445185d4e4bd041420828128becb7de9c5de068aad4e2cfb54276d582e9b"
+    "ai_prompt_workbench.py": "7e391dfa7c36ac9fdff346517b8b7a94991180cd2f0d3a3c3c0b1f26f4031222",
+    "updater.py": "e2963af33ae7149e77c967a18d2e32c28ef0e3c5c397b38200eb41d6a2c3c0bd"
   }
 }
