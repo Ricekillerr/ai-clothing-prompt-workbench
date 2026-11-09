@@ -1,16 +1,14 @@
 {
   "version": "0.4.2",
-  "notes": "更新机制加固：SHA-256 文件完整性校验、替换前完整备份、更新失败逐项回滚、成功后写入版本标记；用户提示词库与参考图片仍保存在独立用户目录。",
+  "notes": "V0.4.2 兼容升级：本次仅更新旧版程序允许替换的主程序、网页界面和启动脚本；暂不替换 updater.py 与版本说明文件，避免旧版白名单拦截。用户提示词数据和参考图片保存在独立目录，不受影响。",
   "files": [
     "ai_prompt_workbench.py",
-    "updater.py",
-    "启动AI服装提示词工作台.bat",
-    "使用说明_AI服装提示词资产工作台_V0.4.2.txt"
+    "index.html",
+    "启动AI服装提示词工作台.bat"
   ],
   "sha256": {
-    "ai_prompt_workbench.py": "7f604a76bfb6aefbb7128868bc4614f0494b8a746f6076ce06ce014749eb5964",
-    "updater.py": "b1986a9010f311842eff3d44faa7a92fa1549989fd34da261be08b407917d6ca",
-    "启动AI服装提示词工作台.bat": "68ac8717be4540f7d4e0932534b47155f8bf3c0a05622eae4d63447a0456386b",
-    "使用说明_AI服装提示词资产工作台_V0.4.2.txt": "109c08fd22be7790b5590b2c758314f8b4ab999317bdbc042df5d74df162c1df"
+    "ai_prompt_workbench.py": "918f0350f13b512027e81b3f829c8a289b39b07bc75a62f950dbdfcd0f628dfe",
+    "index.html": "7555ead2bf1983aa3fb41798b6d0b6339a8d1859925fac8e342f821240278f07",
+    "启动AI服装提示词工作台.bat": "a6e5445185d4e4bd041420828128becb7de9c5de068aad4e2cfb54276d582e9b"
   }
 }
