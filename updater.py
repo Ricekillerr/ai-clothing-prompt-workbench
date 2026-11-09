@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """V0.4.2 独立更新助手：完整性复核、逐文件备份、失败回滚、重启。"""
-import hashlib, json, os, shutil, socket, subprocess, sys, time
+import hashlib, json, os, shutil, socket, subprocess, sys, time, tempfile
 from pathlib import Path
 ALLOWED = {"ai_prompt_workbench.py", "index.html", "启动AI服装提示词工作台.bat", "updater.py", "使用说明_AI服装提示词资产工作台_V0.4.2.txt"}
 def service_running():
@@ -34,7 +34,7 @@ def main():
             if not service_running(): break
             time.sleep(.25)
         else: return 7
-        backup = Path(shutil.mkdtemp(prefix="prompt_atelier_backup_", dir=str(root)))
+        backup = Path(tempfile.mkdtemp(prefix="prompt_atelier_backup_", dir=str(root)))
         transaction = []
         version_dst = root / "installed_version.txt"; version_backup = backup / "installed_version.txt"
         version_existed = version_dst.is_file()
