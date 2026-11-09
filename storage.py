@@ -85,8 +85,20 @@ class Storage:
                 ) from exc
             raise StorageError(f"初始化本地数据库失败：{exc}") from exc
 
-        if not existed and self.legacy_json.exists():
-            self.import_legacy_json(self.legacy_json)
+        # Resume an interrupted first-run migration. The marker is committed
+        # in the same transaction as imported records, so absence means retry.
+        if self.legacy_json.exists():
+            with self._connect() as con:
+                marker = con.execute(
+                    "SELECT value FROM metadata WHERE key='legacy_migration_complete'"
+                ).fetchone()
+            if marker is None:
+                self.import_legacy_json(self.legacy_json)
+        else:
+            with self._connect() as con:
+                con.execute(
+                    "INSERT OR IGNORE INTO metadata(key,value) VALUES('legacy_migration_complete','no_legacy_source')"
+                )
 
     @staticmethod
     def _read_legacy(path: Path) -> dict[str, Any]:
@@ -130,9 +142,21 @@ class Storage:
                              item.get("created_at"), item.get("updated_at")),
                         )
                         counts[key] += cur.rowcount
+                actual = {
+                    "cases": con.execute("SELECT COUNT(*) FROM assets WHERE kind='case'").fetchone()[0],
+                    "modules": con.execute("SELECT COUNT(*) FROM assets WHERE kind='module'").fetchone()[0],
+                }
+                expected = {"cases": len(data["cases"]), "modules": len(data["modules"])}
+                if actual != expected:
+                    raise StorageError(
+                        f"迁移数量核对失败：源数据 {expected}，数据库 {actual}；已回滚迁移。"
+                    )
                 con.execute(
                     "INSERT OR REPLACE INTO metadata(key,value) VALUES('legacy_import_source',?)",
                     (str(source),),
+                )
+                con.execute(
+                    "INSERT OR REPLACE INTO metadata(key,value) VALUES('legacy_migration_complete','true')"
                 )
         except Exception as exc:
             if isinstance(exc, StorageError):
@@ -157,9 +181,15 @@ class Storage:
     def save_data(self, data: dict[str, Any]) -> None:
         if not isinstance(data, dict) or not isinstance(data.get("cases"), list) or not isinstance(data.get("modules"), list):
             raise StorageError("保存数据格式无效，数据库未修改。")
+        seen_ids: set[str] = set()
         for key in ("cases", "modules"):
             if any(not isinstance(item, dict) or not item.get("id") for item in data[key]):
                 raise StorageError(f"{key} 中存在无效记录，数据库未修改。")
+            for item in data[key]:
+                asset_id = str(item["id"]).strip()
+                if asset_id in seen_ids:
+                    raise StorageError(f"发现重复记录 ID：{asset_id}，数据库未修改。")
+                seen_ids.add(asset_id)
         try:
             with self._connect() as con:
                 con.execute("BEGIN IMMEDIATE")
