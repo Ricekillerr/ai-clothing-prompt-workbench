@@ -5,8 +5,9 @@ from pathlib import Path
 from urllib.parse import unquote, quote
 from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+from storage import Storage
 
-APP_VERSION = "0.4.2"
+APP_VERSION = "0.5.0"
 GITHUB_OWNER = "Ricekillerr"
 GITHUB_REPO = "ai-clothing-prompt-workbench"
 GITHUB_BRANCH = "main"
@@ -18,35 +19,21 @@ IMAGES = HOME / "references"
 DATA = HOME / "prompt_library.json"
 HOME.mkdir(parents=True, exist_ok=True)
 IMAGES.mkdir(parents=True, exist_ok=True)
-ALLOWED_UPDATE_FILES = {"ai_prompt_workbench.py", "index.html", "启动AI服装提示词工作台.bat", "updater.py", "使用说明_AI服装提示词资产工作台_V0.4.2.txt"}
+ALLOWED_UPDATE_FILES = {"ai_prompt_workbench.py", "storage.py", "index.html", "启动AI服装提示词工作台.bat", "updater.py", "使用说明_AI服装提示词资产工作台_V0.4.2.txt"}
 MAX_UPDATE_FILE_SIZE = 20 * 1024 * 1024
 
+# Keep legacy JSON untouched; import it into SQLite on first launch.
+LEGACY_DATA = DATA if DATA.exists() else next(
+    (p for p in (ROOT / "prompt_library.json", ROOT / "V0.2_prompt_library.json") if p.exists()),
+    DATA,
+)
+STORAGE = Storage(HOME, legacy_json=LEGACY_DATA)
+
 def load_data():
-    if DATA.exists():
-        try:
-            d = json.loads(DATA.read_text(encoding="utf-8"))
-            if isinstance(d, dict):
-                d.setdefault("cases", []); d.setdefault("modules", [])
-                return d
-        except Exception:
-            backup = DATA.with_suffix(".unreadable.json")
-            if not backup.exists():
-                try: shutil.copy2(DATA, backup)
-                except Exception: pass
-    for p in (ROOT / "prompt_library.json", ROOT / "V0.2_prompt_library.json"):
-        if p.exists():
-            try:
-                d = json.loads(p.read_text(encoding="utf-8"))
-                if isinstance(d, dict):
-                    d.setdefault("cases", []); d.setdefault("modules", [])
-                    save_data(d); return d
-            except Exception: pass
-    return {"version": 2, "cases": [], "modules": []}
+    return STORAGE.load_data()
 
 def save_data(d):
-    tmp = DATA.with_suffix(".tmp")
-    tmp.write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
-    os.replace(tmp, DATA)
+    STORAGE.save_data(d)
 
 def version_tuple(v):
     vals = []
