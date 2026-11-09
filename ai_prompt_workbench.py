@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-"""AI服装提示词资产工作台 V0.4.2。"""
-import base64, hashlib, json, mimetypes, os, shutil, subprocess, sys, tempfile, threading, uuid, webbrowser
+"""AI服装提示词资产工作台 V0.5.0。"""
+import base64, hashlib, json, mimetypes, os, shutil, subprocess, sys, tempfile, threading, uuid, webbrowser, zipfile
 from pathlib import Path
 from urllib.parse import unquote, quote
 from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
-APP_VERSION = "0.4.2"
+APP_VERSION = "0.5.0"
 GITHUB_OWNER = "Ricekillerr"
 GITHUB_REPO = "ai-clothing-prompt-workbench"
 GITHUB_BRANCH = "main"
@@ -16,9 +16,12 @@ ROOT = Path(__file__).resolve().parent
 HOME = Path.home() / "AI_Prompt_Asset_Workbench"
 IMAGES = HOME / "references"
 DATA = HOME / "prompt_library.json"
+BACKUPS = HOME / "backups"
+BACKUPS.mkdir(parents=True, exist_ok=True)
+MAX_BACKUPS = 20
 HOME.mkdir(parents=True, exist_ok=True)
 IMAGES.mkdir(parents=True, exist_ok=True)
-ALLOWED_UPDATE_FILES = {"ai_prompt_workbench.py", "index.html", "启动AI服装提示词工作台.bat", "updater.py", "使用说明_AI服装提示词资产工作台_V0.4.2.txt"}
+ALLOWED_UPDATE_FILES = {"ai_prompt_workbench.py", "index.html", "启动AI服装提示词工作台.bat", "updater.py"}
 MAX_UPDATE_FILE_SIZE = 20 * 1024 * 1024
 
 def load_data():
@@ -48,6 +51,91 @@ def save_data(d):
     tmp.write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
     os.replace(tmp, DATA)
 
+
+def create_backup(reason="manual"):
+    BACKUPS.mkdir(parents=True,exist_ok=True)
+    dt=__import__("datetime").datetime
+    name="PromptAtelier_"+dt.now().strftime("%Y%m%d_%H%M%S_%f")+"_"+reason+".zip"
+    target,tmp=BACKUPS/name,BACKUPS/(name+".tmp")
+    info={"app_version":APP_VERSION,"created_at":dt.now().isoformat(timespec="seconds"),"reason":reason}
+    try:
+        with zipfile.ZipFile(tmp,"w",zipfile.ZIP_DEFLATED,compresslevel=6) as z:
+            z.writestr("backup_info.json",json.dumps(info,ensure_ascii=False,indent=2))
+            if DATA.is_file():z.write(DATA,"prompt_library.json")
+            if IMAGES.is_dir():
+                for p in IMAGES.rglob("*"):
+                    if p.is_file():z.write(p,"references/"+p.relative_to(IMAGES).as_posix())
+        os.replace(tmp,target)
+        old=sorted(BACKUPS.glob("PromptAtelier_*.zip"),key=lambda x:x.stat().st_mtime,reverse=True)
+        for p in old[MAX_BACKUPS:]:
+            try:p.unlink()
+            except OSError:pass
+        return {"name":name,"size":target.stat().st_size,"created_at":info["created_at"]}
+    finally:
+        try:
+            if tmp.exists():tmp.unlink()
+        except OSError:pass
+
+def list_backups():
+    out=[]
+    for p in sorted(BACKUPS.glob("PromptAtelier_*.zip"),key=lambda x:x.stat().st_mtime,reverse=True):
+        try:
+            with zipfile.ZipFile(p) as z:
+                if z.testzip():continue
+                info=json.loads(z.read("backup_info.json").decode("utf-8"))
+            out.append({"name":p.name,"size":p.stat().st_size,"created_at":info.get("created_at",""),"reason":info.get("reason","backup")})
+        except Exception:continue
+    return out
+
+def restore_backup(name):
+    if not isinstance(name,str) or Path(name).name!=name or not name.endswith(".zip"):raise ValueError("备份文件名无效")
+    archive=BACKUPS/name
+    if not archive.is_file():raise ValueError("找不到指定备份")
+    stage=HOME/(".restore_"+uuid.uuid4().hex);rollback=HOME/(".rollback_"+uuid.uuid4().hex)
+    refs=stage/"references";stage.mkdir(parents=True);refs.mkdir()
+    try:
+        with zipfile.ZipFile(archive) as z:
+            if z.testzip():raise ValueError("备份压缩包已损坏")
+            items=z.infolist()
+            if len(items)>10000 or sum(x.file_size for x in items)>2*1024*1024*1024:raise ValueError("备份内容超过安全限制")
+            for item in items:
+                n=item.filename
+                if "\\" in n or n.startswith("/") or any(x in ("",".","..") for x in n.rstrip("/").split("/")):raise ValueError("备份路径不安全")
+                if n=="backup_info.json":continue
+                if n=="prompt_library.json":dest=stage/n
+                elif n.startswith("references/"):
+                    rel=n[len("references/"):]
+                    if not rel or any(x in ("",".","..") for x in rel.split("/")):raise ValueError("图片路径无效")
+                    dest=refs.joinpath(*rel.split("/"))
+                else:raise ValueError("备份包含未知文件："+n)
+                if item.is_dir():dest.mkdir(parents=True,exist_ok=True);continue
+                if item.file_size>100*1024*1024:raise ValueError("单个文件超过100MB")
+                dest.parent.mkdir(parents=True,exist_ok=True)
+                with z.open(item) as src,dest.open("wb") as dst:shutil.copyfileobj(src,dst)
+        data=stage/"prompt_library.json";d={"cases":[],"modules":[]}
+        if data.is_file():
+            d=json.loads(data.read_text(encoding="utf-8"))
+            if not isinstance(d,dict) or not isinstance(d.get("cases",[]),list) or not isinstance(d.get("modules",[]),list):raise ValueError("提示词数据格式不正确")
+        create_backup("before_restore");rollback.mkdir()
+        olddata,oldrefs=rollback/"prompt_library.json",rollback/"references"
+        de,re=DATA.exists(),IMAGES.exists()
+        try:
+            if de:os.replace(DATA,olddata)
+            if re:os.replace(IMAGES,oldrefs)
+            if data.is_file():os.replace(data,DATA)
+            os.replace(refs,IMAGES)
+        except Exception:
+            try:
+                if DATA.exists():DATA.unlink()
+                if IMAGES.exists():shutil.rmtree(IMAGES,ignore_errors=True)
+                if de and olddata.exists():os.replace(olddata,DATA)
+                if re and oldrefs.exists():os.replace(oldrefs,IMAGES)
+            except Exception:pass
+            raise
+        return {"ok":True,"restored":name,"cases":len(d.get("cases",[])),"modules":len(d.get("modules",[]))}
+    finally:
+        shutil.rmtree(stage,ignore_errors=True);shutil.rmtree(rollback,ignore_errors=True)
+
 def version_tuple(v):
     vals = []
     for part in str(v).strip().lstrip("vV").split("."):
@@ -56,7 +144,7 @@ def version_tuple(v):
     return tuple((vals + [0, 0, 0])[:3])
 
 def fetch_bytes(url, timeout=20):
-    req = Request(url, headers={"User-Agent": "Prompt-Atelier-Updater/0.4.2", "Cache-Control": "no-cache"})
+    req = Request(url, headers={"User-Agent": "Prompt-Atelier-Updater/0.5.0", "Cache-Control": "no-cache"})
     with urlopen(req, timeout=timeout) as res:
         if getattr(res, "status", 200) != 200:
             raise ValueError(f"下载服务器返回状态码：{res.status}")
@@ -129,6 +217,13 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html"):
             f = ROOT / "index.html"
             self.send_bytes(200, f.read_bytes(), "text/html; charset=utf-8") if f.exists() else self.send_bytes(404, b"index.html missing", "text/plain")
+        elif path == "/api/backups":
+            self.send_json(200,{"ok":True,"items":list_backups()})
+        elif path.startswith("/api/backups/"):
+            name=Path(path[len("/api/backups/"):]).name; f=BACKUPS/name
+            if name.endswith(".zip") and f.is_file():
+                data=f.read_bytes(); self.send_response(200); self.send_header("Content-Type","application/zip"); self.send_header("Content-Disposition","attachment; filename="+name); self.send_header("Content-Length",str(len(data))); self.end_headers(); self.wfile.write(data)
+            else:self.send_bytes(404,b"backup not found","text/plain")
         elif path == "/api/data":
             self.send_bytes(200, json.dumps(load_data(), ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
         elif path == "/api/version": self.send_json(200, {"version": APP_VERSION})
@@ -147,7 +242,9 @@ class Handler(BaseHTTPRequestHandler):
             d = json.loads(self.rfile.read(n).decode("utf-8") or "{}")
             if self.path == "/api/data":
                 if not isinstance(d, dict): raise ValueError("数据格式不正确")
-                d.setdefault("cases", []); d.setdefault("modules", []); save_data(d)
+                d.setdefault("cases", []); d.setdefault("modules", [])
+                if DATA.is_file() or (IMAGES.is_dir() and any(IMAGES.iterdir())): create_backup("auto_before_save")
+                save_data(d)
                 self.send_json(200, {"ok": True})
             elif self.path == "/api/image":
                 ext = Path(d.get("name", "image.png")).suffix.lower()
@@ -157,8 +254,18 @@ class Handler(BaseHTTPRequestHandler):
                 if len(content) > 15 * 1024 * 1024: raise ValueError("图片不能超过15MB")
                 name = uuid.uuid4().hex[:16] + ext; (IMAGES / name).write_bytes(content)
                 self.send_json(200, {"path": name})
+            elif self.path == "/api/backups/create":
+                result=create_backup("manual")
+                self.send_json(200,{"ok":True,**result})
+            elif self.path == "/api/backups/restore":
+                result=restore_backup(d.get("name",""))
+                self.send_json(200,result)
             elif self.path == "/api/update/apply":
                 stage, latest = stage_update()
+                try: create_backup("before_update")
+                except Exception:
+                    shutil.rmtree(stage,ignore_errors=True)
+                    raise
                 updater = ROOT / "updater.py"; launcher = ROOT / "启动AI服装提示词工作台.bat"
                 if not updater.is_file() or not launcher.is_file():
                     shutil.rmtree(stage, ignore_errors=True)
