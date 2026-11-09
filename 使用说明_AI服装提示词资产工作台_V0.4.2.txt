@@ -1,0 +1,28 @@
+Prompt Atelier / AI服装提示词资产工作台 V0.4.2
+
+【本次更新】
+1. 修正 GitHub 仓库用户名配置，使用 Ricekillerr。
+2. 更新文件下载后进行 SHA-256 完整性校验；任何文件校验失败都会取消本次下载。
+3. 更新助手在替换前先备份目标文件，并在中途失败时逐项回滚。
+4. 所有程序文件成功替换后才写入 installed_version.txt。
+5. 最近一次成功更新的旧程序文件保存在安装目录的 _update_backup 文件夹。
+6. 提示词数据库与参考图片仍保存在用户目录 AI_Prompt_Asset_Workbench，不属于更新文件白名单。
+
+【本地安装与升级】
+1. 将本版本文件放在同一个文件夹内。
+2. 双击“启动AI服装提示词工作台.bat”。
+3. 打开“数据与备份”，先导出一次 JSON 备份。
+4. 点击“检查更新”，发现版本后点击“一键更新并重启”。
+
+【用户数据位置】
+%USERPROFILE%\AI_Prompt_Asset_Workbench\prompt_library.json
+%USERPROFILE%\AI_Prompt_Asset_Workbench\references\
+更新程序不会覆盖上述数据目录。
+
+【故障恢复】
+如果更新失败，更新器会尝试恢复更新前的程序文件。最近一次成功更新前的文件备份保留在安装目录 _update_backup。
+若自动重启未发生，可手动双击启动 BAT。不要删除用户数据目录。
+
+【注意】
+SHA-256 用于检测下载文件是否与发布清单一致，不能替代 HTTPS 或 GitHub 账号安全。
+V0.4.2 已完成静态语法检查；真实 Windows 端到端更新仍需在用户电脑上首次验收。
