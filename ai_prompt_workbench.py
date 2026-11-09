@@ -152,8 +152,12 @@ class Handler(BaseHTTPRequestHandler):
                 items = scan_folder(Path(source["folder_path"]), bool(source["recursive"]), previous=previous)
                 summary = STORAGE.save_scan_results(source_id, items)
                 self.send_json(200, {"ok": True, "summary": summary})
-            elif self.path == "/api/scan/source":
-                raise ValueError("接口方法不正确")
+            elif self.path == "/api/scan/review":
+                file_path = str(d.get("path", "")).strip()
+                status = str(d.get("status", "")).strip()
+                if not file_path: raise ValueError("缺少待审核文件路径")
+                STORAGE.set_ingest_status(file_path, status)
+                self.send_json(200, {"ok": True})
             elif self.path == "/api/image":
                 ext = Path(d.get("name", "image.png")).suffix.lower()
                 if ext not in (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"): ext = ".png"
