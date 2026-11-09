@@ -1,0 +1,11 @@
+{
+  "version": "0.4.1",
+  "notes": "修复前后端接口不匹配及 GitHub 更新检查；加入下载、备份、替换和重启流程。用户提示词数据及图片保存在独立目录，不随程序更新覆盖。",
+  "files": [
+    "ai_prompt_workbench.py",
+    "index.html",
+    "启动AI服装提示词工作台.bat",
+    "updater.py",
+    "使用说明_AI服装提示词资产工作台_V0.4.1.txt"
+  ]
+}

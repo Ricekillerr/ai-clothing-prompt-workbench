@@ -1,0 +1,44 @@
+Prompt Atelier / AI服装提示词资产工作台 V0.4.1 修复版
+
+【本地安装】
+1. 解压本压缩包到一个新文件夹。
+2. 文件夹内所有文件保持在同一层级，不要拆开放置。
+3. 双击“启动AI服装提示词工作台.bat”。
+4. 先确认页面能正常打开，再检查更新。
+
+【数据安全】
+提示词数据与参考图片继续保存在：
+用户目录\AI_Prompt_Asset_Workbench\
+prompt_library.json 与 references 文件夹不会被更新器替换。
+更新前仍建议从“数据与备份”导出一次 JSON 备份。
+
+【GitHub 仓库配置】
+当前更新地址配置为：
+https://github.com/Ricekillerl/ai-clothing-prompt-workbench
+分支：main
+清单：update_manifest.json
+
+重要：请先在浏览器打开上面的仓库地址确认用户名/仓库确实匹配。
+若账号用户名不是 Ricekillerl（注意最后字符是小写 L），需修改 ai_prompt_workbench.py 中 GITHUB_OWNER，并重新打包/提交。
+
+【上传到 GitHub main 根目录】
+上传并提交以下文件：
+- ai_prompt_workbench.py
+- index.html
+- 启动AI服装提示词工作台.bat
+- updater.py
+- update_manifest.json
+- 使用说明_AI服装提示词资产工作台_V0.4.1.txt
+
+提交到 main 分支后，检查这个地址能否在浏览器直接打开并显示 JSON：
+https://raw.githubusercontent.com/Ricekillerl/ai-clothing-prompt-workbench/main/update_manifest.json
+
+若这个地址仍然 404，说明仓库 owner、repo、分支或文件位置至少有一项不匹配，工作台无法检查更新。
+
+【发布后验证】
+1. 用 V0.4.1 修复版启动。
+2. 点击“检查更新”。若清单已正确上传，应显示“当前已是最新版本 V0.4.1”。
+3. 后续发布更新时，先把清单 version 改为更高版本（例如 0.4.2），同步上传清单列出的全部文件，再提交 main。
+4. 工作台检查到新版本后才会显示“一键更新并重启”。
+
+说明：本修复包先完成更新检查链路。实际一键更新还需在你电脑与 GitHub 网络环境中完成端到端验收；不要删除旧版本目录或本地数据目录。
