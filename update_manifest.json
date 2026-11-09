@@ -1,11 +1,16 @@
 {
-  "version": "0.4.1",
-  "notes": "修复前后端接口不匹配及 GitHub 更新检查；加入下载、备份、替换和重启流程。用户提示词数据及图片保存在独立目录，不随程序更新覆盖。",
+  "version": "0.4.2",
+  "notes": "更新机制加固：SHA-256 文件完整性校验、替换前完整备份、更新失败逐项回滚、成功后写入版本标记；用户提示词库与参考图片仍保存在独立用户目录。",
   "files": [
     "ai_prompt_workbench.py",
-    "index.html",
-    "启动AI服装提示词工作台.bat",
     "updater.py",
-    "使用说明_AI服装提示词资产工作台_V0.4.1.txt"
-  ]
+    "启动AI服装提示词工作台.bat",
+    "使用说明_AI服装提示词资产工作台_V0.4.2.txt"
+  ],
+  "sha256": {
+    "ai_prompt_workbench.py": "7f604a76bfb6aefbb7128868bc4614f0494b8a746f6076ce06ce014749eb5964",
+    "updater.py": "b1986a9010f311842eff3d44faa7a92fa1549989fd34da261be08b407917d6ca",
+    "启动AI服装提示词工作台.bat": "68ac8717be4540f7d4e0932534b47155f8bf3c0a05622eae4d63447a0456386b",
+    "使用说明_AI服装提示词资产工作台_V0.4.2.txt": "109c08fd22be7790b5590b2c758314f8b4ab999317bdbc042df5d74df162c1df"
+  }
 }
