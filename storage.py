@@ -38,6 +38,11 @@ class Storage:
 
     def _initialize(self) -> None:
         existed = self.db_path.exists()
+        # Validate the complete legacy file before creating a new database.
+        # A malformed source must never leave behind an empty DB that masks it
+        # on the next launch.
+        if not existed and self.legacy_json.exists():
+            self._read_legacy(self.legacy_json)
         try:
             with self._connect() as con:
                 con.executescript("""
@@ -93,11 +98,19 @@ class Storage:
             ) from exc
         if not isinstance(data, dict):
             raise StorageError("旧 JSON 根节点必须是对象；原文件保持不变。")
+        seen_ids: set[str] = set()
         for key in ("cases", "modules"):
             if key not in data or not isinstance(data[key], list):
                 raise StorageError(f"旧 JSON 缺少有效的 {key} 数组；原文件保持不变。")
             if any(not isinstance(item, dict) for item in data[key]):
                 raise StorageError(f"旧 JSON 的 {key} 中存在非对象记录；原文件保持不变。")
+            for item in data[key]:
+                asset_id = str(item.get("id") or "").strip()
+                if not asset_id:
+                    raise StorageError(f"旧 JSON 的 {key} 中存在没有 id 的记录；原文件保持不变。")
+                if asset_id in seen_ids:
+                    raise StorageError(f"旧 JSON 存在重复 id：{asset_id}；原文件保持不变。")
+                seen_ids.add(asset_id)
         return data
 
     def import_legacy_json(self, path: Path | None = None) -> dict[str, int]:
@@ -109,9 +122,7 @@ class Storage:
                 # Import is all-or-nothing. Existing IDs are not overwritten.
                 for key, kind in (("cases", "case"), ("modules", "module")):
                     for item in data[key]:
-                        asset_id = str(item.get("id") or "").strip()
-                        if not asset_id:
-                            raise StorageError(f"发现没有 id 的{key}记录，已取消整批迁移。")
+                        asset_id = str(item["id"]).strip()
                         cur = con.execute(
                             "INSERT OR IGNORE INTO assets(id,kind,payload_json,created_at,updated_at) "
                             "VALUES(?,?,?,?,?)",
