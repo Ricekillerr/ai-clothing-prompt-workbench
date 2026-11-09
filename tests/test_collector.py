@@ -32,6 +32,8 @@ class CollectorTests(unittest.TestCase):
             first = scan_folder(root)
             snapshot = {x["path"]: x for x in first}
             self.assertEqual(find_new_or_changed(snapshot, first), [])
+            # An unchanged file reuses the prior digest instead of reading it again.
+            self.assertEqual(scan_folder(root, previous=snapshot)[0]["sha256"], first[0]["sha256"])
             a.write_text("second content", encoding="utf-8")
             changed = scan_folder(root)
             delta = find_new_or_changed(snapshot, changed)
