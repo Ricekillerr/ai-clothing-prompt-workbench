@@ -70,6 +70,30 @@ class Storage:
                         UNIQUE(asset_id, relative_path, role)
                     );
                     CREATE INDEX IF NOT EXISTS idx_attachments_asset ON attachments(asset_id);
+                    CREATE TABLE IF NOT EXISTS scan_sources (
+                        id TEXT PRIMARY KEY,
+                        folder_path TEXT NOT NULL UNIQUE,
+                        recursive INTEGER NOT NULL DEFAULT 1,
+                        enabled INTEGER NOT NULL DEFAULT 1,
+                        last_scanned_at TEXT
+                    );
+                    CREATE TABLE IF NOT EXISTS ingest_files (
+                        path TEXT PRIMARY KEY,
+                        source_id TEXT NOT NULL REFERENCES scan_sources(id) ON DELETE CASCADE,
+                        relative_path TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        extension TEXT NOT NULL,
+                        media_type TEXT NOT NULL,
+                        size INTEGER NOT NULL,
+                        modified_ns INTEGER NOT NULL,
+                        sha256 TEXT NOT NULL,
+                        status TEXT NOT NULL DEFAULT 'pending'
+                            CHECK(status IN ('pending','approved','ignored','missing')),
+                        first_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_ingest_status ON ingest_files(status);
+                    CREATE INDEX IF NOT EXISTS idx_ingest_source ON ingest_files(source_id);
                 """)
                 con.execute(
                     "INSERT OR IGNORE INTO metadata(key,value) VALUES('schema_version',?)",
@@ -220,6 +244,94 @@ class Storage:
                     con.executemany("DELETE FROM assets WHERE id=?", [(x,) for x in removed_ids])
         except Exception as exc:
             raise StorageError(f"保存失败，事务已回滚：{exc}") from exc
+
+
+    def register_scan_source(self, folder_path: str, recursive: bool = True) -> str:
+        import uuid
+        canonical = str(Path(folder_path).expanduser().resolve(strict=True))
+        if not Path(canonical).is_dir():
+            raise StorageError("扫描来源必须是存在的文件夹。")
+        source_id = __import__("hashlib").sha256(canonical.encode("utf-8")).hexdigest()[:24]
+        with self._connect() as con:
+            con.execute(
+                """INSERT INTO scan_sources(id,folder_path,recursive,enabled)
+                   VALUES(?,?,?,1)
+                   ON CONFLICT(folder_path) DO UPDATE SET recursive=excluded.recursive,enabled=1""",
+                (source_id, canonical, int(bool(recursive))),
+            )
+        return source_id
+
+    def list_scan_sources(self) -> list[dict]:
+        with self._connect() as con:
+            return [dict(row) for row in con.execute(
+                "SELECT * FROM scan_sources ORDER BY folder_path"
+            ).fetchall()]
+
+    def get_scan_snapshot(self, source_id: str) -> dict[str, dict]:
+        with self._connect() as con:
+            rows = con.execute(
+                "SELECT * FROM ingest_files WHERE source_id=? AND status!='missing'",
+                (source_id,),
+            ).fetchall()
+            return {row["path"]: dict(row) for row in rows}
+
+    def save_scan_results(self, source_id: str, items: list[dict]) -> dict[str, int]:
+        import datetime
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        added = changed = unchanged = 0
+        with self._connect() as con:
+            source = con.execute("SELECT id FROM scan_sources WHERE id=? AND enabled=1", (source_id,)).fetchone()
+            if not source:
+                raise StorageError("扫描来源不存在或已停用。")
+            con.execute("UPDATE ingest_files SET status='missing' WHERE source_id=?", (source_id,))
+            for item in items:
+                path = str(Path(item["path"]).resolve())
+                old = con.execute("SELECT sha256,status FROM ingest_files WHERE path=?", (path,)).fetchone()
+                if old is None:
+                    added += 1
+                    status = "pending"
+                elif old["sha256"] != item["sha256"]:
+                    changed += 1
+                    status = "pending"
+                else:
+                    unchanged += 1
+                    status = old["status"] if old["status"] != "missing" else "pending"
+                con.execute(
+                    """INSERT INTO ingest_files(path,source_id,relative_path,name,extension,
+                       media_type,size,modified_ns,sha256,status,first_seen_at,last_seen_at)
+                       VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+                       ON CONFLICT(path) DO UPDATE SET source_id=excluded.source_id,
+                       relative_path=excluded.relative_path,name=excluded.name,
+                       extension=excluded.extension,media_type=excluded.media_type,
+                       size=excluded.size,modified_ns=excluded.modified_ns,sha256=excluded.sha256,
+                       status=excluded.status,last_seen_at=excluded.last_seen_at""",
+                    (path, source_id, item["relative_path"], item["name"], item["extension"],
+                     item["media_type"], item["size"], item["modified_ns"], item["sha256"],
+                     status, now, now),
+                )
+            con.execute(
+                "UPDATE scan_sources SET last_scanned_at=? WHERE id=?",
+                (now, source_id),
+            )
+        return {"added": added, "changed": changed, "unchanged": unchanged}
+
+    def list_pending_ingest(self, source_id: str | None = None) -> list[dict]:
+        query = "SELECT * FROM ingest_files WHERE status='pending'"
+        args: tuple = ()
+        if source_id:
+            query += " AND source_id=?"
+            args = (source_id,)
+        query += " ORDER BY last_seen_at DESC"
+        with self._connect() as con:
+            return [dict(row) for row in con.execute(query, args).fetchall()]
+
+    def set_ingest_status(self, path: str, status: str) -> None:
+        if status not in {"approved", "ignored", "pending"}:
+            raise StorageError("不支持的采集审核状态。")
+        with self._connect() as con:
+            cur = con.execute("UPDATE ingest_files SET status=? WHERE path=?", (status, str(Path(path).resolve())))
+            if cur.rowcount != 1:
+                raise StorageError("找不到对应的采集文件记录。")
 
     def backup(self, destination: Path | None = None) -> Path:
         target = Path(destination) if destination else self.home / "backups" / "prompt_library.sqlite3"
