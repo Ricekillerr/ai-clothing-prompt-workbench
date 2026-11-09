@@ -247,7 +247,6 @@ class Storage:
 
 
     def register_scan_source(self, folder_path: str, recursive: bool = True) -> str:
-        import uuid
         canonical = str(Path(folder_path).expanduser().resolve(strict=True))
         if not Path(canonical).is_dir():
             raise StorageError("扫描来源必须是存在的文件夹。")
