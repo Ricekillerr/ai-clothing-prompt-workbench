@@ -71,6 +71,28 @@ class StorageTests(unittest.TestCase):
             store.save_data({"cases": [{"body": "missing id"}], "modules": []})
         self.assertEqual(store.load_data()["cases"][0]["body"], "safe")
 
+    def test_existing_attachment_link_survives_normal_save(self):
+        store = Storage(self.home)
+        store.save_data({"cases": [{"id": "c1", "body": "before"}], "modules": []})
+        with store._connect() as con:
+            con.execute(
+                "INSERT INTO attachments(asset_id,relative_path,media_type,role) VALUES(?,?,?,?)",
+                ("c1", "references/example.png", "image", "reference"),
+            )
+        store.save_data({"cases": [{"id": "c1", "body": "after"}], "modules": []})
+        with store._connect() as con:
+            row = con.execute("SELECT relative_path FROM attachments WHERE asset_id='c1'").fetchone()
+        self.assertIsNotNone(row)
+        self.assertEqual(row["relative_path"], "references/example.png")
+
+    def test_export_json_contains_round_trip_data(self):
+        store = Storage(self.home)
+        store.save_data({"cases": [{"id": "c1", "body": "中文提示词"}], "modules": []})
+        output = self.home / "exports" / "backup.json"
+        store.export_json(output)
+        exported = json.loads(output.read_text(encoding="utf-8"))
+        self.assertEqual(exported["cases"][0]["body"], "中文提示词")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
