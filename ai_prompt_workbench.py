@@ -19,7 +19,7 @@ IMAGES = HOME / "references"
 DATA = HOME / "prompt_library.json"
 HOME.mkdir(parents=True, exist_ok=True)
 IMAGES.mkdir(parents=True, exist_ok=True)
-ALLOWED_UPDATE_FILES = {"ai_prompt_workbench.py", "storage.py", "index.html", "启动AI服装提示词工作台.bat", "updater.py", "使用说明_AI服装提示词资产工作台_V0.4.2.txt"}
+ALLOWED_UPDATE_FILES = {"ai_prompt_workbench.py", "storage.py", "collector.py", "index.html", "启动AI服装提示词工作台.bat", "updater.py", "使用说明_AI服装提示词资产工作台_V0.4.2.txt"}
 MAX_UPDATE_FILE_SIZE = 20 * 1024 * 1024
 
 # Keep legacy JSON untouched; import it into SQLite on first launch.
