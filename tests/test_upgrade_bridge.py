@@ -31,13 +31,12 @@ class UpgradeBridgeTests(unittest.TestCase):
 
     def test_bridge_does_not_import_v050_modules_before_they_exist(self):
         tree = ast.parse(self.app)
-        imported = {
-            alias.name.split(".")[0]
-            for node in ast.walk(tree)
-            if isinstance(node, (ast.Import, ast.ImportFrom))
-            for alias in (node.names if isinstance(node, ast.Import) else [node.module])
-            if alias
-        }
+        imported = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                imported.update(alias.name.split(".")[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imported.add(node.module.split(".")[0])
         self.assertFalse(imported.intersection({"storage", "collector", "case_matcher", "ai_analyzer"}))
 
     def test_bridge_manifest_hashes_cover_every_downloaded_file(self):
