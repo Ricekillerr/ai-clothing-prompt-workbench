@@ -1,0 +1,31 @@
+Prompt Atelier / AI服装提示词资产工作台 V0.4.3
+
+【版本说明】
+本版本以 V0.4.3 主程序为准。更新清单由“生成更新清单.py”根据实际发布文件自动生成，避免版本号与 SHA-256 哈希值不同步。
+
+【本地启动】
+1. 将本版本文件放在同一个文件夹内。
+2. 双击“启动AI服装提示词工作台.bat”。
+3. 浏览器将自动打开本地工作台。
+
+【用户数据位置】
+%USERPROFILE%\AI_Prompt_Asset_Workbench\prompt_library.json
+%USERPROFILE%\AI_Prompt_Asset_Workbench\references\
+
+提示词数据库和参考图片保存在独立用户目录，不属于程序更新文件。更新程序不得覆盖或删除该目录。
+
+【更新机制】
+1. 发布前运行“生成更新清单.bat”，自动读取主程序 APP_VERSION。
+2. 工具根据发布文件实际内容计算 SHA-256，并生成 update_manifest.json。
+3. 将清单中列出的全部文件及 update_manifest.json 一起发布到 GitHub 仓库根目录。
+4. 客户端检查更新时，先下载并校验文件；校验不一致则取消更新。
+5. 更新器在替换前备份旧文件，替换失败时尝试回滚。
+
+【故障恢复】
+如果自动重启未发生，可手动双击启动 BAT。
+更新失败时请保留安装目录中的 _update_backup 和 _update_error.log，便于定位问题。
+不要删除用户数据目录 AI_Prompt_Asset_Workbench。
+
+【重要】
+本地生成清单只代表本地发布文件已经配套；GitHub 仓库中的文件也必须同步更新，客户端才能获得正确版本。
+SHA-256 用于校验下载内容是否与发布清单一致，不替代 HTTPS 或 GitHub 账号安全。
