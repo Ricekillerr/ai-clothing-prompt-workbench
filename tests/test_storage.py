@@ -160,7 +160,7 @@ class StorageTests(unittest.TestCase):
         store.set_ingest_status(item["path"], "approved")
         second = store.save_scan_results(source_id, [item])
         self.assertEqual(second["unchanged"], 1)
-        self.assertEqual(store.list_pending_ingest(source_id), [])
+        self.assertEqual(store.list_pending_ingest(source_id), [], "已审核且内容未变化的文件不应重新进入待审核队列")
 
     def test_changed_ingest_content_returns_to_pending(self):
         store = Storage(self.home)
