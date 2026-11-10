@@ -107,6 +107,20 @@ class Storage:
                     );
                     CREATE INDEX IF NOT EXISTS idx_ingest_status ON ingest_files(status);
                     CREATE INDEX IF NOT EXISTS idx_ingest_source ON ingest_files(source_id);
+                    CREATE TABLE IF NOT EXISTS ai_analyses (
+                        id TEXT PRIMARY KEY,
+                        prompt_path TEXT NOT NULL,
+                        asset_path TEXT NOT NULL,
+                        prompt_sha256 TEXT NOT NULL,
+                        asset_sha256 TEXT NOT NULL,
+                        model TEXT NOT NULL,
+                        result_json TEXT NOT NULL,
+                        status TEXT NOT NULL DEFAULT 'review'
+                            CHECK(status IN ('review','approved','rejected')),
+                        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        approved_asset_id TEXT
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_ai_analyses_status ON ai_analyses(status);
                 """)
                 con.execute(
                     "INSERT OR IGNORE INTO metadata(key,value) VALUES('schema_version',?)",
@@ -359,6 +373,85 @@ class Storage:
             cur = con.execute("UPDATE ingest_files SET status=? WHERE path=?", (status, str(Path(path).resolve())))
             if cur.rowcount != 1:
                 raise StorageError("找不到对应的采集文件记录。")
+
+
+    def save_ai_analysis(self, prompt_path: str, asset_path: str,
+                         prompt_sha256: str, asset_sha256: str,
+                         model: str, result: dict) -> str:
+        import uuid
+        analysis_id = uuid.uuid4().hex
+        with self._session() as con:
+            con.execute(
+                """INSERT INTO ai_analyses
+                   (id,prompt_path,asset_path,prompt_sha256,asset_sha256,model,result_json,status)
+                   VALUES(?,?,?,?,?,?,?,'review')""",
+                (analysis_id, prompt_path, asset_path, prompt_sha256, asset_sha256,
+                 model, json.dumps(result, ensure_ascii=False)),
+            )
+        return analysis_id
+
+    def list_ai_analyses(self, status: str | None = None) -> list[dict]:
+        query = "SELECT * FROM ai_analyses"
+        args: tuple = ()
+        if status:
+            if status not in {"review", "approved", "rejected"}:
+                raise StorageError("AI 分析状态无效")
+            query += " WHERE status=?"
+            args = (status,)
+        query += " ORDER BY created_at DESC"
+        with self._session() as con:
+            rows = con.execute(query, args).fetchall()
+            return [{**dict(row), "result": json.loads(row["result_json"])} for row in rows]
+
+    def approve_ai_analysis(self, analysis_id: str) -> str:
+        import uuid
+        with self._session() as con:
+            row = con.execute(
+                "SELECT * FROM ai_analyses WHERE id=? AND status='review'",
+                (analysis_id,),
+            ).fetchone()
+            if row is None:
+                raise StorageError("找不到待确认的 AI 分析结果")
+            result = json.loads(row["result_json"])
+            asset_id = uuid.uuid4().hex
+            now = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
+            title = str(result.get("title") or Path(row["prompt_path"]).stem).strip()[:120]
+            prompt_text = str(result.get("prompt_text") or "").strip()
+            if not prompt_text:
+                raise StorageError("分析结果缺少原始提示词，不能入库")
+            item = {
+                "id": asset_id, "name": title, "category": str(result.get("category") or "其他"),
+                "subcategory": "", "material": "", "color": "", "model": str(result.get("model") or ""),
+                "status": "待验证", "tags": result.get("tags") if isinstance(result.get("tags"), list) else [],
+                "body": prompt_text, "notes": "AI 历史案例采集；已人工确认。摘要：" + str(result.get("prompt_summary") or ""),
+                "image": "", "created_at": now, "updated_at": now,
+            }
+            con.execute(
+                "INSERT INTO assets(id,kind,payload_json,created_at,updated_at) VALUES(?,?,?,?,?)",
+                (asset_id, "case", json.dumps(item, ensure_ascii=False), now, now),
+            )
+            for path, role in ((row["asset_path"], "history_reference"), (row["prompt_path"], "source_prompt")):
+                con.execute(
+                    """INSERT OR IGNORE INTO attachments
+                       (asset_id,relative_path,media_type,role,sha256,created_at)
+                       VALUES(?,?,?,?,?,?)""",
+                    (asset_id, path, "image" if role == "history_reference" else "text",
+                     role, row["asset_sha256"] if role == "history_reference" else row["prompt_sha256"], now),
+                )
+            con.execute(
+                "UPDATE ai_analyses SET status='approved',approved_asset_id=? WHERE id=?",
+                (asset_id, analysis_id),
+            )
+        return asset_id
+
+    def reject_ai_analysis(self, analysis_id: str) -> None:
+        with self._session() as con:
+            cur = con.execute(
+                "UPDATE ai_analyses SET status='rejected' WHERE id=? AND status='review'",
+                (analysis_id,),
+            )
+            if cur.rowcount != 1:
+                raise StorageError("找不到待拒绝的 AI 分析结果")
 
     def backup(self, destination: Path | None = None) -> Path:
         target = Path(destination) if destination else self.home / "backups" / "prompt_library.sqlite3"
