@@ -184,6 +184,39 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(result["changed"], 1)
         self.assertEqual(len(store.list_pending_ingest(source_id)), 1)
 
+    def test_ai_analysis_requires_human_approval_before_asset_import(self):
+        store = Storage(self.home)
+        source_dir = self.home / "history"
+        source_dir.mkdir()
+        source_id = store.register_scan_source(str(source_dir))
+        prompt = str(source_dir / "look.txt")
+        image = str(source_dir / "look.png")
+        analysis_id = store.save_ai_analysis(
+            prompt, image, "p" * 64, "i" * 64, "test-model",
+            {"title": "Look test", "category": "服装", "tags": ["黑色"],
+             "prompt_text": "保持人物不变，仅替换服装", "prompt_summary": "局部换装",
+             "confidence": 0.92, "risk_notes": []},
+        )
+        self.assertEqual(len(store.list_ai_analyses("review")), 1)
+        self.assertEqual(store.load_data()["cases"], [])
+        asset_id = store.approve_ai_analysis(analysis_id)
+        cases = store.load_data()["cases"]
+        self.assertEqual(len(cases), 1)
+        self.assertEqual(cases[0]["id"], asset_id)
+        self.assertEqual(cases[0]["body"], "保持人物不变，仅替换服装")
+        self.assertEqual(store.list_ai_analyses("review"), [])
+        self.assertEqual(store.list_ai_analyses("approved")[0]["approved_asset_id"], asset_id)
+
+    def test_ai_analysis_can_be_rejected_without_import(self):
+        store = Storage(self.home)
+        analysis_id = store.save_ai_analysis(
+            "prompt.txt", "asset.png", "p" * 64, "i" * 64, "test-model",
+            {"title": "Rejected", "prompt_text": "text"},
+        )
+        store.reject_ai_analysis(analysis_id)
+        self.assertEqual(store.load_data()["cases"], [])
+        self.assertEqual(store.list_ai_analyses("rejected")[0]["id"], analysis_id)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
