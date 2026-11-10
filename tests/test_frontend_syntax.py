@@ -11,7 +11,7 @@ class FrontendSyntaxTests(unittest.TestCase):
         if not node:
             self.skipTest("Node.js is not installed in this environment")
         html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
-        scripts = re.findall(r"<script\\b[^>]*>(.*?)</script>", html, flags=re.I | re.S)
+        scripts = re.findall(r"<script[^>]*>(.*?)</script>", html, flags=re.I | re.S)
         self.assertTrue(scripts, "index.html should contain its application script")
         result = subprocess.run(
             [node, "--check", "-"],
