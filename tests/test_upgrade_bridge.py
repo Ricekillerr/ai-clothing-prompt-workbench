@@ -17,7 +17,7 @@ class V050IntegrationTests(unittest.TestCase):
         self.assertEqual(self.manifest["version"], "0.5.0")
         self.assertEqual(set(self.manifest["files"]), set(self.manifest["sha256"]))
         for name in self.manifest["files"]:
-            content = (self.root / name).read_bytes().replace(b"\\r\\n", b"\\n")
+            content = (self.root / name).read_bytes().replace(b"\r\n", b"\n")
             self.assertEqual(hashlib.sha256(content).hexdigest(), self.manifest["sha256"][name], name)
 
     def test_v043_client_and_updater_accept_all_v050_release_files(self):
