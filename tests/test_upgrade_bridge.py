@@ -42,7 +42,7 @@ class UpgradeBridgeTests(unittest.TestCase):
     def test_bridge_manifest_hashes_cover_every_downloaded_file(self):
         self.assertEqual(set(self.manifest["files"]), set(self.manifest["sha256"]))
         for name in self.manifest["files"]:
-            content = (self.root / name).read_bytes().replace(b"\\r\\n", b"\\n")
+            content = (self.root / name).read_bytes().replace(b"\r\n", b"\n")
             import hashlib
             self.assertEqual(hashlib.sha256(content).hexdigest(), self.manifest["sha256"][name], name)
 
