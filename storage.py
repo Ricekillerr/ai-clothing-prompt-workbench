@@ -10,6 +10,7 @@ import json
 import os
 import sqlite3
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +37,18 @@ class Storage:
         con.execute("PRAGMA synchronous=FULL")
         return con
 
+    @contextmanager
+    def _session(self):
+        con = self._connect()
+        try:
+            yield con
+            con.commit()
+        except Exception:
+            con.rollback()
+            raise
+        finally:
+            con.close()
+
     def _initialize(self) -> None:
         existed = self.db_path.exists()
         # Validate the complete legacy file before creating a new database.
@@ -44,7 +57,7 @@ class Storage:
         if not existed and self.legacy_json.exists():
             self._read_legacy(self.legacy_json)
         try:
-            with self._connect() as con:
+            with self._session() as con:
                 con.executescript("""
                     CREATE TABLE IF NOT EXISTS metadata (
                         key TEXT PRIMARY KEY,
@@ -112,14 +125,14 @@ class Storage:
         # Resume an interrupted first-run migration. The marker is committed
         # in the same transaction as imported records, so absence means retry.
         if self.legacy_json.exists():
-            with self._connect() as con:
+            with self._session() as con:
                 marker = con.execute(
                     "SELECT value FROM metadata WHERE key='legacy_migration_complete'"
                 ).fetchone()
             if marker is None:
                 self.import_legacy_json(self.legacy_json)
         else:
-            with self._connect() as con:
+            with self._session() as con:
                 con.execute(
                     "INSERT OR IGNORE INTO metadata(key,value) VALUES('legacy_migration_complete','no_legacy_source')"
                 )
@@ -154,7 +167,7 @@ class Storage:
         data = self._read_legacy(source)
         counts = {"cases": 0, "modules": 0}
         try:
-            with self._connect() as con:
+            with self._session() as con:
                 # Import is all-or-nothing. Existing IDs are not overwritten.
                 for key, kind in (("cases", "case"), ("modules", "module")):
                     for item in data[key]:
@@ -190,7 +203,7 @@ class Storage:
 
     def load_data(self) -> dict[str, Any]:
         try:
-            with self._connect() as con:
+            with self._session() as con:
                 rows = con.execute(
                     "SELECT kind,payload_json FROM assets ORDER BY updated_at DESC, rowid DESC"
                 ).fetchall()
@@ -215,7 +228,7 @@ class Storage:
                     raise StorageError(f"发现重复记录 ID：{asset_id}，数据库未修改。")
                 seen_ids.add(asset_id)
         try:
-            with self._connect() as con:
+            with self._session() as con:
                 con.execute("BEGIN IMMEDIATE")
                 incoming_ids = {
                     str(item["id"])
@@ -251,7 +264,7 @@ class Storage:
         if not Path(canonical).is_dir():
             raise StorageError("扫描来源必须是存在的文件夹。")
         source_id = __import__("hashlib").sha256(canonical.encode("utf-8")).hexdigest()[:24]
-        with self._connect() as con:
+        with self._session() as con:
             con.execute(
                 """INSERT INTO scan_sources(id,folder_path,recursive,enabled)
                    VALUES(?,?,?,1)
@@ -261,13 +274,13 @@ class Storage:
         return source_id
 
     def list_scan_sources(self) -> list[dict]:
-        with self._connect() as con:
+        with self._session() as con:
             return [dict(row) for row in con.execute(
                 "SELECT * FROM scan_sources ORDER BY folder_path"
             ).fetchall()]
 
     def get_scan_snapshot(self, source_id: str) -> dict[str, dict]:
-        with self._connect() as con:
+        with self._session() as con:
             rows = con.execute(
                 "SELECT * FROM ingest_files WHERE source_id=? AND status!='missing'",
                 (source_id,),
@@ -278,14 +291,22 @@ class Storage:
         import datetime
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         added = changed = unchanged = 0
-        with self._connect() as con:
+        with self._session() as con:
             source = con.execute("SELECT id FROM scan_sources WHERE id=? AND enabled=1", (source_id,)).fetchone()
             if not source:
                 raise StorageError("扫描来源不存在或已停用。")
-            con.execute("UPDATE ingest_files SET status='missing' WHERE source_id=?", (source_id,))
+            existing = {
+                row["path"]: row
+                for row in con.execute(
+                    "SELECT path,sha256,status FROM ingest_files WHERE source_id=?",
+                    (source_id,),
+                ).fetchall()
+            }
+            seen_paths = set()
             for item in items:
                 path = str(Path(item["path"]).resolve())
-                old = con.execute("SELECT sha256,status FROM ingest_files WHERE path=?", (path,)).fetchone()
+                seen_paths.add(path)
+                old = existing.get(path)
                 if old is None:
                     added += 1
                     status = "pending"
@@ -308,6 +329,13 @@ class Storage:
                      item["media_type"], item["size"], item["modified_ns"], item["sha256"],
                      status, now, now),
                 )
+            # Mark only files absent from this completed scan as missing.
+            for old_path in existing:
+                if old_path not in seen_paths:
+                    con.execute(
+                        "UPDATE ingest_files SET status='missing' WHERE path=?",
+                        (old_path,),
+                    )
             con.execute(
                 "UPDATE scan_sources SET last_scanned_at=? WHERE id=?",
                 (now, source_id),
@@ -321,13 +349,13 @@ class Storage:
             query += " AND source_id=?"
             args = (source_id,)
         query += " ORDER BY last_seen_at DESC"
-        with self._connect() as con:
+        with self._session() as con:
             return [dict(row) for row in con.execute(query, args).fetchall()]
 
     def set_ingest_status(self, path: str, status: str) -> None:
         if status not in {"approved", "ignored", "pending"}:
             raise StorageError("不支持的采集审核状态。")
-        with self._connect() as con:
+        with self._session() as con:
             cur = con.execute("UPDATE ingest_files SET status=? WHERE path=?", (status, str(Path(path).resolve())))
             if cur.rowcount != 1:
                 raise StorageError("找不到对应的采集文件记录。")
@@ -339,13 +367,21 @@ class Storage:
         os.close(fd)
         temp_path = Path(temp_name)
         try:
-            with self._connect() as source, sqlite3.connect(temp_path) as dest:
+            source = self._connect()
+            dest = sqlite3.connect(temp_path)
+            try:
                 source.backup(dest)
+            finally:
+                dest.close()
+                source.close()
             # Validate backup before atomically publishing it.
-            with sqlite3.connect(temp_path) as check:
+            check = sqlite3.connect(temp_path)
+            try:
                 result = check.execute("PRAGMA quick_check").fetchone()
                 if not result or result[0] != "ok":
                     raise StorageError("备份完整性检查失败。")
+            finally:
+                check.close()
             os.replace(temp_path, target)
             return target
         finally:
