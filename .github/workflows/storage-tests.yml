@@ -3,6 +3,7 @@ name: Prompt Atelier storage regression tests
 on:
   push:
     branches:
+      - main
       - feature/v0.5.0-a-safe-storage
   pull_request:
     branches:
