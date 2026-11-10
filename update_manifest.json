@@ -1,14 +1,22 @@
 {
-  "version": "0.4.2",
-  "notes": "V0.4.2 兼容升级：本次仅更新旧版程序允许替换的主程序、网页界面和启动脚本；暂不替换 updater.py 与版本说明文件，避免旧版白名单拦截。用户提示词数据和参考图片保存在独立目录，不受影响。",
+  "version": "0.5.0",
+  "notes": "V0.5.0 历史案例智能采集：新增本地素材扫描、提示词与图片关联建议、OpenAI兼容视觉分析、AI结果待确认队列和人工确认入库。原始素材不移动、不修改；API Key 不写入本地数据库。视频当前仅登记文件信息，尚不做抽帧理解。更新采用逐文件校验、备份和失败回滚，用户数据目录保持独立。",
   "files": [
     "ai_prompt_workbench.py",
+    "storage.py",
+    "collector.py",
+    "case_matcher.py",
+    "ai_analyzer.py",
     "index.html",
     "启动AI服装提示词工作台.bat"
   ],
   "sha256": {
-    "ai_prompt_workbench.py": "918f0350f13b512027e81b3f829c8a289b39b07bc75a62f950dbdfcd0f628dfe",
-    "index.html": "7555ead2bf1983aa3fb41798b6d0b6339a8d1859925fac8e342f821240278f07",
-    "启动AI服装提示词工作台.bat": "a6e5445185d4e4bd041420828128becb7de9c5de068aad4e2cfb54276d582e9b"
+    "ai_prompt_workbench.py": "db7ca5b48ff4006a0e7c069c609ae9edd50b170833d11128112fea412baf08c9",
+    "storage.py": "81c33e3a807c99c6cc8ad420d46a4d85e6209662cef953f48c4022d7cc38eb12",
+    "collector.py": "cda27a7ea02542ba5a0f6f031e40c7f7c39810693c60d23c3a52b1fbdac68dac",
+    "case_matcher.py": "be94516134eea5d1d8ebc9a066f4df2e22eeabcaaddb78902d66cf2e31edf2db",
+    "ai_analyzer.py": "e2e1868fea72697c5fa64ed7d30140b5ea3b238cb12f18b48021526298899d4b",
+    "index.html": "72bfe3b279df31bffee40106569d7e94057280ab9425ac1f9ce39e66a8a2a390",
+    "启动AI服装提示词工作台.bat": "68ac8717be4540f7d4e0932534b47155f8bf3c0a05622eae4d63447a0456386b"
   }
 }

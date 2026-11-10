@@ -1,0 +1,27 @@
+name: Prompt Atelier storage regression tests
+
+on:
+  push:
+    branches:
+      - feature/v0.5.0-a-safe-storage
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  storage-tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Run storage regression tests
+        run: python -m unittest discover -s tests -v
+
+# CI regression suite includes collector, storage and matching tests.
