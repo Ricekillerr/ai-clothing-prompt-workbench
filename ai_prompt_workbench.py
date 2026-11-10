@@ -7,6 +7,7 @@ from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from storage import Storage
 from collector import scan_folder
+from case_matcher import rank_matches
 
 APP_VERSION = "0.5.0"
 GITHUB_OWNER = "Ricekillerr"
@@ -122,6 +123,7 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/version": self.send_json(200, {"version": APP_VERSION})
         elif path == "/api/scan/sources": self.send_json(200, {"sources": STORAGE.list_scan_sources()})
         elif path == "/api/scan/pending": self.send_json(200, {"items": STORAGE.list_pending_ingest()})
+        elif path == "/api/scan/matches": self.send_json(200, {"matches": rank_matches(STORAGE.list_pending_ingest())})
         elif path == "/api/update/check":
             try: self.send_json(200, check_remote_update())
             except Exception as e: self.send_json(200, {"ok": False, "current_version": APP_VERSION, "error": str(e)})
