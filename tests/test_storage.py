@@ -74,13 +74,13 @@ class StorageTests(unittest.TestCase):
     def test_existing_attachment_link_survives_normal_save(self):
         store = Storage(self.home)
         store.save_data({"cases": [{"id": "c1", "body": "before"}], "modules": []})
-        with store._connect() as con:
+        with store._session() as con:
             con.execute(
                 "INSERT INTO attachments(asset_id,relative_path,media_type,role) VALUES(?,?,?,?)",
                 ("c1", "references/example.png", "image", "reference"),
             )
         store.save_data({"cases": [{"id": "c1", "body": "after"}], "modules": []})
-        with store._connect() as con:
+        with store._session() as con:
             row = con.execute("SELECT relative_path FROM attachments WHERE asset_id='c1'").fetchone()
         self.assertIsNotNone(row)
         self.assertEqual(row["relative_path"], "references/example.png")
