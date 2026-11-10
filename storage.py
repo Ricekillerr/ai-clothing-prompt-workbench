@@ -441,11 +441,14 @@ class Storage:
                 (asset_id, "case", json.dumps(item, ensure_ascii=False), now, now),
             )
             for path, role in ((row["asset_path"], "history_reference"), (row["prompt_path"], "source_prompt")):
+                media_type = "text" if role == "source_prompt" else (
+                    "video" if Path(path).suffix.lower() in {".mp4", ".mov", ".m4v", ".webm", ".avi"} else "image"
+                )
                 con.execute(
                     """INSERT OR IGNORE INTO attachments
                        (asset_id,relative_path,media_type,role,sha256,created_at)
                        VALUES(?,?,?,?,?,?)""",
-                    (asset_id, path, "image" if role == "history_reference" else "text",
+                    (asset_id, path, media_type,
                      role, row["asset_sha256"] if role == "history_reference" else row["prompt_sha256"], now),
                 )
             con.execute(
