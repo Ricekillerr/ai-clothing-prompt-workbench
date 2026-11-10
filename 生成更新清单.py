@@ -22,7 +22,7 @@ RELEASE_FILES = [
 def sha256(path):
     # Git checkouts may convert LF to CRLF on Windows. GitHub serves release files as LF,
     # so normalize line endings before hashing to keep updater hashes cross-platform stable.
-    normalized = path.read_bytes().replace(b"\\r\\n", b"\\n")
+    normalized = path.read_bytes().replace(b"\r\n", b"\n")
     h = hashlib.sha256(normalized)
     return h.hexdigest()
 
