@@ -1,11 +1,11 @@
 import ast
+import hashlib
 import json
-import re
 import unittest
 from pathlib import Path
 
 
-class UpgradeBridgeTests(unittest.TestCase):
+class V050IntegrationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.root = Path(__file__).resolve().parents[1]
@@ -13,42 +13,49 @@ class UpgradeBridgeTests(unittest.TestCase):
         cls.app = (cls.root / "ai_prompt_workbench.py").read_text(encoding="utf-8")
         cls.updater = (cls.root / "updater.py").read_text(encoding="utf-8")
 
-    def test_bridge_version_and_files_are_accepted_by_v042(self):
-        self.assertEqual(self.manifest["version"], "0.4.3")
-        legacy_allowed = {
-            "ai_prompt_workbench.py", "index.html",
-            "启动AI服装提示词工作台.bat", "updater.py",
-            "使用说明_AI服装提示词资产工作台_V0.4.2.txt",
-        }
-        self.assertTrue(set(self.manifest["files"]).issubset(legacy_allowed))
-
-    def test_bridge_expands_both_application_and_updater_allowlists(self):
-        self.assertIn('APP_VERSION = "0.4.3"', self.app)
-        expected = {'"storage.py"', '"collector.py"', '"case_matcher.py"', '"ai_analyzer.py"'}
-        for name in expected:
-            self.assertIn(name, self.app)
-            self.assertIn(name, self.updater)
-
-    def test_bridge_bootstraps_updater_from_verified_stage_without_local_updater(self):
-        self.assertIn('updater = stage / "updater.py"', self.app)
-        self.assertNotIn('本地缺少 updater.py 或启动 BAT', self.app)
-
-    def test_bridge_does_not_import_v050_modules_before_they_exist(self):
-        tree = ast.parse(self.app)
-        imported = set()
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                imported.update(alias.name.split(".")[0] for alias in node.names)
-            elif isinstance(node, ast.ImportFrom) and node.module:
-                imported.add(node.module.split(".")[0])
-        self.assertFalse(imported.intersection({"storage", "collector", "case_matcher", "ai_analyzer"}))
-
-    def test_bridge_manifest_hashes_cover_every_downloaded_file(self):
+    def test_manifest_is_v050_and_all_files_are_hash_covered(self):
+        self.assertEqual(self.manifest["version"], "0.5.0")
         self.assertEqual(set(self.manifest["files"]), set(self.manifest["sha256"]))
         for name in self.manifest["files"]:
-            content = (self.root / name).read_bytes().replace(b"\r\n", b"\n")
-            import hashlib
+            content = (self.root / name).read_bytes().replace(b"\\r\\n", b"\\n")
             self.assertEqual(hashlib.sha256(content).hexdigest(), self.manifest["sha256"][name], name)
+
+    def test_v043_client_and_updater_accept_all_v050_release_files(self):
+        tree = ast.parse(self.app)
+        app_allow = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name) and target.id == "ALLOWED_UPDATE_FILES":
+                        app_allow.update(ast.literal_eval(node.value))
+        updater_tree = ast.parse(self.updater)
+        updater_allow = set()
+        for node in ast.walk(updater_tree):
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name) and target.id == "ALLOWED":
+                        updater_allow.update(ast.literal_eval(node.value))
+        self.assertTrue(set(self.manifest["files"]).issubset(app_allow))
+        self.assertTrue(set(self.manifest["files"]).issubset(updater_allow))
+
+    def test_backend_connects_storage_and_exposes_ingestion_routes(self):
+        self.assertIn("STORAGE = Storage(", self.app)
+        self.assertIn("from collector import scan_folder, sha256_file", self.app)
+        for route in ("/api/scan/sources", "/api/scan/pending", "/api/scan/matches",
+                      "/api/scan/source", "/api/scan/run", "/api/ai/analyze",
+                      "/api/ai/approve", "/api/ai/reject"):
+            self.assertIn(route, self.app)
+
+    def test_frontend_contains_scanner_review_and_ai_controls(self):
+        html = (self.root / "index.html").read_text(encoding="utf-8")
+        for text in ("历史案例自动采集", "立即扫描", "匹配提示词与素材",
+                     "AI审核结果", "确认并入库", "async function scanApi"):
+            self.assertIn(text, html)
+
+    def test_legacy_json_is_migrated_without_replacing_source(self):
+        self.assertIn("legacy_json=LEGACY_DATA", self.app)
+        self.assertIn("STORAGE.load_data()", self.app)
+        self.assertIn("STORAGE.save_data(d)", self.app)
 
 
 if __name__ == "__main__":
