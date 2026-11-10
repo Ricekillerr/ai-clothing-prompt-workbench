@@ -13,6 +13,10 @@ RELEASE_FILES = [
     "updater.py",
     "启动AI服装提示词工作台.bat",
     "使用说明_AI服装提示词资产工作台_V0.4.3.txt",
+    "storage.py",
+    "collector.py",
+    "case_matcher.py",
+    "ai_analyzer.py",
 ]
 
 def sha256(path):
