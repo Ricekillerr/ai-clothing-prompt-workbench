@@ -20,10 +20,10 @@ RELEASE_FILES = [
 ]
 
 def sha256(path):
-    h = hashlib.sha256()
-    with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(1024 * 1024), b""):
-            h.update(chunk)
+    # Git checkouts may convert LF to CRLF on Windows. GitHub serves release files as LF,
+    # so normalize line endings before hashing to keep updater hashes cross-platform stable.
+    normalized = path.read_bytes().replace(b"\\r\\n", b"\\n")
+    h = hashlib.sha256(normalized)
     return h.hexdigest()
 
 def main():
