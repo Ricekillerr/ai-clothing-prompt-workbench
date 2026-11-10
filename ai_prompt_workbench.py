@@ -8,6 +8,8 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from storage import Storage
 from collector import scan_folder
 from case_matcher import rank_matches
+from ai_analyzer import analyze_pair
+from collector import sha256_file
 
 APP_VERSION = "0.5.0"
 GITHUB_OWNER = "Ricekillerr"
@@ -124,6 +126,7 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/scan/sources": self.send_json(200, {"sources": STORAGE.list_scan_sources()})
         elif path == "/api/scan/pending": self.send_json(200, {"items": STORAGE.list_pending_ingest()})
         elif path == "/api/scan/matches": self.send_json(200, {"matches": rank_matches(STORAGE.list_pending_ingest())})
+        elif path == "/api/ai/reviews": self.send_json(200, {"reviews": STORAGE.list_ai_analyses("review")})
         elif path == "/api/update/check":
             try: self.send_json(200, check_remote_update())
             except Exception as e: self.send_json(200, {"ok": False, "current_version": APP_VERSION, "error": str(e)})
@@ -154,6 +157,31 @@ class Handler(BaseHTTPRequestHandler):
                 items = scan_folder(Path(source["folder_path"]), bool(source["recursive"]), previous=previous)
                 summary = STORAGE.save_scan_results(source_id, items)
                 self.send_json(200, {"ok": True, "summary": summary})
+            elif self.path == "/api/ai/analyze":
+                prompt_path = str(d.get("prompt_path", "")).strip()
+                asset_path = str(d.get("asset_path", "")).strip()
+                prompt_record = STORAGE.get_ingest_record(prompt_path)
+                asset_record = STORAGE.get_ingest_record(asset_path)
+                if not prompt_record or prompt_record["media_type"] != "text":
+                    raise ValueError("提示词文件必须来自已扫描的本地文件夹")
+                if not asset_record or asset_record["media_type"] not in {"image", "video"}:
+                    raise ValueError("关联素材必须来自已扫描的本地文件夹")
+                result = analyze_pair(
+                    prompt_path, asset_path, str(d.get("api_key", "")),
+                    str(d.get("endpoint", "https://api.openai.com/v1")),
+                    str(d.get("model", "gpt-4o-mini")),
+                )
+                analysis_id = STORAGE.save_ai_analysis(
+                    prompt_path, asset_path, prompt_record["sha256"], asset_record["sha256"],
+                    str(result.get("model", "")), result,
+                )
+                self.send_json(200, {"ok": True, "analysis_id": analysis_id, "result": result})
+            elif self.path == "/api/ai/approve":
+                asset_id = STORAGE.approve_ai_analysis(str(d.get("analysis_id", "")))
+                self.send_json(200, {"ok": True, "asset_id": asset_id, "data": load_data()})
+            elif self.path == "/api/ai/reject":
+                STORAGE.reject_ai_analysis(str(d.get("analysis_id", "")))
+                self.send_json(200, {"ok": True})
             elif self.path == "/api/scan/review":
                 file_path = str(d.get("path", "")).strip()
                 status = str(d.get("status", "")).strip()
