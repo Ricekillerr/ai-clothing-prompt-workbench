@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/v0.5.0-mainline-integration
   pull_request:
     branches:
       - main
