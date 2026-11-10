@@ -1,16 +1,18 @@
 {
   "version": "0.4.3",
-  "notes": "V0.4.3 兼容桥接升级：先扩展旧版更新器的安全文件白名单，保持原有 JSON 数据和界面不变。此版本仅为 V0.4.2 到 V0.5.0 的过渡升级；安装完成后再次检查更新即可获取 V0.5.0。",
+  "notes": "Prompt Atelier V0.4.3；更新清单与发布文件同步，SHA-256 根据 GitHub 实际发布内容生成。",
   "files": [
     "ai_prompt_workbench.py",
-    "updater.py",
     "index.html",
-    "启动AI服装提示词工作台.bat"
+    "updater.py",
+    "启动AI服装提示词工作台.bat",
+    "使用说明_AI服装提示词资产工作台_V0.4.3.txt"
   ],
   "sha256": {
-    "ai_prompt_workbench.py": "0e9f84f74eb125d992f739aef7ef780de892b433a515412f08aa49c8c73a21d8",
-    "updater.py": "6925b7513b059e599a4d6605af72269f5d289702ad313d357a550a38b98f792d",
-    "index.html": "1ccd8f6adb1bc668eb639b45cd4bcc021534829ffd1900141d79a1796c557ed0",
-    "启动AI服装提示词工作台.bat": "68ac8717be4540f7d4e0932534b47155f8bf3c0a05622eae4d63447a0456386b"
+    "ai_prompt_workbench.py": "d131785c6c58dacee571315b4c2a301a1225586fd9f67fd6bc2b2b1b3ca4fd65",
+    "index.html": "00c0fcffb54cd905f397552142f5631d3b95a48a6b99c4b99b1346ba5fe226eb",
+    "updater.py": "b2bac5b3899087c124fb78859cdac4e369407cb04adbe658bf7aab67455a72b4",
+    "启动AI服装提示词工作台.bat": "b5526376cb41f71ce5312800bcab3bfedf437977deb5ab7c8b96758905ad0416",
+    "使用说明_AI服装提示词资产工作台_V0.4.3.txt": "11af038c5a0d8c1b650dcf75d5b02d965c1e6abeaa5c0e0da78d4849f4b15949"
   }
 }
