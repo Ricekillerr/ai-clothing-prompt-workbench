@@ -5,8 +5,12 @@ from pathlib import Path
 from urllib.parse import unquote, quote
 from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+from storage import Storage
+from collector import scan_folder, sha256_file
+from case_matcher import rank_matches
+from ai_analyzer import analyze_pair
 
-APP_VERSION = "0.4.3"
+APP_VERSION = "0.5.0"
 GITHUB_OWNER = "Ricekillerr"
 GITHUB_REPO = "ai-clothing-prompt-workbench"
 GITHUB_BRANCH = "main"
@@ -21,32 +25,18 @@ IMAGES.mkdir(parents=True, exist_ok=True)
 ALLOWED_UPDATE_FILES = {"ai_prompt_workbench.py", "index.html", "启动AI服装提示词工作台.bat", "updater.py", "使用说明_AI服装提示词资产工作台_V0.4.3.txt", "storage.py", "collector.py", "case_matcher.py", "ai_analyzer.py"}
 MAX_UPDATE_FILE_SIZE = 20 * 1024 * 1024
 
+# Keep the legacy JSON intact; migrate it transactionally into SQLite on first launch.
+LEGACY_DATA = DATA if DATA.exists() else next(
+    (p for p in (ROOT / "prompt_library.json", ROOT / "V0.2_prompt_library.json") if p.exists()),
+    DATA,
+)
+STORAGE = Storage(HOME, legacy_json=LEGACY_DATA)
+
 def load_data():
-    if DATA.exists():
-        try:
-            d = json.loads(DATA.read_text(encoding="utf-8"))
-            if isinstance(d, dict):
-                d.setdefault("cases", []); d.setdefault("modules", [])
-                return d
-        except Exception:
-            backup = DATA.with_suffix(".unreadable.json")
-            if not backup.exists():
-                try: shutil.copy2(DATA, backup)
-                except Exception: pass
-    for p in (ROOT / "prompt_library.json", ROOT / "V0.2_prompt_library.json"):
-        if p.exists():
-            try:
-                d = json.loads(p.read_text(encoding="utf-8"))
-                if isinstance(d, dict):
-                    d.setdefault("cases", []); d.setdefault("modules", [])
-                    save_data(d); return d
-            except Exception: pass
-    return {"version": 2, "cases": [], "modules": []}
+    return STORAGE.load_data()
 
 def save_data(d):
-    tmp = DATA.with_suffix(".tmp")
-    tmp.write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
-    os.replace(tmp, DATA)
+    STORAGE.save_data(d)
 
 def version_tuple(v):
     vals = []
@@ -132,6 +122,10 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/data":
             self.send_bytes(200, json.dumps(load_data(), ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
         elif path == "/api/version": self.send_json(200, {"version": APP_VERSION})
+        elif path == "/api/scan/sources": self.send_json(200, {"sources": STORAGE.list_scan_sources()})
+        elif path == "/api/scan/pending": self.send_json(200, {"items": STORAGE.list_pending_ingest()})
+        elif path == "/api/scan/matches": self.send_json(200, {"matches": rank_matches(STORAGE.list_pending_ingest())})
+        elif path == "/api/ai/reviews": self.send_json(200, {"reviews": STORAGE.list_ai_analyses("review")})
         elif path == "/api/update/check":
             try: self.send_json(200, check_remote_update())
             except Exception as e: self.send_json(200, {"ok": False, "current_version": APP_VERSION, "error": str(e)})
@@ -148,6 +142,54 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/api/data":
                 if not isinstance(d, dict): raise ValueError("数据格式不正确")
                 d.setdefault("cases", []); d.setdefault("modules", []); save_data(d)
+                self.send_json(200, {"ok": True})
+            elif self.path == "/api/scan/source":
+                folder = str(d.get("folder", "")).strip()
+                if not folder: raise ValueError("请提供需要扫描的文件夹路径")
+                source_id = STORAGE.register_scan_source(folder, bool(d.get("recursive", True)))
+                self.send_json(200, {"ok": True, "source_id": source_id})
+            elif self.path == "/api/scan/run":
+                source_id = str(d.get("source_id", "")).strip()
+                source = next((x for x in STORAGE.list_scan_sources() if x["id"] == source_id), None)
+                if not source: raise ValueError("扫描来源不存在")
+                previous = STORAGE.get_scan_snapshot(source_id)
+                items = scan_folder(Path(source["folder_path"]), bool(source["recursive"]), previous=previous)
+                summary = STORAGE.save_scan_results(source_id, items)
+                self.send_json(200, {"ok": True, "summary": summary})
+            elif self.path == "/api/ai/analyze":
+                prompt_path = str(d.get("prompt_path", "")).strip()
+                asset_path = str(d.get("asset_path", "")).strip()
+                prompt_record = STORAGE.get_ingest_record(prompt_path)
+                asset_record = STORAGE.get_ingest_record(asset_path)
+                if not prompt_record or prompt_record["media_type"] != "text":
+                    raise ValueError("提示词文件必须来自已扫描的本地文件夹")
+                if not asset_record or asset_record["media_type"] not in {"image", "video"}:
+                    raise ValueError("关联素材必须来自已扫描的本地文件夹")
+                if sha256_file(Path(prompt_path)) != prompt_record["sha256"]:
+                    raise ValueError("提示词文件在扫描后发生变化，请重新扫描再分析")
+                if sha256_file(Path(asset_path)) != asset_record["sha256"]:
+                    raise ValueError("关联素材在扫描后发生变化，请重新扫描再分析")
+                result = analyze_pair(
+                    prompt_path, asset_path, str(d.get("api_key", "")),
+                    str(d.get("endpoint", "https://api.openai.com/v1")),
+                    str(d.get("model", "gpt-4o-mini")),
+                )
+                analysis_id = STORAGE.save_ai_analysis(
+                    prompt_path, asset_path, prompt_record["sha256"], asset_record["sha256"],
+                    str(result.get("model", "")), result,
+                )
+                self.send_json(200, {"ok": True, "analysis_id": analysis_id, "result": result})
+            elif self.path == "/api/ai/approve":
+                asset_id = STORAGE.approve_ai_analysis(str(d.get("analysis_id", "")))
+                self.send_json(200, {"ok": True, "asset_id": asset_id, "data": load_data()})
+            elif self.path == "/api/ai/reject":
+                STORAGE.reject_ai_analysis(str(d.get("analysis_id", "")))
+                self.send_json(200, {"ok": True})
+            elif self.path == "/api/scan/review":
+                file_path = str(d.get("path", "")).strip()
+                status = str(d.get("status", "")).strip()
+                if not file_path: raise ValueError("缺少待审核文件路径")
+                STORAGE.set_ingest_status(file_path, status)
                 self.send_json(200, {"ok": True})
             elif self.path == "/api/image":
                 ext = Path(d.get("name", "image.png")).suffix.lower()
