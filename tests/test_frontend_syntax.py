@@ -15,12 +15,11 @@ class FrontendSyntaxTests(unittest.TestCase):
         self.assertTrue(scripts, "index.html should contain its application script")
         result = subprocess.run(
             [node, "--check", "-"],
-            input=scripts[-1],
-            text=True,
+            input=scripts[-1].encode("utf-8"),
             capture_output=True,
             check=False,
         )
-        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        self.assertEqual(result.returncode, 0, (result.stderr or result.stdout).decode("utf-8", errors="replace"))
 
 
 if __name__ == "__main__":
