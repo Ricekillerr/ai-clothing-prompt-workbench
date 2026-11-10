@@ -356,6 +356,16 @@ class Storage:
             )
         return {"added": added, "changed": changed, "unchanged": unchanged}
 
+
+    def get_ingest_record(self, path: str) -> dict | None:
+        canonical = str(Path(path).resolve())
+        with self._session() as con:
+            row = con.execute(
+                "SELECT * FROM ingest_files WHERE path=? AND status IN ('pending','approved')",
+                (canonical,),
+            ).fetchone()
+            return dict(row) if row else None
+
     def list_pending_ingest(self, source_id: str | None = None) -> list[dict]:
         query = "SELECT * FROM ingest_files WHERE status='pending'"
         args: tuple = ()
