@@ -29,6 +29,10 @@ class UpgradeBridgeTests(unittest.TestCase):
             self.assertIn(name, self.app)
             self.assertIn(name, self.updater)
 
+    def test_bridge_bootstraps_updater_from_verified_stage_without_local_updater(self):
+        self.assertIn('updater = stage / "updater.py"', self.app)
+        self.assertNotIn('本地缺少 updater.py 或启动 BAT', self.app)
+
     def test_bridge_does_not_import_v050_modules_before_they_exist(self):
         tree = ast.parse(self.app)
         imported = set()
