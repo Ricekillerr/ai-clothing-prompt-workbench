@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AI服装提示词资产工作台 V0.4.2。"""
+"""AI服装提示词资产工作台 V0.4.3。"""
 import base64, hashlib, json, mimetypes, os, shutil, subprocess, sys, tempfile, threading, uuid, webbrowser
 from pathlib import Path
 from urllib.parse import unquote, quote
@@ -18,7 +18,7 @@ IMAGES = HOME / "references"
 DATA = HOME / "prompt_library.json"
 HOME.mkdir(parents=True, exist_ok=True)
 IMAGES.mkdir(parents=True, exist_ok=True)
-ALLOWED_UPDATE_FILES = {"ai_prompt_workbench.py", "index.html", "启动AI服装提示词工作台.bat", "updater.py", "使用说明_AI服装提示词资产工作台_V0.4.2.txt", "storage.py", "collector.py", "case_matcher.py", "ai_analyzer.py"}
+ALLOWED_UPDATE_FILES = {"ai_prompt_workbench.py", "index.html", "启动AI服装提示词工作台.bat", "updater.py", "使用说明_AI服装提示词资产工作台_V0.4.3.txt", "storage.py", "collector.py", "case_matcher.py", "ai_analyzer.py"}
 MAX_UPDATE_FILE_SIZE = 20 * 1024 * 1024
 
 def load_data():
