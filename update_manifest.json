@@ -8,7 +8,7 @@
     "启动AI服装提示词工作台.bat"
   ],
   "sha256": {
-    "ai_prompt_workbench.py": "306278caa41d01a2b30e331d5251cf875f44fbf00abd3bc494dc905e3d289c9a",
+    "ai_prompt_workbench.py": "0e9f84f74eb125d992f739aef7ef780de892b433a515412f08aa49c8c73a21d8",
     "updater.py": "6925b7513b059e599a4d6605af72269f5d289702ad313d357a550a38b98f792d",
     "index.html": "1ccd8f6adb1bc668eb639b45cd4bcc021534829ffd1900141d79a1796c557ed0",
     "启动AI服装提示词工作台.bat": "68ac8717be4540f7d4e0932534b47155f8bf3c0a05622eae4d63447a0456386b"

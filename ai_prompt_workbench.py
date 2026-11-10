@@ -159,10 +159,14 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(200, {"path": name})
             elif self.path == "/api/update/apply":
                 stage, latest = stage_update()
-                updater = ROOT / "updater.py"; launcher = ROOT / "启动AI服装提示词工作台.bat"
-                if not updater.is_file() or not launcher.is_file():
+                # Bootstrap from the verified staged updater. Older installs may not
+                # contain updater.py or the launcher yet; both are included in the
+                # manifest and installed by the updater transaction.
+                updater = stage / "updater.py"
+                launcher = ROOT / "启动AI服装提示词工作台.bat"
+                if not updater.is_file():
                     shutil.rmtree(stage, ignore_errors=True)
-                    raise ValueError("本地缺少 updater.py 或启动 BAT，请先安装完整修复包")
+                    raise ValueError("更新包缺少经过校验的 updater.py，已安全取消更新")
                 flags = 0
                 if sys.platform == "win32": flags = getattr(subprocess, "DETACHED_PROCESS", 8) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 512)
                 subprocess.Popen([sys.executable, str(updater), str(stage), str(ROOT), str(launcher)], cwd=str(ROOT),
