@@ -166,6 +166,10 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("提示词文件必须来自已扫描的本地文件夹")
                 if not asset_record or asset_record["media_type"] not in {"image", "video"}:
                     raise ValueError("关联素材必须来自已扫描的本地文件夹")
+                if sha256_file(Path(prompt_path)) != prompt_record["sha256"]:
+                    raise ValueError("提示词文件在扫描后发生变化，请重新扫描再分析")
+                if sha256_file(Path(asset_path)) != asset_record["sha256"]:
+                    raise ValueError("关联素材在扫描后发生变化，请重新扫描再分析")
                 result = analyze_pair(
                     prompt_path, asset_path, str(d.get("api_key", "")),
                     str(d.get("endpoint", "https://api.openai.com/v1")),
