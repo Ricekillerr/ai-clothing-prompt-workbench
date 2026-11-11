@@ -22,6 +22,11 @@ RUNTIME_FILES = [
 ]
 
 
+def canonical_bytes(path: Path) -> bytes:
+    """Hash repository-style LF bytes regardless of the local Windows checkout mode."""
+    return path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+
 def build_manifest(notes: str = "") -> dict:
     app_source = (ROOT / "ai_prompt_workbench.py").read_text(encoding="utf-8")
     match = re.search(r'^APP_VERSION\s*=\s*["\']([^"\']+)["\']', app_source, re.MULTILINE)
@@ -43,7 +48,7 @@ def build_manifest(notes: str = "") -> dict:
         "notes": notes or current.get("notes") or f"Prompt Atelier V{version} update",
         "files": RUNTIME_FILES,
         "sha256": {
-            name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
+            name: hashlib.sha256(canonical_bytes(ROOT / name)).hexdigest()
             for name in RUNTIME_FILES
         },
     }
