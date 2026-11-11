@@ -68,14 +68,16 @@ class UpdaterTransactionTests(unittest.TestCase):
             argv = ["updater.py", str(stage), str(root), str(launcher)]
             original_replace = updater.replace_with_retry
 
-            def fail_once_for_staged_updater(src, dst):
-                if Path(src) == stage / "updater.py":
-                    raise OSError("simulated file lock")
+            replace_calls = {"count": 0}
+            def fail_second_install_replace(src, dst):
+                replace_calls["count"] += 1
+                if replace_calls["count"] == 2:
+                    raise OSError("simulated file lock during second file install")
                 return original_replace(src, dst)
 
             with patch.object(updater.sys, "argv", argv), patch.object(
                 updater, "service_running", return_value=False
-            ), patch.object(updater, "replace_with_retry", side_effect=fail_once_for_staged_updater):
+            ), patch.object(updater, "replace_with_retry", side_effect=fail_second_install_replace):
                 self.assertEqual(updater.main(), 9)
             for name, payload in old.items():
                 self.assertEqual((root / name).read_bytes(), payload)
