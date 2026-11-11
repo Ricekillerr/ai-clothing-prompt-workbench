@@ -1,24 +1,14 @@
 {
-  "version": "0.5.1",
-  "notes": "Prompt Atelier V0.5.1：新增服装属性加权检索、款号精确匹配、已验证成功案例筛选与可解释匹配理由；强化 AI 属性提取与案例图片本地预览。为兼容旧版本地更新器，本次自动更新不替换说明文档。",
+  "version": "0.5.2",
+  "notes": "Prompt Atelier V0.5.2：修复 Windows 更新器安装 BAT/CMD 时的换行格式兼容问题，统一转换为 CRLF；修复启动脚本解析异常，并同步版本号。保留 V0.5.1 智能案例检索功能。",
   "files": [
     "ai_prompt_workbench.py",
-    "index.html",
     "updater.py",
-    "启动AI服装提示词工作台.bat",
-    "storage.py",
-    "collector.py",
-    "case_matcher.py",
-    "ai_analyzer.py"
+    "启动AI服装提示词工作台.bat"
   ],
   "sha256": {
-    "ai_prompt_workbench.py": "332701c3364c0346b2d722ba087e42d5c3d1d11b4f7346ac091729b00a9741be",
-    "index.html": "1e89301baad0e6b4266de1608e94edc7b93493da77ce2a076ac8760256bc4887",
-    "updater.py": "9f815b2b813d46f95d5e9be049a533ac94e40323a893d7d1ee530425a30b4e1b",
-    "启动AI服装提示词工作台.bat": "a64c3ba2bba22c3758857cb138b5eb71d624763be555a25c0694853c96066f02",
-    "storage.py": "eb08a34c7feb69364c45e7ee87921e1174d837225fcee51e70f64faa4dfa4ac6",
-    "collector.py": "cda27a7ea02542ba5a0f6f031e40c7f7c39810693c60d23c3a52b1fbdac68dac",
-    "case_matcher.py": "207c77ef2452680a9379d0ace47c160a9425a2b3f9ab548321ecb594abaefabc",
-    "ai_analyzer.py": "2b0f469d8d84a689d0bf365297ce63414c4d644236205d1b0d9ce4c1332a581e"
+    "ai_prompt_workbench.py": "2ab5d07539941028de6907d407ed4be5d9e1338c095e627387aa0dc4b06d7640",
+    "updater.py": "b472d0ff7c1745adb035d80b696b5107cac2715cef81877307236de5250061cc",
+    "启动AI服装提示词工作台.bat": "a3d3cea8e57d27fb504d55d87acfb6727c11d854da932616247aa772554d21f8"
   }
 }
