@@ -1,0 +1,27 @@
+name: Prompt Atelier quality gate
+
+on:
+  push:
+    branches: [main, "hardening/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-quality:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify release manifest and exact SHA-256 values
+        run: python tools/build_update_manifest.py --check
+      - name: Compile all Python modules
+        run: python -m compileall -q .
+      - name: Run updater regression tests
+        run: python -m unittest discover -s tests -v
