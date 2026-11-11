@@ -10,7 +10,7 @@ from collector import scan_folder, sha256_file
 from case_matcher import rank_matches, rank_case_matches
 from ai_analyzer import analyze_pair
 
-APP_VERSION = "0.5.1"
+APP_VERSION = "0.5.2"
 GITHUB_OWNER = "Ricekillerr"
 GITHUB_REPO = "ai-clothing-prompt-workbench"
 GITHUB_BRANCH = "main"
