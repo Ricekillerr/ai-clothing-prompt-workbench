@@ -2,15 +2,15 @@
 """AI服装提示词资产工作台 V0.5.0。"""
 import base64, hashlib, json, mimetypes, os, shutil, subprocess, sys, tempfile, threading, uuid, webbrowser
 from pathlib import Path
-from urllib.parse import unquote, quote
+from urllib.parse import unquote, quote, parse_qs, urlsplit
 from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from storage import Storage
 from collector import scan_folder, sha256_file
-from case_matcher import rank_matches
+from case_matcher import rank_matches, rank_case_matches
 from ai_analyzer import analyze_pair
 
-APP_VERSION = "0.5.0"
+APP_VERSION = "0.5.1"
 GITHUB_OWNER = "Ricekillerr"
 GITHUB_REPO = "ai-clothing-prompt-workbench"
 GITHUB_BRANCH = "main"
@@ -122,6 +122,15 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/data":
             self.send_bytes(200, json.dumps(load_data(), ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
         elif path == "/api/version": self.send_json(200, {"version": APP_VERSION})
+        elif path == "/api/cases/search":
+            params = parse_qs(urlsplit(self.path).query)
+            query = str((params.get("q") or [""])[0]).strip()
+            threshold = (params.get("threshold") or ["0.8"])[0]
+            if not query:
+                self.send_json(200, {"matches": [], "threshold": 0.8, "message": "请输入款号或服装描述"})
+            else:
+                matches = rank_case_matches(load_data().get("cases", []), query, threshold=threshold)
+                self.send_json(200, {"matches": matches, "threshold": float(threshold)})
         elif path == "/api/scan/sources": self.send_json(200, {"sources": STORAGE.list_scan_sources()})
         elif path == "/api/scan/pending": self.send_json(200, {"items": STORAGE.list_pending_ingest()})
         elif path == "/api/scan/matches": self.send_json(200, {"matches": rank_matches(STORAGE.list_pending_ingest())})
