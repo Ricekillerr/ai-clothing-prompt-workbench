@@ -1,14 +1,24 @@
 {
-  "version": "0.5.2",
-  "notes": "Prompt Atelier V0.5.2：修复 Windows 更新器安装 BAT/CMD 时的换行格式兼容问题，统一转换为 CRLF；修复启动脚本解析异常，并同步版本号。保留 V0.5.1 智能案例检索功能。",
+  "version": "0.6.0",
+  "notes": "Prompt Atelier V0.6.0：更新下载增加 GitHub Raw 与 Contents API 双通道及逐文件 SHA-256 诊断；更新清单覆盖主程序、界面、启动器和全部运行依赖；更新备份改为保留最近三个可回滚版本。",
   "files": [
     "ai_prompt_workbench.py",
+    "index.html",
+    "启动AI服装提示词工作台.bat",
     "updater.py",
-    "启动AI服装提示词工作台.bat"
+    "storage.py",
+    "collector.py",
+    "case_matcher.py",
+    "ai_analyzer.py"
   ],
   "sha256": {
-    "ai_prompt_workbench.py": "cc158659d5ecab9b4db6a30733d9ecf14396600b6809c5714bce16308ddd0481",
-    "updater.py": "1cbdf1d55d07c4c3aa232c79b885b5ffb4ae681818b002178ba28d38fcee092b",
-    "启动AI服装提示词工作台.bat": "a64c3ba2bba22c3758857cb138b5eb71d624763be555a25c0694853c96066f02"
+    "ai_prompt_workbench.py": "36b2265ed119d28af5337bfabcf6d87745cafa5def0431301ab8ef1aca1a2ac0",
+    "index.html": "1e89301baad0e6b4266de1608e94edc7b93493da77ce2a076ac8760256bc4887",
+    "启动AI服装提示词工作台.bat": "a64c3ba2bba22c3758857cb138b5eb71d624763be555a25c0694853c96066f02",
+    "updater.py": "5669c3a1219bac80bd4f1fd5bbe0718c7edf87442e74d7cc8c863517316d81b7",
+    "storage.py": "eb08a34c7feb69364c45e7ee87921e1174d837225fcee51e70f64faa4dfa4ac6",
+    "collector.py": "cda27a7ea02542ba5a0f6f031e40c7f7c39810693c60d23c3a52b1fbdac68dac",
+    "case_matcher.py": "207c77ef2452680a9379d0ace47c160a9425a2b3f9ab548321ecb594abaefabc",
+    "ai_analyzer.py": "2b0f469d8d84a689d0bf365297ce63414c4d644236205d1b0d9ce4c1332a581e"
   }
 }
