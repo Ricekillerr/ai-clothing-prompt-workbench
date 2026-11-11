@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sqlite3
 import tempfile
 from contextlib import contextmanager
@@ -429,12 +430,26 @@ class Storage:
             prompt_text = str(result.get("prompt_text") or "").strip()
             if not prompt_text:
                 raise StorageError("分析结果缺少原始提示词，不能入库")
+            image_name = ""
+            asset_file = Path(row["asset_path"])
+            if asset_file.is_file() and asset_file.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}:
+                references = self.home / "references"
+                references.mkdir(parents=True, exist_ok=True)
+                image_name = "history_" + uuid.uuid4().hex[:16] + asset_file.suffix.lower()
+                shutil.copy2(asset_file, references / image_name)
             item = {
-                "id": asset_id, "name": title, "category": str(result.get("category") or "其他"),
-                "subcategory": "", "material": "", "color": "", "model": str(result.get("model") or ""),
+                "id": asset_id, "name": title, "sku": str(result.get("sku") or "").strip(),
+                "category": str(result.get("category") or "其他"),
+                "subcategory": str(result.get("subcategory") or ""),
+                "material": str(result.get("material") or ""), "color": str(result.get("color") or ""),
+                "silhouette": str(result.get("silhouette") or ""), "fit": str(result.get("fit") or ""),
+                "details": result.get("details") if isinstance(result.get("details"), list) else [],
+                "scene": str(result.get("scene") or ""),
+                "constraints": result.get("constraints") if isinstance(result.get("constraints"), list) else [],
+                "model": str(result.get("model") or ""),
                 "status": "待验证", "tags": result.get("tags") if isinstance(result.get("tags"), list) else [],
                 "body": prompt_text, "notes": "AI 历史案例采集；已人工确认。摘要：" + str(result.get("prompt_summary") or ""),
-                "image": "", "created_at": now, "updated_at": now,
+                "image": image_name, "created_at": now, "updated_at": now,
             }
             con.execute(
                 "INSERT INTO assets(id,kind,payload_json,created_at,updated_at) VALUES(?,?,?,?,?)",
