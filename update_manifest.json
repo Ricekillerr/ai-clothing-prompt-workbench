@@ -1,6 +1,6 @@
 {
-  "version": "0.5.0",
-  "notes": "Prompt Atelier V0.5.0；SQLite 本地存储、历史案例增量采集、提示词与素材匹配建议、AI 辅助分析及人工审核入库。SHA-256 根据 GitHub main 主线实际文件生成。",
+  "version": "0.5.1",
+  "notes": "Prompt Atelier V0.5.1：新增服装属性加权检索、款号精确匹配、已验证成功案例筛选与可解释匹配理由；强化 AI 属性提取与案例图片本地预览。",
   "files": [
     "ai_prompt_workbench.py",
     "index.html",
@@ -13,14 +13,14 @@
     "ai_analyzer.py"
   ],
   "sha256": {
-    "ai_prompt_workbench.py": "9058cfa45d732063a61518ef97a0137f785bf98897e74d2ffd3434a5e0a76233",
-    "index.html": "712c17415b03e7beb3fa2e00ed0892ea40ee51708ad21952d8b15ba806ea50f1",
+    "ai_prompt_workbench.py": "332701c3364c0346b2d722ba087e42d5c3d1d11b4f7346ac091729b00a9741be",
+    "index.html": "1e89301baad0e6b4266de1608e94edc7b93493da77ce2a076ac8760256bc4887",
     "updater.py": "9f815b2b813d46f95d5e9be049a533ac94e40323a893d7d1ee530425a30b4e1b",
     "启动AI服装提示词工作台.bat": "a64c3ba2bba22c3758857cb138b5eb71d624763be555a25c0694853c96066f02",
-    "使用说明_AI服装提示词资产工作台_V0.4.3.txt": "bc4a1ddba4f25cfc461f6c74421386febf1d9ceba77559fd86258690b762504f",
-    "storage.py": "81c33e3a807c99c6cc8ad420d46a4d85e6209662cef953f48c4022d7cc38eb12",
+    "使用说明_AI服装提示词资产工作台_V0.4.3.txt": "691f4ce47b186852a19df523c7a76c26b71b02a105e98840319c34ea06ae01c8",
+    "storage.py": "eb08a34c7feb69364c45e7ee87921e1174d837225fcee51e70f64faa4dfa4ac6",
     "collector.py": "cda27a7ea02542ba5a0f6f031e40c7f7c39810693c60d23c3a52b1fbdac68dac",
-    "case_matcher.py": "be94516134eea5d1d8ebc9a066f4df2e22eeabcaaddb78902d66cf2e31edf2db",
-    "ai_analyzer.py": "e2e1868fea72697c5fa64ed7d30140b5ea3b238cb12f18b48021526298899d4b"
+    "case_matcher.py": "207c77ef2452680a9379d0ace47c160a9425a2b3f9ab548321ecb594abaefabc",
+    "ai_analyzer.py": "2b0f469d8d84a689d0bf365297ce63414c4d644236205d1b0d9ce4c1332a581e"
   }
 }

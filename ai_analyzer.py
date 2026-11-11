@@ -51,11 +51,14 @@ def analyze_pair(prompt_path: str, asset_path: str, api_key: str,
         raise ValueError("提示词文件内容为空")
     instructions = (
         "你是 AI 视频生成案例整理助手。根据提供的提示词和关联素材，"
-        "输出严格 JSON，不要 Markdown。字段：title（简短标题）、category（服装/人物/场景/其他）、"
-        "tags（字符串数组）、prompt_summary（中文摘要）、prompt_text（原提示词，尽量逐字保留）、"
+        "输出严格 JSON，不要 Markdown。字段：title（简短标题）、sku（提示词明确出现的服装款号；没有则空字符串）、"
+        "category（服装/人物/场景/其他）、subcategory（具体服装品类）、material（面料材质）、color（颜色）、"
+        "silhouette（版型轮廓）、fit（宽松/修身等版型）、details（结构与工艺细节字符串数组）、"
+        "scene（生成场景）、constraints（生成约束字符串数组）、tags（字符串数组）、"
+        "prompt_summary（中文摘要）、prompt_text（原提示词，尽量逐字保留）、"
         "asset_observations（素材可见特征；无法读取时明确写无法判断）、"
         "risk_notes（不确定性或潜在误判，字符串数组）、confidence（0到1）。"
-        "不要编造图片或视频中看不到的信息；不要把模型推测写成事实。"
+        "属性只记录提示词或图片明确支持的信息；无法判断的字段留空，不要猜测。"
     )
     user_content = [{"type": "text", "text": "待整理提示词：\n" + text[:50000]}]
     ext = asset_file.suffix.lower()
@@ -95,6 +98,15 @@ def analyze_pair(prompt_path: str, asset_path: str, api_key: str,
         raise ValueError("AI 返回结果不是有效 JSON 对象")
     parsed.setdefault("title", prompt_file.stem)
     parsed.setdefault("category", "其他")
+    parsed.setdefault("sku", "")
+    parsed.setdefault("subcategory", "")
+    parsed.setdefault("material", "")
+    parsed.setdefault("color", "")
+    parsed.setdefault("silhouette", "")
+    parsed.setdefault("fit", "")
+    parsed.setdefault("details", [])
+    parsed.setdefault("scene", "")
+    parsed.setdefault("constraints", [])
     parsed.setdefault("tags", [])
     parsed.setdefault("prompt_summary", "")
     parsed.setdefault("prompt_text", text)

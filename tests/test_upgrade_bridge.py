@@ -14,7 +14,7 @@ class V050IntegrationTests(unittest.TestCase):
         cls.updater = (cls.root / "updater.py").read_text(encoding="utf-8")
 
     def test_manifest_is_v050_and_all_release_files_are_hash_covered(self):
-        self.assertEqual(self.manifest["version"], "0.5.0")
+        self.assertEqual(self.manifest["version"], "0.5.1")
         self.assertEqual(set(self.manifest["files"]), set(self.manifest["sha256"]))
         for name in self.manifest["files"]:
             content = (self.root / name).read_bytes().replace(b"\r\n", b"\n")
@@ -43,13 +43,13 @@ class V050IntegrationTests(unittest.TestCase):
         self.assertIn("from collector import scan_folder, sha256_file", self.app)
         for route in ("/api/scan/sources", "/api/scan/pending", "/api/scan/matches",
                       "/api/scan/source", "/api/scan/run", "/api/ai/analyze",
-                      "/api/ai/approve", "/api/ai/reject"):
+                      "/api/ai/approve", "/api/ai/reject", "/api/cases/search"):
             self.assertIn(route, self.app)
 
     def test_frontend_contains_scanner_review_and_ai_controls(self):
         html = (self.root / "index.html").read_text(encoding="utf-8")
         for text in ("历史案例自动采集", "立即扫描", "匹配提示词与素材",
-                     "AI审核结果", "确认并入库", "async function scanApi"):
+                     "AI审核结果", "确认并入库", "智能案例检索", "匹配度达到 80%", "async function scanApi"):
             self.assertIn(text, html)
 
     def test_legacy_json_is_migrated_without_replacing_source(self):
