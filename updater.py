@@ -117,7 +117,15 @@ def main():
                 src = stage / name
                 dst = root / name
                 tmp = root / (name + ".update_tmp")
-                shutil.copy2(src, tmp)
+                if name.lower().endswith((".bat", ".cmd")):
+                    # GitHub serves text files with LF; Windows cmd.exe batch parsing
+                    # requires CRLF for reliable labels and percent-variable handling.
+                    payload = src.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+                    payload = payload.replace(b"\n", b"\r\n")
+                    tmp.write_bytes(payload)
+                    shutil.copystat(src, tmp)
+                else:
+                    shutil.copy2(src, tmp)
                 replace_with_retry(tmp, dst)
 
             version_tmp = root / "installed_version.txt.update_tmp"
