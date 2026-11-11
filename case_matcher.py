@@ -57,3 +57,78 @@ def rank_matches(items: list[dict], limit: int = 100) -> list[dict]:
                 })
     candidates.sort(key=lambda x: (-x["score"], str(x["prompt_path"]), str(x["asset_path"])))
     return candidates[:max(0, limit)]
+
+
+_MATCH_WEIGHTS = {"category": 0.25, "material": 0.20, "color": 0.15, "details": 0.20, "context": 0.20}
+_MATCH_TERMS = {
+ "category": {"上装","下装","鞋履","配饰","整套搭配","马甲","背心","夹克","羽绒服","外套","衬衫","卫衣","裤子","长裤","短裤","运动鞋","gilet","vest","jacket","coat","shirt","pants","shoes"},
+ "material": {"面料","材质","羊毛","羊绒","腈纶","聚酯","棉","皮革","真皮","灯芯绒","尼龙","羽绒","针织","牛仔","丝绸","哑光","磨砂","光泽","反光","柔软","挺括","corduroy","leather","wool","cotton","nylon","polyester","matte"},
+ "color": {"黑色","白色","灰色","深灰","浅灰","棕色","咖啡色","蓝色","藏青","绿色","红色","米色","卡其","black","white","grey","gray","brown","blue","navy","green","red","beige"},
+ "details": {"立领","高领","圆领","拉链","双拉头","单拉头","口袋","袖口","下摆","绗缝","拼接","皮革边","无袖","微喇","宽松","修身","走线","抽绳","帽子","连帽","领口","纽扣","zipper","collar","pocket","hood","sleeveless","hem","stitch"},
+ "context": {"换装","人物锁定","动作锁定","镜头锁定","近景","中景","远景","街道","湖边","车内","室内","户外","runninghub","wan","h3","minimax","视频","图片","参考图","场景"}
+}
+def _match_text(value):
+    if value is None: return ""
+    if isinstance(value,(list,tuple,set)): return " ".join(_match_text(x) for x in value)
+    if isinstance(value,dict): return " ".join(_match_text(x) for x in value.values())
+    return str(value)
+def _match_tokens(value):
+    text=_match_text(value).casefold()
+    tokens=set(re.findall(r"[a-z0-9][a-z0-9._-]*",text))
+    for run in re.findall(r"[\u4e00-\u9fff]+",text):
+        if len(run)<=4: tokens.add(run)
+        for size in (2,3,4): tokens.update(run[i:i+size] for i in range(max(0,len(run)-size+1)))
+    return {x for x in tokens if len(x)>1}
+def _query_attribute_groups(query):
+    lowered=query.casefold(); groups={}; classified=set()
+    for dim,terms in _MATCH_TERMS.items():
+        found=set()
+        for term in terms:
+            if term.casefold() in lowered: found.update(_match_tokens(term))
+        groups[dim]=found; classified.update(found)
+    return groups,_match_tokens(query)-classified
+def _candidate_attribute_text(case):
+    tags=_match_text(case.get("tags")); body=_match_text(case.get("body"))
+    def vals(*keys): return _match_text([case.get(k) for k in keys])
+    return {
+        "category": vals("category","subcategory","silhouette","fit","name")+" "+tags,
+        "material": vals("material","fabric","texture","material_details")+" "+tags,
+        "color": vals("color","color_details")+" "+tags,
+        "details": vals("details","craftsmanship","features","subcategory")+" "+tags,
+        "context": vals("model","scene","constraints","usage","notes")+" "+tags,
+        "all": _match_text(case)+" "+body+" "+tags,
+    }
+def score_case_attributes(case,query):
+    query=str(query or "").strip()
+    if not query: return {"score":0.0,"reasons":["请输入款号或服装描述"]}
+    sku=_match_text(case.get("sku") or case.get("style_number") or case.get("product_code")).strip().casefold()
+    if sku and re.search(r"(?<![a-z0-9])"+re.escape(sku)+r"(?![a-z0-9])",query.casefold()):
+        return {"score":1.0,"reasons":["款号精确匹配"]}
+    groups,generic=_query_attribute_groups(query); candidate=_candidate_attribute_text(case)
+    active=[(name,tokens) for name,tokens in groups.items() if tokens]
+    if not active:
+        qt=_match_tokens(query); ct=_match_tokens(candidate["all"])
+        return {"score":round(len(qt&ct)/max(1,len(qt)),4),"reasons":["描述关键词覆盖率"]}
+    weighted=total=0.0; reasons=[]
+    labels={"category":"品类/版型匹配","material":"面料/材质匹配","color":"颜色匹配","details":"结构/细节匹配","context":"生成场景/约束匹配"}
+    for name,tokens in active:
+        ct=_match_tokens(candidate[name]); coverage=len(tokens&ct)/max(1,len(tokens))
+        weighted+=coverage*_MATCH_WEIGHTS[name]; total+=_MATCH_WEIGHTS[name]
+        if coverage>=0.5: reasons.append(labels[name])
+    if generic:
+        ct=_match_tokens(candidate["all"]); coverage=len(generic&ct)/max(1,len(generic))
+        weighted+=coverage*0.10; total+=0.10
+        if coverage>=0.5: reasons.append("其他描述关键词匹配")
+    return {"score":round(weighted/max(total,1e-9),4),"reasons":reasons or ["匹配属性较少，建议人工核对"]}
+def rank_case_matches(cases,query,threshold=0.80,limit=100,include_unverified=False):
+    try: threshold=min(1.0,max(0.0,float(threshold)))
+    except (TypeError,ValueError): threshold=0.80
+    results=[]
+    for case in cases:
+        if not isinstance(case,dict): continue
+        if not include_unverified and case.get("status")!="已验证成功": continue
+        scored=score_case_attributes(case,query)
+        if scored["score"]>=threshold:
+            results.append({"case":case,"score":scored["score"],"match_percent":round(scored["score"]*100),"reasons":scored["reasons"]})
+    results.sort(key=lambda x:(-x["score"],str(x["case"].get("name",""))))
+    return results[:max(0,int(limit))]
