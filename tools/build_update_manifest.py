@@ -24,7 +24,7 @@ RUNTIME_FILES = [
 
 def build_manifest(notes: str = "") -> dict:
     app_source = (ROOT / "ai_prompt_workbench.py").read_text(encoding="utf-8")
-    match = re.search(r'^APP_VERSION\\s*=\\s*["\']([^"\']+)["\']', app_source, re.MULTILINE)
+    match = re.search(r'^APP_VERSION\s*=\s*["\']([^"\']+)["\']', app_source, re.MULTILINE)
     if not match:
         raise SystemExit("Cannot determine APP_VERSION from ai_prompt_workbench.py")
     version = match.group(1)
@@ -63,7 +63,7 @@ def main() -> int:
             return 1
         print(f"OK: V{expected['version']} manifest matches all {len(RUNTIME_FILES)} runtime files.")
         return 0
-    path.write_text(json.dumps(expected, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8", newline="\\n")
+    path.write_text(json.dumps(expected, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(f"Wrote update_manifest.json for V{expected['version']} ({len(RUNTIME_FILES)} files).")
     return 0
 
