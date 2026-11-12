@@ -137,3 +137,25 @@ jobs:
                   raise SystemExit(f"Release branch expects version {expected_version}, but source is {version.group(1)}")
           print(f"Source version {version.group(1)} correctly targets its staging update channel {branch.group(1)}")
           PY
+
+  powershell_sync_script:
+    name: Validate Windows candidate sync script
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Parse PowerShell script without executing it
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            "tools/sync_v065_candidate.ps1",
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | Format-List | Out-String | Write-Host
+            exit 1
+          }
+          Write-Host "PowerShell syntax valid."
