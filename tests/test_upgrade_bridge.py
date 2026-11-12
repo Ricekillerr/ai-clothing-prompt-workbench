@@ -51,6 +51,8 @@ class V052IntegrationTests(unittest.TestCase):
         for text in ("历史案例自动采集", "立即扫描", "匹配提示词与素材",
                      "AI审核结果", "确认并入库", "智能案例检索", "匹配度达到 80%", "async function scanApi"):
             self.assertIn(text, html)
+        self.assertIn("renderMatchAttributeDetails", html)
+        self.assertIn("matched_terms", (self.root / "case_matcher.py").read_text(encoding="utf-8"))
 
     def test_legacy_json_is_migrated_without_replacing_source(self):
         self.assertIn("legacy_json=LEGACY_DATA", self.app)
