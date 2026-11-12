@@ -29,6 +29,37 @@ jobs:
           for name in ("ai_prompt_workbench.py", "updater.py", "启动AI服装提示词工作台.bat"):
               print(f"RUNTIME_SHA256 {name} {hashlib.sha256(Path(name).read_bytes()).hexdigest()}")
           PY
+      - name: Validate inline frontend JavaScript syntax
+        run: |
+          python - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          class Scripts(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.active = False
+                  self.parts = []
+                  self.current = []
+              def handle_starttag(self, tag, attrs):
+                  if tag == "script":
+                      self.active = True
+                      self.current = []
+              def handle_data(self, data):
+                  if self.active:
+                      self.current.append(data)
+              def handle_endtag(self, tag):
+                  if tag == "script" and self.active:
+                      self.parts.append("".join(self.current))
+                      self.active = False
+          parser = Scripts()
+          parser.feed(Path("index.html").read_text(encoding="utf-8"))
+          scripts = [x for x in parser.parts if x.strip()]
+          if not scripts:
+              raise SystemExit("No inline JavaScript found in index.html")
+          Path("/tmp/prompt-atelier-inline.js").write_text("\n;\n".join(scripts), encoding="utf-8")
+          print(f"Extracted {len(scripts)} inline script block(s).")
+          PY
+          node --check /tmp/prompt-atelier-inline.js
       - name: Validate release manifest hashes
         run: |
           python - <<'PY'
