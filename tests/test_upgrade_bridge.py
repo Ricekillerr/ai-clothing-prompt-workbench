@@ -57,6 +57,9 @@ class V052IntegrationTests(unittest.TestCase):
         self.assertIn("renderMatchConflicts", html)
         self.assertIn("include_conflicts", self.app)
         self.assertIn("threshold_raw", self.app)
+        self.assertIn("findComposeConflicts", html)
+        self.assertIn("composeWarnings", html)
+        self.assertIn("发现组合冲突，已阻止生成", html)
 
     def test_legacy_json_is_migrated_without_replacing_source(self):
         self.assertIn("legacy_json=LEGACY_DATA", self.app)
