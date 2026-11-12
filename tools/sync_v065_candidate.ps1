@@ -24,8 +24,13 @@ function Invoke-Git([string[]]$GitArgs) {
     if ($LASTEXITCODE -ne 0) { Stop-Sync "Git 命令失败：git $($GitArgs -join ' ')" }
 }
 function Invoke-Python([string[]]$PythonArgs) {
-    & python @PythonArgs
-    if ($LASTEXITCODE -ne 0) { Stop-Sync "Python 检查失败：python $($PythonArgs -join ' ')" }
+    Push-Location $work
+    try {
+        & python @PythonArgs
+        if ($LASTEXITCODE -ne 0) { Stop-Sync "Python 检查失败：python $($PythonArgs -join ' ')" }
+    } finally {
+        Pop-Location
+    }
 }
 
 try {
@@ -95,7 +100,7 @@ try {
     [System.IO.File]::WriteAllText($appPath, $appText, (New-Object System.Text.UTF8Encoding($false)))
 
     Get-ChildItem -LiteralPath $candidateRoot -File -Recurse | ForEach-Object {
-        $relative = $_.FullName.Substring($candidateRoot.Length).TrimStart("\", "/")
+        $relative = $_.FullName.Substring($candidateRoot.Length).TrimStart([char[]]@("\", "/"))
         $target = Join-Path $work $relative
         $parent = Split-Path -Parent $target
         if (-not (Test-Path $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
