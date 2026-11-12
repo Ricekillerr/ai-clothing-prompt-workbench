@@ -53,6 +53,10 @@ class V052IntegrationTests(unittest.TestCase):
             self.assertIn(text, html)
         self.assertIn("renderMatchAttributeDetails", html)
         self.assertIn("matched_terms", (self.root / "case_matcher.py").read_text(encoding="utf-8"))
+        self.assertIn("includeConflicts", html)
+        self.assertIn("renderMatchConflicts", html)
+        self.assertIn("include_conflicts", self.app)
+        self.assertIn("threshold_raw", self.app)
 
     def test_legacy_json_is_migrated_without_replacing_source(self):
         self.assertIn("legacy_json=LEGACY_DATA", self.app)
