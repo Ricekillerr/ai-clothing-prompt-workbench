@@ -129,11 +129,11 @@ jobs:
           if manifest.get("version") != version.group(1):
               raise SystemExit("Manifest version does not match APP_VERSION")
           ref_name = os.environ.get("REF_NAME", "")
-          if ref_name.startswith("release/") and branch.group(1) != "main":
-              raise SystemExit(f"Release candidate updater must target production channel 'main', not {branch.group(1)!r}")
+          if ref_name.startswith("release/") and branch.group(1) != ref_name:
+              raise SystemExit(f"Release candidate updater must target its staging channel {ref_name!r}, not {branch.group(1)!r}")
           if ref_name.startswith("release/"):
               expected_version = ref_name.split("/", 1)[1].split("-", 1)[0].lstrip("vV")
               if version.group(1) != expected_version:
                   raise SystemExit(f"Release branch expects version {expected_version}, but source is {version.group(1)}")
-          print(f"Source version {version.group(1)} correctly targets production update channel {branch.group(1)}")
+          print(f"Source version {version.group(1)} correctly targets its staging update channel {branch.group(1)}")
           PY
