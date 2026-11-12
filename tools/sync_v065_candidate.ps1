@@ -66,7 +66,7 @@ try {
         }
         $versionEntry = $archive.GetEntry("PromptAtelier_V0.6.5/installed_version.txt")
         if (-not $versionEntry) { Stop-Sync "候选包缺少 installed_version.txt。" }
-        $reader = New-Object System.IO.StreamReader($versionEntry.Open(), [System.Text.Encoding]::UTF8)
+        $reader = [System.IO.StreamReader]::new($versionEntry.Open(), [System.Text.Encoding]::UTF8)
         try { $candidateVersion = $reader.ReadToEnd().Trim() } finally { $reader.Dispose() }
         if ($candidateVersion -ne "0.6.5") { Stop-Sync "候选包版本应为 0.6.5，实际为 $candidateVersion。" }
     } finally {
@@ -97,7 +97,7 @@ try {
     $channelMatches = [regex]::Matches($appText, $channelPattern)
     if ($channelMatches.Count -ne 1) { Stop-Sync "主程序更新通道标记不是唯一的预期值，拒绝自动修改。" }
     $appText = [regex]::Replace($appText, $channelPattern, 'GITHUB_BRANCH = "' + $branch + '"')
-    [System.IO.File]::WriteAllText($appPath, $appText, (New-Object System.Text.UTF8Encoding($false)))
+    [System.IO.File]::WriteAllText($appPath, $appText, ([System.Text.UTF8Encoding]::new($false)))
 
     Get-ChildItem -LiteralPath $candidateRoot -File -Recurse | ForEach-Object {
         $relative = $_.FullName.Substring($candidateRoot.Length).TrimStart([char[]]@("\", "/"))
@@ -115,7 +115,15 @@ try {
     Invoke-Python @("quality_check.py")
     $hashCheck = 'import json,hashlib,pathlib,sys; p=pathlib.Path("."); m=json.loads((p/"update_manifest.json").read_text(encoding="utf-8")); bad=[n for n in m["files"] if not (p/n).is_file() or hashlib.sha256((p/n).read_bytes()).hexdigest().lower()!=m["sha256"][n].lower()]; print("SHA-256 核验：",len(m["files"]),"项；失败：",bad); sys.exit(bool(bad))'
     Invoke-Python @("-c", $hashCheck)
-    $verify = 'import re,pathlib,json; s=pathlib.Path("ai_prompt_workbench.py").read_text(encoding="utf-8"); m=json.loads(pathlib.Path("update_manifest.json").read_text(encoding="utf-8")); assert re.search(r''^APP_VERSION\s*=\s*"0\.6\.5"'',s,re.M); assert re.search(r''^GITHUB_BRANCH\s*=\s*"release/v0\.6\.5-stabilization"'',s,re.M); assert m["version"]=="0.6.5"; print("版本、更新通道与清单一致。")'
+    $verify = @'
+import re, pathlib, json
+s = pathlib.Path("ai_prompt_workbench.py").read_text(encoding="utf-8")
+m = json.loads(pathlib.Path("update_manifest.json").read_text(encoding="utf-8"))
+assert re.search(r'^APP_VERSION\s*=\s*"0\.6\.5"', s, re.M)
+assert re.search(r'^GITHUB_BRANCH\s*=\s*"release/v0\.6\.5-stabilization"', s, re.M)
+assert m["version"] == "0.6.5"
+print("版本、更新通道与清单一致。")
+'@
     Invoke-Python @("-c", $verify)
 
     Write-Host "[4/5] 提交候选源码（不触碰用户数据库和参考图片）……" -ForegroundColor Cyan
