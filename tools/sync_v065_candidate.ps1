@@ -87,7 +87,7 @@ try {
     if ($appText -notmatch '(?m)^GITHUB_BRANCH\s*=\s*["''][^"'']+["'']\s*$') { Stop-Sync "主程序更新分支标记缺失或格式异常。" }
     $appText = [regex]::Replace($appText,'(?m)^APP_VERSION\s*=\s*["'']0\.6\.4["'']\s*$','APP_VERSION = "0.6.5"')
     $appText = [regex]::Replace($appText,'(?m)^GITHUB_BRANCH\s*=\s*["''][^"'']+["'']\s*$','GITHUB_BRANCH = "'+$branch+'"')
-    [IO.File]::WriteAllText($appPath,$appText,(New-Object Text.UTF8Encoding($false)))
+    [IO.File]::WriteAllText($appPath,$appText,([Text.UTF8Encoding]::new($false)))
     Set-Content -LiteralPath (Join-Path $work "installed_version.txt") -Value "0.6.5" -Encoding UTF8
 
     Write-Host "[3/5] 重建版本清单与 SHA-256……" -ForegroundColor Cyan
