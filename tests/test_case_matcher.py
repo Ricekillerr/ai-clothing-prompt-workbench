@@ -41,10 +41,16 @@ class CaseMatcherTests(unittest.TestCase):
         conflicts = find_case_conflicts(self.case, "红色立领马甲")
         self.assertTrue(any(x["attribute"] == "color" for x in conflicts))
 
-    def test_explicit_material_conflict_is_detected(self):
-        case = dict(self.case, material="纯皮革面料", tags=["皮革"])
-        conflicts = find_case_conflicts(case, "尼龙面料马甲")
-        self.assertTrue(any(x["attribute"] == "material" for x in conflicts))
+    def test_mixed_materials_are_not_treated_as_conflict(self):
+        case = dict(self.case, material="尼龙与棉混纺", tags=["混纺"])
+        self.assertEqual(find_case_conflicts(case, "纯棉面料马甲"), [])
+
+    def test_multicolor_query_is_not_auto_rejected(self):
+        self.assertEqual(find_case_conflicts(self.case, "黑红拼接马甲"), [])
+
+    def test_unstructured_body_text_does_not_create_color_conflict(self):
+        case = dict(self.case, color="黑色", body="红色背景中的黑色马甲")
+        self.assertEqual(find_case_conflicts(case, "红色马甲"), [])
 
     def test_conflicting_case_is_excluded_by_default(self):
         results = rank_case_matches([self.case], "红色立领无袖马甲", threshold=0.1)
