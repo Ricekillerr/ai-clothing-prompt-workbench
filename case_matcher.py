@@ -120,52 +120,55 @@ def score_case_attributes(case,query):
         weighted+=coverage*0.10; total+=0.10
         if coverage>=0.5: reasons.append("其他描述关键词匹配")
     return {"score":round(weighted/max(total,1e-9),4),"reasons":reasons or ["匹配属性较少，建议人工核对"]}
-_EXCLUSIVE_ATTRIBUTES = {
-    "color": {
-        "black": ("黑色", "black"),
-        "white": ("白色", "white"),
-        "red": ("红色", "red"),
-        "blue": ("蓝色", "blue", "藏青", "navy"),
-        "green": ("绿色", "green"),
-        "brown": ("棕色", "咖啡色", "brown"),
-        "grey": ("灰色", "灰", "grey", "gray"),
-        "beige": ("米色", "米白", "beige"),
-    },
-    "material": {
-        "leather": ("皮革", "皮质", "leather"),
-        "corduroy": ("灯芯绒", "corduroy"),
-        "nylon": ("尼龙", "锦纶", "nylon"),
-        "wool": ("羊毛", "wool"),
-        "cotton": ("棉", "cotton"),
-        "denim": ("牛仔", "denim"),
-    },
+_EXCLUSIVE_COLORS = {
+    "black": ("黑色", "black"),
+    "white": ("白色", "white"),
+    "red": ("红色", "red"),
+    "blue": ("蓝色", "藏青", "blue", "navy"),
+    "green": ("绿色", "green"),
+    "brown": ("棕色", "咖啡色", "brown"),
+    "grey": ("灰色", "grey", "gray"),
+    "beige": ("米色", "米白", "beige"),
 }
 
 
+def _contains_alias(text, alias):
+    """Match English aliases as words; Chinese aliases as explicit phrases."""
+    text = str(text or "").casefold()
+    alias = alias.casefold()
+    if re.fullmatch(r"[a-z]+", alias):
+        return re.search(r"(?<![a-z])" + re.escape(alias) + r"(?![a-z])", text) is not None
+    return alias in text
+
+
+def _color_values(text):
+    return {
+        key for key, aliases in _EXCLUSIVE_COLORS.items()
+        if any(_contains_alias(text, alias) for alias in aliases)
+    }
+
+
 def find_case_conflicts(case, query):
-    """Find explicit mutually-exclusive color/material values in query vs case."""
-    query_text = str(query or "").casefold()
-    case_text = _match_text(_candidate_attribute_text(case)).casefold()
-    conflicts = []
-    for dimension, values in _EXCLUSIVE_ATTRIBUTES.items():
-        requested = [
-            key for key, aliases in values.items()
-            if any(alias.casefold() in query_text for alias in aliases)
-        ]
-        present = [
-            key for key, aliases in values.items()
-            if any(alias.casefold() in case_text for alias in aliases)
-        ]
-        for wanted in requested:
-            for actual in present:
-                if wanted != actual:
-                    conflicts.append({
-                        "attribute": dimension,
-                        "requested": wanted,
-                        "case_value": actual,
-                        "reason": "查询要求与案例记录的属性值冲突",
-                    })
-    return conflicts
+    """Flag only unambiguous single-color contradictions in structured color fields.
+
+    Material is deliberately not treated as exclusive: blends and multi-material
+    garments are common. Multi-color queries or records are also left for review.
+    """
+    requested = _color_values(query)
+    stored_text = _match_text([case.get("color"), case.get("color_details")])
+    stored = _color_values(stored_text)
+    if len(requested) != 1 or len(stored) != 1:
+        return []
+    wanted = next(iter(requested))
+    actual = next(iter(stored))
+    if wanted == actual:
+        return []
+    return [{
+        "attribute": "color",
+        "requested": wanted,
+        "case_value": actual,
+        "reason": "查询要求与案例结构化颜色字段冲突",
+    }]
 
 
 def explain_case_match(case, query):
