@@ -49,7 +49,7 @@ class CaseMatcherTests(unittest.TestCase):
         self.assertEqual(find_case_conflicts(self.case, "黑红拼接马甲"), [])
 
     def test_unstructured_body_text_does_not_create_color_conflict(self):
-        case = dict(self.case, color="黑色", body="红色背景中的黑色马甲")
+        case = dict(self.case, color=None, color_details=None, body="红色背景中的黑色马甲")
         self.assertEqual(find_case_conflicts(case, "红色马甲"), [])
 
     def test_conflicting_case_is_excluded_by_default(self):
