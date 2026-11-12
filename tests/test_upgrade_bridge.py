@@ -64,6 +64,8 @@ class V052IntegrationTests(unittest.TestCase):
         self.assertIn("base_case_id", html)
         self.assertIn("module_ids", html)
         self.assertIn("组合来源记录", html)
+        self.assertIn("f_composition", html)
+        self.assertIn("JSON.parse($(\"f_composition\")", html)
 
     def test_legacy_json_is_migrated_without_replacing_source(self):
         self.assertIn("legacy_json=LEGACY_DATA", self.app)
