@@ -1,5 +1,5 @@
 import unittest
-from case_matcher import rank_matches, similarity, rank_case_matches, score_case_attributes
+from case_matcher import rank_matches, similarity, rank_case_matches, score_case_attributes, explain_case_match
 
 class CaseMatcherTests(unittest.TestCase):
     def test_same_stem_prompt_and_image_rank_high(self):
@@ -22,5 +22,20 @@ class CaseMatcherTests(unittest.TestCase):
     def test_threshold_excludes_weak_matches(self): self.assertEqual(rank_case_matches([self.case],"红色皮革长裤",threshold=0.8),[])
     def test_unverified_can_be_included_explicitly(self):
         self.assertEqual(len(rank_case_matches([dict(self.case,status="待验证")],"黑色立领无袖马甲",threshold=0.1,include_unverified=True)),1)
+    def test_explanation_reports_matched_and_missing_attributes(self):
+        details = explain_case_match(self.case, "黑色立领马甲 红色皮革")
+        by_name = {item["attribute"]: item for item in details}
+        self.assertIn("color", by_name)
+        self.assertTrue(by_name["color"]["matched_terms"])
+        self.assertTrue(by_name["color"]["missing_terms"])
+        self.assertIn("material", by_name)
+        self.assertTrue(by_name["material"]["missing_terms"])
+
+    def test_ranked_result_includes_explanation_without_changing_legacy_fields(self):
+        results = rank_case_matches([self.case], "黑色立领无袖马甲 柔软哑光面料 双拉头拉链")
+        self.assertEqual(len(results), 1)
+        self.assertIn("reasons", results[0])
+        self.assertIn("attribute_details", results[0])
+        self.assertTrue(results[0]["attribute_details"])
 
 if __name__=="__main__": unittest.main(verbosity=2)
