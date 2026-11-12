@@ -21,6 +21,14 @@ jobs:
           python-version: "3.12"
       - name: Compile Python sources
         run: python -m compileall -q .
+      - name: Report exact runtime SHA-256 values for manifest repair
+        run: |
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          for name in ("ai_prompt_workbench.py", "updater.py", "启动AI服装提示词工作台.bat"):
+              print(f"RUNTIME_SHA256 {name} {hashlib.sha256(Path(name).read_bytes()).hexdigest()}")
+          PY
       - name: Validate release manifest hashes
         run: |
           python - <<'PY'
