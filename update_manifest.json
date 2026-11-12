@@ -3,12 +3,14 @@
   "notes": "Prompt Atelier V0.5.2：修复 Windows 更新器安装 BAT/CMD 时的换行格式兼容问题，统一转换为 CRLF；修复启动脚本解析异常，并同步版本号。保留 V0.5.1 智能案例检索功能。",
   "files": [
     "ai_prompt_workbench.py",
+    "index.html",
     "updater.py",
     "启动AI服装提示词工作台.bat"
   ],
   "sha256": {
     "ai_prompt_workbench.py": "c2b45a911ee43acbdf06bf461198827334165436fe863ef3091b662ccedfda38",
     "updater.py": "1cbdf1d55d07c4c3aa232c79b885b5ffb4ae681818b002178ba28d38fcee092b",
-    "启动AI服装提示词工作台.bat": "a64c3ba2bba22c3758857cb138b5eb71d624763be555a25c0694853c96066f02"
+    "启动AI服装提示词工作台.bat": "a64c3ba2bba22c3758857cb138b5eb71d624763be555a25c0694853c96066f02",
+    "index.html": "deb28c7621d2c3a7d814884fa0056bc366f323ef8763b0708f5d07b938aebe7c"
   }
 }
