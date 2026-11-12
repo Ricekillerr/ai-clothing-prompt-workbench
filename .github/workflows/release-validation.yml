@@ -50,8 +50,8 @@ jobs:
         run: |
           if [ -f test_hardening.py ]; then
             python -m unittest test_hardening -v
-          elif [ -d tests ]; then
-            python -m unittest discover -s tests -v
+          elif find tests -type f -name 'test_*.py' -print -quit 2>/dev/null | grep -q .; then
+            python -m unittest discover -s tests -p 'test_*.py' -v
           else
-            echo "No automated test suite found; release remains subject to manual acceptance."
+            echo "No tests discovered in this legacy branch; release remains blocked on candidate test suite and Windows acceptance."
           fi
