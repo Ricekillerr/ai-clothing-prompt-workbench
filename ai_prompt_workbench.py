@@ -125,12 +125,26 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/cases/search":
             params = parse_qs(urlsplit(self.path).query)
             query = str((params.get("q") or [""])[0]).strip()
-            threshold = (params.get("threshold") or ["0.8"])[0]
+            threshold_raw = (params.get("threshold") or ["0.8"])[0]
+            include_conflicts = (params.get("include_conflicts") or ["0"])[0].casefold() in {"1", "true", "yes"}
             if not query:
                 self.send_json(200, {"matches": [], "threshold": 0.8, "message": "请输入款号或服装描述"})
             else:
-                matches = rank_case_matches(load_data().get("cases", []), query, threshold=threshold)
-                self.send_json(200, {"matches": matches, "threshold": float(threshold)})
+                try:
+                    threshold = min(1.0, max(0.0, float(threshold_raw)))
+                except (TypeError, ValueError):
+                    self.send_json(400, {"error": "threshold 必须是 0 到 1 之间的数字"})
+                    return
+                matches = rank_case_matches(
+                    load_data().get("cases", []), query,
+                    threshold=threshold, include_conflicts=include_conflicts,
+                )
+                self.send_json(200, {
+                    "matches": matches,
+                    "threshold": threshold,
+                    "include_conflicts": include_conflicts,
+                    "message": "冲突案例仅供人工复核" if include_conflicts else "",
+                })
         elif path == "/api/scan/sources": self.send_json(200, {"sources": STORAGE.list_scan_sources()})
         elif path == "/api/scan/pending": self.send_json(200, {"items": STORAGE.list_pending_ingest()})
         elif path == "/api/scan/matches": self.send_json(200, {"matches": rank_matches(STORAGE.list_pending_ingest())})
