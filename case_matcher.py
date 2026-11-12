@@ -120,6 +120,50 @@ def score_case_attributes(case,query):
         weighted+=coverage*0.10; total+=0.10
         if coverage>=0.5: reasons.append("其他描述关键词匹配")
     return {"score":round(weighted/max(total,1e-9),4),"reasons":reasons or ["匹配属性较少，建议人工核对"]}
+def explain_case_match(case, query):
+    """Return transparent per-attribute coverage; never label ranking as confidence."""
+    query = str(query or "").strip()
+    if not query:
+        return []
+    groups, generic = _query_attribute_groups(query)
+    candidate = _candidate_attribute_text(case)
+    labels = {
+        "category": "品类/版型",
+        "material": "面料/材质",
+        "color": "颜色",
+        "details": "结构/细节",
+        "context": "模型/场景/约束",
+    }
+    details = []
+    for name, terms in groups.items():
+        if not terms:
+            continue
+        available = _match_tokens(candidate[name])
+        matched = sorted(terms & available)
+        missing = sorted(terms - available)
+        details.append({
+            "attribute": name,
+            "label": labels[name],
+            "query_terms": sorted(terms),
+            "matched_terms": matched,
+            "missing_terms": missing,
+            "coverage": round(len(matched) / max(1, len(terms)), 4),
+        })
+    if generic:
+        available = _match_tokens(candidate["all"])
+        matched = sorted(generic & available)
+        missing = sorted(generic - available)
+        details.append({
+            "attribute": "other",
+            "label": "其他描述",
+            "query_terms": sorted(generic),
+            "matched_terms": matched,
+            "missing_terms": missing,
+            "coverage": round(len(matched) / max(1, len(generic)), 4),
+        })
+    return details
+
+
 def rank_case_matches(cases,query,threshold=0.80,limit=100,include_unverified=False):
     try: threshold=min(1.0,max(0.0,float(threshold)))
     except (TypeError,ValueError): threshold=0.80
@@ -129,6 +173,6 @@ def rank_case_matches(cases,query,threshold=0.80,limit=100,include_unverified=Fa
         if not include_unverified and case.get("status")!="已验证成功": continue
         scored=score_case_attributes(case,query)
         if scored["score"]>=threshold:
-            results.append({"case":case,"score":scored["score"],"match_percent":round(scored["score"]*100),"reasons":scored["reasons"]})
+            results.append({"case":case,"score":scored["score"],"match_percent":round(scored["score"]*100),"reasons":scored["reasons"],"attribute_details":explain_case_match(case, query)})
     results.sort(key=lambda x:(-x["score"],str(x["case"].get("name",""))))
     return results[:max(0,int(limit))]
