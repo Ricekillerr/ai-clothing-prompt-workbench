@@ -29,8 +29,8 @@ jobs:
           import json, os, re
           from pathlib import Path
           source = Path("ai_prompt_workbench.py").read_text(encoding="utf-8")
-          version = re.search(r'^APP_VERSION\\s*=\\s*["\\']([^"\\']+)', source, re.M)
-          branch = re.search(r'^GITHUB_BRANCH\\s*=\\s*["\\']([^"\\']+)', source, re.M)
+          version = re.search(r'^APP_VERSION\s*=\s*["\']([^"\']+)', source, re.M)
+          branch = re.search(r'^GITHUB_BRANCH\s*=\s*["\']([^"\']+)', source, re.M)
           if not version or not branch:
               raise SystemExit("Cannot identify APP_VERSION or GITHUB_BRANCH")
           manifest = json.loads(Path("update_manifest.json").read_text(encoding="utf-8"))
