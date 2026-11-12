@@ -26,7 +26,7 @@ jobs:
           python - <<'PY'
           import hashlib
           from pathlib import Path
-          for name in ("ai_prompt_workbench.py", "updater.py", "启动AI服装提示词工作台.bat"):
+          for name in ("ai_prompt_workbench.py", "index.html", "updater.py", "启动AI服装提示词工作台.bat"):
               print(f"RUNTIME_SHA256 {name} {hashlib.sha256(Path(name).read_bytes()).hexdigest()}")
           PY
       - name: Validate inline frontend JavaScript syntax
