@@ -1,0 +1,57 @@
+name: Release validation
+
+on:
+  push:
+    branches:
+      - "release/**"
+  pull_request:
+    branches:
+      - main
+      - "release/**"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile Python sources
+        run: python -m compileall -q .
+      - name: Validate release manifest hashes
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          manifest_path = Path("update_manifest.json")
+          if not manifest_path.exists():
+              raise SystemExit("update_manifest.json is missing")
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          files = manifest.get("files")
+          hashes = manifest.get("sha256")
+          if not isinstance(files, list) or not files:
+              raise SystemExit("manifest files must be a non-empty list")
+          if not isinstance(hashes, dict):
+              raise SystemExit("manifest sha256 must be an object")
+          for name in files:
+              path = Path(name)
+              if path.is_absolute() or ".." in path.parts or not path.is_file():
+                  raise SystemExit(f"unsafe or missing update file: {name}")
+              expected = hashes.get(name)
+              actual = hashlib.sha256(path.read_bytes()).hexdigest()
+              if actual != expected:
+                  raise SystemExit(f"SHA-256 mismatch: {name}")
+          print(f"Validated {len(files)} update files.")
+          PY
+      - name: Run hardening tests when present
+        run: |
+          if [ -f test_hardening.py ]; then
+            python -m unittest test_hardening -v
+          elif [ -d tests ]; then
+            python -m unittest discover -s tests -v
+          else
+            echo "No automated test suite found; release remains subject to manual acceptance."
+          fi
