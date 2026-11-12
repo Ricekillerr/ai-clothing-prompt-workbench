@@ -80,6 +80,7 @@ try {
         if (-not (Test-Path $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
         Copy-Item -LiteralPath $from -Destination $to -Force
     }
+    Copy-Item -LiteralPath $manifestSource -Destination (Join-Path $work "update_manifest.json") -Force
 
     $appPath = Join-Path $work "ai_prompt_workbench.py"
     $appText = [IO.File]::ReadAllText($appPath,[Text.Encoding]::UTF8)
