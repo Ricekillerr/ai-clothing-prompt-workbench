@@ -74,25 +74,25 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-            - name: Validate release source version and update channel
-              env:
-                REF_NAME: ${{ github.ref_name }}
-              run: |
-                python - <<'PY'
-                import json, os, re
-                from pathlib import Path
-                source = Path("ai_prompt_workbench.py").read_text(encoding="utf-8")
-                version = re.search(r'^APP_VERSION\s*=\s*["\']([^"\']+)', source, re.M)
-                branch = re.search(r'^GITHUB_BRANCH\s*=\s*["\']([^"\']+)', source, re.M)
-                if not version or not branch:
-                    raise SystemExit("Cannot identify APP_VERSION or GITHUB_BRANCH")
-                manifest = json.loads(Path("update_manifest.json").read_text(encoding="utf-8"))
-                if manifest.get("version") != version.group(1):
-                    raise SystemExit("Manifest version does not match APP_VERSION")
-                ref_name = os.environ.get("REF_NAME", "")
-                if ref_name.startswith("release/") and branch.group(1) != ref_name:
-                    raise SystemExit(f"Updater targets {branch.group(1)!r}, but this release branch is {ref_name!r}")
-                if ref_name == "release/v0.6.5-stabilization" and version.group(1) != "0.6.5":
-                    raise SystemExit("V0.6.5 stabilization branch still contains a non-V0.6.5 source")
-                print(f"Source version {version.group(1)} targets update channel {branch.group(1)}")
-                PY
+      - name: Validate release source version and update channel
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          source = Path("ai_prompt_workbench.py").read_text(encoding="utf-8")
+          version = re.search(r'^APP_VERSION\\s*=\\s*["\\']([^"\\']+)', source, re.M)
+          branch = re.search(r'^GITHUB_BRANCH\\s*=\\s*["\\']([^"\\']+)', source, re.M)
+          if not version or not branch:
+              raise SystemExit("Cannot identify APP_VERSION or GITHUB_BRANCH")
+          manifest = json.loads(Path("update_manifest.json").read_text(encoding="utf-8"))
+          if manifest.get("version") != version.group(1):
+              raise SystemExit("Manifest version does not match APP_VERSION")
+          ref_name = os.environ.get("REF_NAME", "")
+          if ref_name.startswith("release/") and branch.group(1) != ref_name:
+              raise SystemExit(f"Updater targets {branch.group(1)!r}, but this release branch is {ref_name!r}")
+          if ref_name == "release/v0.6.5-stabilization" and version.group(1) != "0.6.5":
+              raise SystemExit("V0.6.5 stabilization branch still contains a non-V0.6.5 source")
+          print(f"Source version {version.group(1)} targets update channel {branch.group(1)}")
+          PY
