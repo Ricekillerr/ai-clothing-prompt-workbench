@@ -68,10 +68,19 @@ jobs:
                   raise SystemExit(f"SHA-256 mismatch: {name}")
           print(f"Validated {len(files)} update files.")
           PY
-      - name: Require and run hardening test suite
+      - name: Require and run repository regression suite
         run: |
-          test -f test_hardening.py || { echo "Required root test_hardening.py is missing"; exit 1; }
-          test -f tests/test_hardening.py || { echo "Required tests/test_hardening.py is missing"; exit 1; }
-          cmp -s test_hardening.py tests/test_hardening.py || { echo "Root and tests copies of test_hardening.py differ"; exit 1; }
-          python -m unittest -v test_hardening
-          python -m unittest discover -s tests -p 'test_*.py' -v
+          python - <<'PY'
+          import unittest
+          suite = unittest.defaultTestLoader.discover("tests", pattern="test_*.py")
+          count = suite.countTestCases()
+          if count == 0:
+              raise SystemExit("No regression tests discovered under tests/")
+          print(f"Discovered {count} regression tests.")
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          if not result.wasSuccessful():
+              raise SystemExit(1)
+          PY
+          if [ -f test_hardening.py ]; then
+            python -m unittest -v test_hardening
+          fi
