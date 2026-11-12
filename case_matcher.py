@@ -120,6 +120,54 @@ def score_case_attributes(case,query):
         weighted+=coverage*0.10; total+=0.10
         if coverage>=0.5: reasons.append("其他描述关键词匹配")
     return {"score":round(weighted/max(total,1e-9),4),"reasons":reasons or ["匹配属性较少，建议人工核对"]}
+_EXCLUSIVE_ATTRIBUTES = {
+    "color": {
+        "black": ("黑色", "black"),
+        "white": ("白色", "white"),
+        "red": ("红色", "red"),
+        "blue": ("蓝色", "blue", "藏青", "navy"),
+        "green": ("绿色", "green"),
+        "brown": ("棕色", "咖啡色", "brown"),
+        "grey": ("灰色", "灰", "grey", "gray"),
+        "beige": ("米色", "米白", "beige"),
+    },
+    "material": {
+        "leather": ("皮革", "皮质", "leather"),
+        "corduroy": ("灯芯绒", "corduroy"),
+        "nylon": ("尼龙", "锦纶", "nylon"),
+        "wool": ("羊毛", "wool"),
+        "cotton": ("棉", "cotton"),
+        "denim": ("牛仔", "denim"),
+    },
+}
+
+
+def find_case_conflicts(case, query):
+    """Find explicit mutually-exclusive color/material values in query vs case."""
+    query_text = str(query or "").casefold()
+    case_text = _match_text(_candidate_attribute_text(case)).casefold()
+    conflicts = []
+    for dimension, values in _EXCLUSIVE_ATTRIBUTES.items():
+        requested = [
+            key for key, aliases in values.items()
+            if any(alias.casefold() in query_text for alias in aliases)
+        ]
+        present = [
+            key for key, aliases in values.items()
+            if any(alias.casefold() in case_text for alias in aliases)
+        ]
+        for wanted in requested:
+            for actual in present:
+                if wanted != actual:
+                    conflicts.append({
+                        "attribute": dimension,
+                        "requested": wanted,
+                        "case_value": actual,
+                        "reason": "查询要求与案例记录的属性值冲突",
+                    })
+    return conflicts
+
+
 def explain_case_match(case, query):
     """Return transparent per-attribute coverage; never label ranking as confidence."""
     query = str(query or "").strip()
@@ -164,15 +212,18 @@ def explain_case_match(case, query):
     return details
 
 
-def rank_case_matches(cases,query,threshold=0.80,limit=100,include_unverified=False):
+def rank_case_matches(cases,query,threshold=0.80,limit=100,include_unverified=False,include_conflicts=False):
     try: threshold=min(1.0,max(0.0,float(threshold)))
     except (TypeError,ValueError): threshold=0.80
     results=[]
     for case in cases:
         if not isinstance(case,dict): continue
         if not include_unverified and case.get("status")!="已验证成功": continue
+        conflicts = find_case_conflicts(case, query)
+        if conflicts and not include_conflicts:
+            continue
         scored=score_case_attributes(case,query)
         if scored["score"]>=threshold:
-            results.append({"case":case,"score":scored["score"],"match_percent":round(scored["score"]*100),"reasons":scored["reasons"],"attribute_details":explain_case_match(case, query)})
+            results.append({"case":case,"score":scored["score"],"match_percent":round(scored["score"]*100),"reasons":scored["reasons"],"attribute_details":explain_case_match(case, query),"conflicts":conflicts})
     results.sort(key=lambda x:(-x["score"],str(x["case"].get("name",""))))
     return results[:max(0,int(limit))]
