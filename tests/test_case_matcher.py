@@ -1,5 +1,5 @@
 import unittest
-from case_matcher import rank_matches, similarity, rank_case_matches, score_case_attributes, explain_case_match
+from case_matcher import rank_matches, similarity, rank_case_matches, score_case_attributes, explain_case_match, find_case_conflicts
 
 class CaseMatcherTests(unittest.TestCase):
     def test_same_stem_prompt_and_image_rank_high(self):
@@ -37,5 +37,22 @@ class CaseMatcherTests(unittest.TestCase):
         self.assertIn("reasons", results[0])
         self.assertIn("attribute_details", results[0])
         self.assertTrue(results[0]["attribute_details"])
+    def test_explicit_color_conflict_is_detected(self):
+        conflicts = find_case_conflicts(self.case, "红色立领马甲")
+        self.assertTrue(any(x["attribute"] == "color" for x in conflicts))
+
+    def test_explicit_material_conflict_is_detected(self):
+        case = dict(self.case, material="纯皮革面料", tags=["皮革"])
+        conflicts = find_case_conflicts(case, "尼龙面料马甲")
+        self.assertTrue(any(x["attribute"] == "material" for x in conflicts))
+
+    def test_conflicting_case_is_excluded_by_default(self):
+        results = rank_case_matches([self.case], "红色立领无袖马甲", threshold=0.1)
+        self.assertEqual(results, [])
+
+    def test_conflicting_case_can_be_included_for_manual_review(self):
+        results = rank_case_matches([self.case], "红色立领无袖马甲", threshold=0.1, include_conflicts=True)
+        self.assertEqual(len(results), 1)
+        self.assertTrue(results[0]["conflicts"])
 
 if __name__=="__main__": unittest.main(verbosity=2)
