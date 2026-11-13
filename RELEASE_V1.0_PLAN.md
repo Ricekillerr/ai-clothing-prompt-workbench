@@ -329,3 +329,9 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Restoring an older full backup re-runs additive schema initialization after the database swap, so newly introduced local analytics tables/indexes are recreated without replacing the restored case data.
 - Full backup filenames now include microseconds to prevent rapid or concurrent snapshots in the same second from overwriting one another.
 - GitHub Actions run 43362277749 passed 87 regression tests, all 8 runtime SHA-256 hashes, four Windows Server 2025 runtime tests, PowerShell parsing, and release source/channel gate.
+
+
+## Implementation log — 2026-11-13 (generation feedback atomicity and backup schema migration)
+- Generation outcome updates now run in one SQLite transaction: prior asset snapshot, case status/last-outcome metadata, and generation-feedback event are committed together. The feedback table is bounded to 5,000 records.
+- Full backup restore now reapplies additive schema initialization after installing the restored database, allowing older backups to gain newer local tables/indexes before the app uses them. Added a regression test that restores a database missing the generation-feedback table and verifies the feature works afterward.
+- GitHub Actions run 43362347918 passed 87 regression tests, all 8 update-manifest hashes, PowerShell parsing, release source/channel gate, and all four Windows Server 2025 runtime smoke tests.
