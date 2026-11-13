@@ -10,10 +10,10 @@
     "ai_analyzer.py"
   ],
   "sha256": {
-    "ai_prompt_workbench.py": "b6ea880e9a2f3ba80f5cfebc6a3738703ab1b9be91ddb495dba7eae2d944c037",
+    "ai_prompt_workbench.py": "437b21d51bad875dc3f5bc89630ada65886cda1e2a70dc22f9d8c5a9f9ce04b1",
     "updater.py": "1cbdf1d55d07c4c3aa232c79b885b5ffb4ae681818b002178ba28d38fcee092b",
     "启动AI服装提示词工作台.bat": "a64c3ba2bba22c3758857cb138b5eb71d624763be555a25c0694853c96066f02",
-    "index.html": "cd22de13c63e860126383f8fd37a98c8b134d79a7cf8a600e3e138885a0e8d21",
+    "index.html": "3257f32af899728735c245051f98ac33f8b0c3ba7709f263d70beb91838ebe11",
     "storage.py": "f6054b445cfc5a9dbd1629b23c8560006eba24f10391adb54505774284ad0936",
     "ai_analyzer.py": "2af05fcd427ecfff08556bca30e6b4a6b1ea9bdece344cf59a0a57eec8f69f67"
   }
