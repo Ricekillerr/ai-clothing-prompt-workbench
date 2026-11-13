@@ -5,13 +5,13 @@
 **生产分支：** main（保持不动）  
 **开发分支：** release/v0.6.5-stabilization  
 **候选版本：** 0.6.5  
-**最近代码提交：** a1b026ba1d4a8320e78b3eb4d3bd12c6921e26b7  
+**最近代码提交：** 25d43a47ab6d03871d2dc3724080b7b64d05ab6c  
 **状态：** V1.0 候选开发；不是正式发布。
 
 ## 最新 CI
-[GitHub Actions run 43402586480](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43402586480)：三个 job 全部成功。主回归 139 项（138 通过、1 项环境跳过），Windows 专项 19 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
-[GitHub Actions run 43401717130](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43401717130)：三个 job 全部成功。主回归 137 项（136 通过、1 项环境跳过），Windows 专项 19 项通过。
-[GitHub Actions run 43401220823](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43401220823)：三个 job 全部成功。主回归 136 项（135 通过、1 项环境跳过），Windows 专项 19 项通过。
+[GitHub Actions run 43403333436](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43403333436)：三个 job 全部成功。主回归 142 项（141 通过、1 项环境跳过），Windows 专项 19 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
+[GitHub Actions run 43403095428](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43403095428)：三个 job 全部成功。主回归 141 项（140 通过、1 项环境跳过），Windows 专项 19 项通过。
+[GitHub Actions run 43402586480](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43402586480)：三个 job 全部成功。主回归 139 项（138 通过、1 项环境跳过），Windows 专项 19 项通过。
 CI 证明隔离环境中的代码和测试通过，不等于用户本人 Windows 桌面、现有真实资料、杀毒软件和网络环境已验收。
 
 ## 已实现/已集成的候选能力
@@ -21,7 +21,7 @@ CI 证明隔离环境中的代码和测试通过，不等于用户本人 Windows
 - 指定文件夹采集、自动扫描、手动强制重算 SHA-256、人工审核。
 - AI 多图分析、来源路径与 SHA-256 溯源、AI 结果人工确认。
 - 参考图用途角色、主次优先级、控制属性及人工修正。
-- 批量管理、版本历史、提示词修订比较与恢复；批量筛选后自动清理隐藏选择；恢复历史版本后刷新列表/统计并维持每资产 50 条历史上限。
+- 批量管理、版本历史、提示词修订比较与恢复；批量筛选后自动清理隐藏选择；恢复历史版本后刷新列表/统计并维持每资产 50 条历史上限；回收站恢复校验最新删除快照并拒绝覆盖重新创建的资产。
 - JSON 导入采用跨类别/批次 ID 去重、无效行跳过、读取失败提示与同文件重选。
 - 检索反馈和真实生成成功/失败结果记录。
 - 中英文提示词存储/输出（英文需已有内容，不自动翻译）。
@@ -37,7 +37,7 @@ CI 证明隔离环境中的代码和测试通过，不等于用户本人 Windows
 - **本地 API 与媒体：** 增加 Fetch Metadata 跨站请求限制；媒体接口仅提供 PNG/JPG/JPEG/WEBP/GIF/BMP 六类图片，拒绝 HTML、符号链接和目录联接，并添加 nosniff。
 - **前端安全与一致性：** 导入案例时间字段插入 HTML 前转义；更新设置文案与每 15 分钟检查及明确授权后安装的真实行为一致；批量筛选变化会清理隐藏选择；组合器保存生成时来源快照并标记手动修改；所有服务端刷新路径统一归一化旧版标签/时间/图片字段。
 - **日志：** 应用和更新器日志按大小轮转、保留 3 份；应用日志不记录异常原文或用户目录，更新器日志脱敏安装目录、用户目录、Bearer/API Key 模式。
-- **回归证据：** 最新 CI run 43401220823 三个 job 全部通过：主回归 136 项（135 通过、1 项环境跳过），Windows 专项 19 项通过，9 个更新文件哈希与 release gate 通过。
+- **回归证据：** 最新 CI run 43403333436 三个 job 全部通过：主回归 142 项（141 通过、1 项环境跳过），Windows 专项 19 项通过，9 个更新文件哈希与 release gate 通过。
 
 ## 已知限制
 - 浏览器感知哈希检索只是粗略近重复/视觉结构候选，不是语义服装识别。
