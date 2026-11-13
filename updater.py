@@ -3,6 +3,7 @@
 import hashlib
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -11,6 +12,9 @@ import time
 import tempfile
 import traceback
 from pathlib import Path
+
+LOG_MAX_BYTES = 1024 * 1024
+LOG_BACKUP_COUNT = 3
 
 ALLOWED = {
     "ai_prompt_workbench.py", "index.html", "启动AI服装提示词工作台.bat",
@@ -21,8 +25,41 @@ ALLOWED = {
 
 def write_log(root, message):
     try:
-        with (root / "_update_error.log").open("a", encoding="utf-8") as f:
-            f.write(time.strftime("[%Y-%m-%d %H:%M:%S] ") + message + "\n")
+        root = Path(root)
+        log = root / "_update_error.log"
+        safe_message = str(message)
+        for sensitive_path, label in (
+            (root, "<install-root>"),
+            (Path.home(), "<user-home>"),
+        ):
+            token = str(sensitive_path)
+            if token:
+                safe_message = re.sub(
+                    re.escape(token), label, safe_message, flags=re.IGNORECASE
+                )
+        safe_message = re.sub(
+            r"(?i)(authorization\\s*:\\s*bearer\\s+)[^\\s]+",
+            r"\\1[REDACTED]",
+            safe_message,
+        )
+        safe_message = re.sub(
+            r"(?i)(api[_-]?key\\s*[:=]\\s*)[^\\s,;]+",
+            r"\\1[REDACTED]",
+            safe_message,
+        )
+        safe_message = re.sub(r"\\bsk-[A-Za-z0-9_-]{16,}\\b", "[REDACTED]", safe_message)
+        line = time.strftime("[%Y-%m-%d %H:%M:%S] ") + safe_message[-32768:] + "\n"
+        encoded_size = len(line.encode("utf-8"))
+        if log.exists() and log.stat().st_size + encoded_size > LOG_MAX_BYTES:
+            for index in range(LOG_BACKUP_COUNT, 0, -1):
+                source = log if index == 1 else Path(str(log) + f".{index - 1}")
+                target = Path(str(log) + f".{index}")
+                if target.exists():
+                    target.unlink()
+                if source.exists():
+                    os.replace(source, target)
+        with log.open("a", encoding="utf-8") as stream:
+            stream.write(line)
     except Exception:
         pass
 

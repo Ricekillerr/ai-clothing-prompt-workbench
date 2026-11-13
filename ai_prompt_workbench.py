@@ -47,6 +47,8 @@ CLIENT_HEARTBEAT_LOCK = threading.Lock()
 LAST_CLIENT_HEARTBEAT = 0.0
 CLOSE_REQUESTED_AT = 0.0
 CLIENT_HEARTBEAT_TIMEOUT_SECONDS = 15
+LOG_MAX_BYTES = 1024 * 1024
+LOG_BACKUP_COUNT = 3
 SCAN_SOURCE_LOCKS = {}
 SCAN_SOURCE_LOCKS_LOCK = threading.Lock()
 
@@ -84,25 +86,40 @@ def scan_registered_source(source_id, force_hash=False):
             return STORAGE.save_scan_results(source_id, items)
 
 
-def log_background_error(message):
+def _append_local_log(path, message):
     try:
-        log = HOME / "background_tasks.log"
+        log = Path(path)
+        line = time.strftime("[%Y-%m-%d %H:%M:%S] ") + str(message)[:2000] + "\n"
+        encoded_size = len(line.encode("utf-8"))
+        if log.exists() and log.stat().st_size + encoded_size > LOG_MAX_BYTES:
+            for index in range(LOG_BACKUP_COUNT, 0, -1):
+                source = log if index == 1 else Path(str(log) + f".{index - 1}")
+                target = Path(str(log) + f".{index}")
+                if target.exists():
+                    target.unlink()
+                if source.exists():
+                    os.replace(source, target)
         with log.open("a", encoding="utf-8") as stream:
-            stream.write(time.strftime("[%Y-%m-%d %H:%M:%S] ") + str(message) + "\n")
+            stream.write(line)
     except Exception:
         pass
 
+
+def log_background_error(error, source_id=""):
+    """Log only a source token and exception type, never a user path or error message."""
+    error_type = type(error).__name__ if isinstance(error, BaseException) else "BackgroundError"
+    _append_local_log(
+        HOME / "background_tasks.log",
+        f"自动扫描失败 source_id={str(source_id)[:64]} error={error_type}",
+    )
+
+
 def log_api_error(route, error):
-    """Record route and exception diagnostics without logging request bodies or secrets."""
-    try:
-        log = HOME / "api_errors.log"
-        code = getattr(error, "code", None) or getattr(error, "errno", None)
-        message = type(error).__name__ + (f" code={code}" if code is not None else "")
-        with log.open("a", encoding="utf-8") as stream:
-            stream.write(time.strftime("[%Y-%m-%d %H:%M:%S] ")
-                         + str(route)[:120] + " | " + message + "\n")
-    except Exception:
-        pass
+    """Record a route token and exception class without request bodies, secrets or query data."""
+    code = getattr(error, "code", None) or getattr(error, "errno", None)
+    message = type(error).__name__ + (f" code={code}" if code is not None else "")
+    route_name = str(route).split("?", 1)[0][:120]
+    _append_local_log(HOME / "api_errors.log", route_name + " | " + message)
 
 
 def auto_scan_loop():
@@ -119,7 +136,7 @@ def auto_scan_loop():
             try:
                 scan_registered_source(source["id"])
             except Exception as exc:
-                log_background_error(f"自动扫描失败 [{source.get('folder_path', '')}]：{exc}")
+                log_background_error(exc, source.get("id", ""))
 
 
 def heartbeat_watchdog(server):

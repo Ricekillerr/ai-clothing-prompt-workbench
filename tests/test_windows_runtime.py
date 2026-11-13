@@ -33,6 +33,29 @@ class WindowsUpdaterTransactionTests(unittest.TestCase):
         )
         return stage
 
+    def test_updater_log_rotates_and_redacts_local_paths_and_credentials(self):
+        import updater
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "private-install-path"
+            root.mkdir()
+            with mock.patch.object(updater, "LOG_MAX_BYTES", 256), \
+                 mock.patch.object(updater, "LOG_BACKUP_COUNT", 2):
+                for _ in range(10):
+                    updater.write_log(
+                        root,
+                        "failure at " + str(root)
+                        + " Authorization: Bearer top-secret-token "
+                        + "api_key=sk-12345678901234567890 " + "x" * 100,
+                    )
+            current = (root / "_update_error.log").read_text(encoding="utf-8")
+            self.assertNotIn(str(root), current)
+            self.assertNotIn("top-secret-token", current)
+            self.assertNotIn("sk-12345678901234567890", current)
+            self.assertTrue((root / "_update_error.log.1").is_file())
+            self.assertTrue((root / "_update_error.log.2").is_file())
+            self.assertFalse((root / "_update_error.log.3").exists())
+
     def test_update_installs_verified_files_and_retains_backup(self):
         import updater
 
@@ -243,6 +266,31 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         return server, thread, f"http://127.0.0.1:{server.server_address[1]}"
+
+    def test_app_logs_rotate_without_recording_user_paths_or_exception_text(self):
+        previous_limit = self.app.LOG_MAX_BYTES
+        previous_backups = self.app.LOG_BACKUP_COUNT
+        self.app.LOG_MAX_BYTES = 256
+        self.app.LOG_BACKUP_COUNT = 2
+        try:
+            secret_path = str(self.home / "private-client-folder")
+            secret_error = RuntimeError("sensitive exception at " + secret_path + " sk-very-secret-token")
+            for _ in range(10):
+                self.app.log_background_error(secret_error, "source-token")
+                self.app.log_api_error(
+                    "/api/ai/analyze?prompt_path=" + secret_path,
+                    secret_error,
+                )
+            for name in ("background_tasks.log", "api_errors.log"):
+                current = (self.home / name).read_text(encoding="utf-8")
+                self.assertNotIn(secret_path, current)
+                self.assertNotIn("very-secret-token", current)
+                self.assertTrue((self.home / (name + ".1")).is_file())
+                self.assertTrue((self.home / (name + ".2")).is_file())
+                self.assertFalse((self.home / (name + ".3")).exists())
+        finally:
+            self.app.LOG_MAX_BYTES = previous_limit
+            self.app.LOG_BACKUP_COUNT = previous_backups
 
     def test_scans_for_the_same_source_are_serialized(self):
         source_dir = self.home / "history"
