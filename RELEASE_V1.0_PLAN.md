@@ -142,3 +142,10 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 - Manual editing of outfit items/relationships and the browser-local visual shortlist passed the complete GitHub Actions pipeline. Run 43357194030 passed all 67 regression tests, frontend syntax validation, all 8 update-file SHA-256 checks, Windows PowerShell parser validation, and release source/channel gate.
 - The image shortlist remains intentionally scoped to perceptual-hash similarity, not semantic recognition. It does not upload the query image, and results must not be represented as an 80% same-product probability.
 - No Windows desktop acceptance or release promotion is claimed.
+
+
+## Implementation log — 2026-11-13 (reference authority and governed attributes)
+- AI reference-image analysis now records a priority level (`primary`, `secondary`, `supporting`) and the visual attributes each reference governs. Defaults are role-based: overall/front/back are primary; detail/fabric are secondary; labels, scenes, unknown and other roles are supporting. Valid AI overrides are retained, invalid priorities fall back to the deterministic default.
+- Approved cases preserve priority and governed-attribute metadata. The AI review queue and case detail view display the reference authority level, helping later prompt assembly distinguish overall structure references from material/detail references.
+- GitHub Actions run 43357442566 passed all 67 regression tests, Python compilation, frontend JavaScript syntax, all 8 update-file hashes, Windows PowerShell parser validation, and release source/channel gate.
+- This priority metadata is now available to prompt assembly, but the final V1.0 acceptance still needs to verify that the composer actually emits the right reference precedence and does not silently reorder or override user-selected authority.
