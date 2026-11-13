@@ -73,7 +73,7 @@ class V065IntegrationTests(unittest.TestCase):
         self.assertIn("autoUpdateAuthorized&&!autoUpdateInProgress", html)
         self.assertNotIn('status.textContent="已授权自动更新：正在下载、校验并安装', html)
         self.assertIn("连续空闲 15 分钟", html)
-        self.assertIn("任意操作都会延期", html)
+        self.assertIn("任意操作会延期", html)
         self.assertIn("toggleAutoUpdate", html)
         self.assertIn("refreshAutoUpdateState", html)
         self.assertIn("applyUpdate(true)", html)
