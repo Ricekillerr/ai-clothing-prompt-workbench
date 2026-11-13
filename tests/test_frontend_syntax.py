@@ -227,6 +227,53 @@ run().catch(error=>{console.error(error);process.exit(1);});
         result = subprocess.run([node, "-e", script], capture_output=True, text=True, check=False)
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
+    def test_bulk_module_delete_confirms_and_rolls_back_failed_save(self):
+        html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
+        start = html.index("function bindBulkModuleControls(")
+        end = html.index("function modules(){", start)
+        helper = html[start:end]
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("Node.js is not installed in this environment")
+        script = helper + r"""
+const moduleA={id:"module-A"},moduleB={id:"module-B"};
+let db={modules:[moduleA,moduleB]};
+const selectedModuleIds=new Set(["module-A"]);
+const controls={
+  moduleBulkCount:{},moduleSelectVisibleBtn:{},moduleClearSelectionBtn:{},
+  moduleBulkTagInput:{value:""},moduleApplyBulkTagBtn:{},moduleDeleteBulkBtn:{}
+};
+function $(id){return controls[id];}
+const document={querySelectorAll(){return [];}};
+let confirmed=true,failSave=false,renderCalls=0,toastMessage="";
+function confirm(){return confirmed;}
+function render(){renderCalls++;}
+function toast(message){toastMessage=message;}
+function save(){return failSave?Promise.reject(new Error("simulated write failure")):Promise.resolve();}
+async function reconcileSaveFailure(error,rollback){rollback();return "rolled_back";}
+function saveFailureMessage(){return "保存失败，已回滚";}
+async function run(){
+ bindBulkModuleControls([moduleA,moduleB]);
+ await controls.moduleDeleteBulkBtn.onclick();
+ if(db.modules.length!==1||db.modules[0].id!=="module-B")throw new Error("Confirmed bulk delete must remove only selected modules.");
+ if(selectedModuleIds.size!==0||renderCalls!==1)throw new Error("Successful bulk delete must clear selection and rerender.");
+ if(!toastMessage.includes("已删除"))throw new Error("Successful module deletion must report completion.");
+
+ db={modules:[moduleA,moduleB]};selectedModuleIds.clear();selectedModuleIds.add("module-A");
+ confirmed=false;renderCalls=0;toastMessage="";
+ await controls.moduleDeleteBulkBtn.onclick();
+ if(db.modules.length!==2||renderCalls!==0)throw new Error("Cancel must leave modules unchanged.");
+
+ confirmed=true;failSave=true;toastMessage="";
+ await controls.moduleDeleteBulkBtn.onclick();
+ if(db.modules.length!==2||db.modules[0].id!=="module-A"||selectedModuleIds.size!==1)throw new Error("Failed module delete must restore data and selection.");
+ if(!toastMessage.includes("保存失败"))throw new Error("Failed module delete must report rollback.");
+}
+run().catch(error=>{console.error(error);process.exit(1);});
+"""
+        result = subprocess.run([node, "-e", script], capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
     def test_inline_javascript_parses_when_node_is_available(self):
         node = shutil.which("node")
         if not node:
