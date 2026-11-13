@@ -36,6 +36,20 @@ class FrontendSyntaxTests(unittest.TestCase):
         self.assertIn("tags:normalizeTags(item.tags)", html)
         self.assertIn("value.split(/[,，]/)", html)
 
+    def test_gallery_status_and_model_filters_update_state_and_count(self):
+        html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
+        self.assertIn('st.onchange=()=>{window.sf=st.value;window.mf=mf.value;render()}', html)
+        self.assertIn('mf.onchange=()=>{window.sf=st.value;window.mf=mf.value;render()}', html)
+        self.assertNotIn('id="statusF" onchange="render()"', html)
+        self.assertNotIn('id="modelF" onchange="render()"', html)
+        self.assertIn('textContent=arr.length+" 条资产 · 图片优先的浏览方式"', html)
+
+    def test_composed_prompt_preserves_whitespace_and_checks_category_scope(self):
+        html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
+        self.assertIn('function saveDraft(){let body=$("output").value;', html)
+        self.assertIn('if(!body.trim())return toast("先生成组合草稿")', html)
+        self.assertIn('适用品类不匹配：', html)
+
     def test_inline_javascript_parses_when_node_is_available(self):
         node = shutil.which("node")
         if not node:
