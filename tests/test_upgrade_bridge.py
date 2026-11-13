@@ -42,11 +42,16 @@ class V052IntegrationTests(unittest.TestCase):
         self.assertIn("STORAGE = Storage(", self.app)
         self.assertIn("create_full_backup", self.app)
         self.assertIn("pre_update_backup = STORAGE.create_full_backup", self.app)
+        self.assertIn("analyze_assets", self.app)
+        self.assertIn("AUTO_SCAN_INTERVAL_SECONDS = 60", self.app)
+        self.assertIn("def auto_scan_loop", self.app)
+        self.assertIn("def heartbeat_watchdog", self.app)
         self.assertIn("from collector import scan_folder, sha256_file", self.app)
         for route in ("/api/scan/sources", "/api/scan/pending", "/api/scan/matches",
                       "/api/scan/source", "/api/scan/run", "/api/ai/analyze",
                       "/api/ai/approve", "/api/ai/reject", "/api/cases/search",
-                      "/api/backup/full"):
+                      "/api/backup/full", "/api/scan/auto",
+                      "/api/client/heartbeat", "/api/client/close"):
             self.assertIn(route, self.app)
 
     def test_frontend_contains_scanner_review_and_ai_controls(self):
@@ -61,6 +66,11 @@ class V052IntegrationTests(unittest.TestCase):
         self.assertIn("include_conflicts", self.app)
         self.assertIn("threshold_raw", self.app)
         self.assertIn("downloadFullBackup", html)
+        self.assertIn("autoScanToggle", html)
+        self.assertIn("refreshAutoScanState", html)
+        self.assertIn("asset_paths:selected", html)
+        self.assertIn("async function runAiAnalysis", html)
+        self.assertIn("startWorkbenchHeartbeat", html)
         self.assertIn("完整 ZIP 备份", html)
         self.assertIn("SHA-256", html)
         self.assertIn("findComposeConflicts", html)
