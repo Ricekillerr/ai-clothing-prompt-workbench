@@ -61,6 +61,16 @@ class FrontendSyntaxTests(unittest.TestCase):
         self.assertLess(update.index("updateRequestSent=true"), update.index('fetch("/api/update/apply"'))
         self.assertIn("更新已取消：待保存数据未能确认写入", update)
 
+    def test_load_reports_failure_and_restore_does_not_claim_false_success(self):
+        html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
+        load = html.split("async function load(){", 1)[1].split("function save()", 1)[0]
+        restore = html.split("async function restoreFullBackup(file){", 1)[1].split("async function downloadFullBackup()", 1)[0]
+        self.assertIn("return true", load)
+        self.assertIn("return false", load)
+        self.assertIn("const loaded=await load()", restore)
+        self.assertIn("服务器已确认恢复成功，但界面未能重新读取数据", restore)
+        self.assertIn("if(!loaded)", restore)
+
     def test_inline_javascript_parses_when_node_is_available(self):
         node = shutil.which("node")
         if not node:

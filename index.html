@@ -22,7 +22,7 @@
 <script>
 const CATS=["上装","下装","鞋履","配饰","整套搭配","其他"],TYPES=["款式与结构","面料材质","颜色与质感","场景与环境","光影","镜头与动作","人物与身体锁定","换装约束","失败修复","其他"],MODELS=["通用","RunningHub","WAN 3.0","MiniMax H3","Seedance 2.5","其他"],ST=["已验证成功","待验证","失败案例"];let db={cases:[],modules:[]},page="gallery",filter="全部",chosen=null,kind="case",editId=null,editKind="case",imagePath="",activeDetailTab="prompt";const selectedCaseIds=new Set();const selectedModuleIds=new Set();let deletedAssetsCache=null,trashLoading=false;let saveQueue=Promise.resolve();const $=x=>document.getElementById(x);
 function esc(s=""){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}function normalizeTags(value){const values=Array.isArray(value)?value:typeof value==="string"?value.split(/[,，]/):[];return values.map(item=>String(item??"").trim()).filter(Boolean).slice(0,50)}function toast(s){$("toast").textContent=s;$("toast").classList.add("show");setTimeout(()=>$("toast").classList.remove("show"),1700)}function image(x){return x.image?`<img src="/media/${encodeURIComponent(x.image.split(/[\\/]/).pop())}" onerror="this.outerHTML='<div class=placeholder>◇</div>'">`:`<div class="placeholder">◇</div>`}
-async function load(){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);try{const response=await fetch("/api/data",{signal:controller.signal,cache:"no-store"});if(!response.ok)throw new Error("HTTP "+response.status);const data=await response.json();if(!data||!Array.isArray(data.cases)||!Array.isArray(data.modules))throw new Error("本地资产数据结构不正确");const normalizeRows=rows=>rows.filter(item=>item&&typeof item==="object"&&!Array.isArray(item)).map(item=>({...item,tags:normalizeTags(item.tags),image:typeof item.image==="string"?item.image:"",created_at:typeof item.created_at==="string"?item.created_at:"",updated_at:typeof item.updated_at==="string"?item.updated_at:""}));db={cases:normalizeRows(data.cases),modules:normalizeRows(data.modules)}}catch(e){toast(e.name==="AbortError"?"读取本地数据超时，请检查工作台服务":"读取本地数据失败："+e.message)}finally{clearTimeout(timer)}}
+async function load(){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);try{const response=await fetch("/api/data",{signal:controller.signal,cache:"no-store"});if(!response.ok)throw new Error("HTTP "+response.status);const data=await response.json();if(!data||!Array.isArray(data.cases)||!Array.isArray(data.modules))throw new Error("本地资产数据结构不正确");const normalizeRows=rows=>rows.filter(item=>item&&typeof item==="object"&&!Array.isArray(item)).map(item=>({...item,tags:normalizeTags(item.tags),image:typeof item.image==="string"?item.image:"",created_at:typeof item.created_at==="string"?item.created_at:"",updated_at:typeof item.updated_at==="string"?item.updated_at:""}));db={cases:normalizeRows(data.cases),modules:normalizeRows(data.modules)};return true}catch(e){toast(e.name==="AbortError"?"读取本地数据超时，请检查工作台服务":"读取本地数据失败："+e.message);return false}finally{clearTimeout(timer)}}
 function save(){
  const payload=JSON.stringify(db);
  const task=saveQueue.catch(()=>{}).then(async()=>{
@@ -456,7 +456,13 @@ async function restoreFullBackup(file){
   const response=await fetch("/api/backup/restore",{method:"POST",headers:{"Content-Type":"application/zip"},body:file,signal:controller.signal});
   const result=await response.json();
   if(!response.ok||!result.ok)throw new Error(result.error||"备份恢复失败");
-  await load();page="settings";render();
+  const loaded=await load();
+  if(!loaded){
+   if($("restoreStatus"))$("restoreStatus").textContent="服务器已确认恢复成功，但界面未能重新读取数据。请刷新工作台；不要重复执行恢复。";
+   toast("备份已恢复，但界面刷新失败");
+   return;
+  }
+  page="settings";render();
   const message="恢复成功：案例 "+result.cases+" 条、模块 "+result.modules+" 条、参考图片 "+result.references+" 张。恢复前安全备份："+result.safety_backup;
   if($("restoreStatus"))$("restoreStatus").textContent=message;
   toast("完整备份恢复成功");
