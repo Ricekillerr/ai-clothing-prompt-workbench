@@ -15,6 +15,21 @@ class CaseMatcherTests(unittest.TestCase):
         self.case={"id":"case-1","name":"黑色立领无袖马甲","status":"已验证成功","sku":"LL-WZWY10278","category":"上装","subcategory":"无袖马甲","material":"柔软哑光高密度面料","color":"黑色","details":["立领","双拉头拉链","无袖"],"tags":["黑色","马甲","哑光","双拉头"],"body":"严格锁定人物动作，仅替换服装。黑色立领无袖马甲，柔软哑光面料，双拉头拉链。"}
     def test_exact_sku_is_perfect_match(self):
         result=score_case_attributes(self.case,"款号 LL-WZWY10278"); self.assertEqual(result["score"],1.0); self.assertIn("款号精确匹配",result["reasons"])
+    def test_exact_sku_retrieves_verified_case_at_100_percent(self):
+        results = rank_case_matches([self.case], "LL-WZWY10278")
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["case"]["id"], "case-1")
+        self.assertEqual(results[0]["match_percent"], 100)
+        self.assertIn("款号精确匹配", results[0]["reasons"])
+
+    def test_legacy_style_number_and_product_code_are_supported(self):
+        for field in ("style_number", "product_code"):
+            case = dict(self.case, sku=None)
+            case[field] = "LEGACY-7788"
+            result = score_case_attributes(case, "LEGACY-7788")
+            self.assertEqual(result["score"], 1.0, field)
+            self.assertIn("款号精确匹配", result["reasons"])
+
     def test_attribute_query_returns_verified_case_over_threshold(self):
         result=rank_case_matches([self.case],"黑色立领无袖马甲 柔软哑光面料 双拉头拉链"); self.assertEqual(len(result),1); self.assertGreaterEqual(result[0]["score"],0.8)
     def test_unverified_cases_are_excluded_by_default(self):
