@@ -152,6 +152,20 @@ def main():
                     version_dst.unlink()
             except Exception:
                 pass
+            for name in expected:
+                for suffix in (".update_tmp", ".restore_tmp"):
+                    leftover = root / (name + suffix)
+                    try:
+                        if leftover.exists():
+                            leftover.unlink()
+                    except OSError:
+                        pass
+            version_tmp = root / "installed_version.txt.update_tmp"
+            try:
+                if version_tmp.exists():
+                    version_tmp.unlink()
+            except OSError:
+                pass
             raise
 
         finally:
