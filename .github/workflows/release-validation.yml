@@ -24,10 +24,15 @@ jobs:
       - name: Report exact runtime SHA-256 values for manifest repair
         run: |
           python - <<'PY'
-          import hashlib
+          import hashlib, json
           from pathlib import Path
-          for name in ("ai_prompt_workbench.py", "index.html", "updater.py", "启动AI服装提示词工作台.bat", "storage.py", "ai_analyzer.py"):
-              print(f"RUNTIME_SHA256 {name} {hashlib.sha256(Path(name).read_bytes()).hexdigest()}")
+          manifest = json.loads(Path("update_manifest.json").read_text(encoding="utf-8"))
+          for name in manifest.get("files", []):
+              path = Path(name)
+              if path.is_file():
+                  print(f"RUNTIME_SHA256 {name} {hashlib.sha256(path.read_bytes()).hexdigest()}")
+              else:
+                  print(f"RUNTIME_MISSING {name}")
           PY
       - name: Validate inline frontend JavaScript syntax
         run: |
