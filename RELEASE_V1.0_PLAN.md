@@ -196,3 +196,8 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 - Timeout errors are surfaced to the UI with guidance not to blindly repeat an operation before checking current state. This matters when the server may have committed a write but the response was delayed.
 - Added local API error diagnostics that record route and exception class/code only. Request bodies, prompts, URLs, and credential-bearing exception strings are intentionally excluded from the log.
 - Added integration guards for save serialization, timeout handling, and diagnostic redaction. Manifest hashes have been refreshed and the full pipeline is being rechecked.
+
+
+## Implementation log — 2026-11-13 (request reliability validation)
+- GitHub Actions run 43358456440 passed all 69 regression tests, Python compilation, frontend JavaScript syntax, all 8 update manifest hashes, Windows PowerShell parser validation, and release source/channel gate.
+- The candidate now has serialized writes, bounded request timeouts, and local diagnostics that deliberately omit request payloads, URLs, and credential-bearing exception text.
