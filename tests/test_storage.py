@@ -372,7 +372,7 @@ class StorageTests(unittest.TestCase):
 
         self.assertEqual(store.load_data()["cases"][0]["id"], "current")
         self.assertTrue((references / "current.png").is_file())
-        self.assertFalse((references / "original.png").exists())
+        self.assertTrue((references / "original.png").is_file())
         self.assertEqual((references / "current.png").read_bytes(), b"current-reference")
 
     def test_full_backup_restore_rejects_zip_path_traversal(self):
