@@ -554,6 +554,7 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
         prompt_text = "以参考视频锁定人物与镜头，只替换深黑色夹克。\n保留原始动作和背景。"
         prompt_path.write_text(prompt_text, encoding="utf-8")
         image_path.write_bytes(b"mock-image-bytes-for-ingestion")
+        copied_image = None
         server, thread, base = self._start_server()
 
         def request_json(path, payload=None):
@@ -628,8 +629,8 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
         finally:
             try:
                 self.app.STORAGE.save_data(original)
-                for copied in self.images.glob("history_*"):
-                    copied.unlink(missing_ok=True)
+                if copied_image is not None:
+                    copied_image.unlink(missing_ok=True)
             finally:
                 shutil.rmtree(source_dir, ignore_errors=True)
                 server.shutdown()
