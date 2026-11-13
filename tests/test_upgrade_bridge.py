@@ -40,6 +40,8 @@ class V052IntegrationTests(unittest.TestCase):
 
     def test_backend_connects_storage_and_exposes_ingestion_routes(self):
         self.assertIn("STORAGE = Storage(", self.app)
+        self.assertIn("create_full_backup", self.app)
+        self.assertIn("pre_update_backup = STORAGE.create_full_backup", self.app)
         self.assertIn("from collector import scan_folder, sha256_file", self.app)
         for route in ("/api/scan/sources", "/api/scan/pending", "/api/scan/matches",
                       "/api/scan/source", "/api/scan/run", "/api/ai/analyze",
