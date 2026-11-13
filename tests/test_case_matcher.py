@@ -53,7 +53,7 @@ class CaseMatcherTests(unittest.TestCase):
         self.assertEqual(find_case_conflicts(case, "红色马甲"), [])
 
     def test_explicit_material_conflict_is_detected(self):
-        conflicts = find_case_conflicts(self.case, "尼龙面料黑色马甲")
+        conflicts = find_case_conflicts(dict(self.case, material="皮革"), "尼龙面料黑色马甲")
         self.assertTrue(any(x["attribute"] == "material" for x in conflicts))
 
     def test_material_conflict_does_not_reject_blended_fabrics(self):
