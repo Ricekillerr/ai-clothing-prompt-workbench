@@ -218,3 +218,9 @@ This branch is an isolated stabilization lane. It is not the production update c
 ## Implementation log — 2026-11-13 (bilingual prompt validation)
 - GitHub Actions run 43358645528 passed all 69 regression tests, Python compilation, frontend JavaScript syntax, all 8 incremental-update SHA-256 checks, Windows PowerShell parser validation, and release source/channel gate.
 - The case editor, detail view, copy action, and composer now support separately stored English prompt bodies. No automatic translation is claimed; absent English versions are omitted.
+
+
+## Implementation log — 2026-11-13 (model-specific composition guidance)
+- Added optional composer guidance profiles for WAN 3.0, MiniMax H3, and Seedance 2.5. WAN guidance emphasizes source-video identity/action/camera/background locking and localized garment edits; H3 guidance emphasizes chronological action progression and concise constraints; Seedance guidance emphasizes reference-role separation and cross-frame continuity.
+- RunningHub is explicitly described as a hosting/runtime platform, not a video model; the composer asks the user to identify the actual model before applying model-specific constraints.
+- Guidance is labelled as general workbench advice, not official vendor parameters or a guarantee. Added Seedance to the selectable model list and integration regression guards. Manifest hash refresh and full CI validation are in progress.
