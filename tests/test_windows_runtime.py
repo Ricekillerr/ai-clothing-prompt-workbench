@@ -416,6 +416,75 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
             if not was_stopped:
                 stop_event.clear()
 
+    def test_case_and_module_crud_api_round_trip_with_revisions_and_recycle_restore(self):
+        original = self.app.STORAGE.load_data()
+        case_id = "api-crud-case-" + __import__("uuid").uuid4().hex
+        module_id = "api-crud-module-" + __import__("uuid").uuid4().hex
+        server, thread, base = self._start_server()
+
+        def request_json(path, payload=None, method=None):
+            body = None if payload is None else json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            request = Request(
+                base + path,
+                data=body,
+                headers={"Content-Type": "application/json"} if body is not None else {},
+                method=method or ("POST" if body is not None else "GET"),
+            )
+            with urlopen(request, timeout=5) as response:
+                return json.loads(response.read().decode("utf-8"))
+
+        try:
+            created_case = {
+                "id": case_id, "name": "CRUD API 原始案例", "body": "original prompt",
+                "status": "待验证", "created_at": "2026-01-01T00:00:00Z",
+            }
+            created_module = {
+                "id": module_id, "name": "CRUD API 原始模块", "body": "original module",
+                "module_type": "面料", "created_at": "2026-01-01T00:00:00Z",
+            }
+            request_json("/api/data", {
+                "cases": original["cases"] + [created_case],
+                "modules": original["modules"] + [created_module],
+            })
+            edited_case = dict(created_case, name="CRUD API 修改案例", body="edited prompt")
+            edited_module = dict(created_module, name="CRUD API 修改模块", body="edited module")
+            request_json("/api/data", {
+                "cases": original["cases"] + [edited_case],
+                "modules": original["modules"] + [edited_module],
+            })
+            case_history = request_json("/api/assets/revisions?asset_id=" + case_id)["revisions"]
+            module_history = request_json("/api/assets/revisions?asset_id=" + module_id)["revisions"]
+            self.assertEqual(case_history[0]["reason"], "修改前" if case_history[0]["reason"] == "edited" else case_history[0]["reason"])
+            self.assertEqual(module_history[0]["reason"], "edited")
+            self.assertEqual(
+                request_json("/api/assets/revision?asset_id=" + case_id + "&revision_id=" + case_history[0]["revision_id"])["asset"]["body"],
+                "original prompt",
+            )
+
+            request_json("/api/data", {"cases": original["cases"], "modules": original["modules"]})
+            deleted = request_json("/api/assets/deleted")["items"]
+            deleted_by_id = {item["asset_id"]: item for item in deleted}
+            self.assertIn(case_id, deleted_by_id)
+            self.assertIn(module_id, deleted_by_id)
+            for asset_id in (case_id, module_id):
+                item = deleted_by_id[asset_id]
+                result = request_json("/api/assets/revisions/restore", {
+                    "asset_id": asset_id,
+                    "revision_id": item["revision_id"],
+                    "expected_absent": True,
+                })
+                self.assertTrue(result["ok"])
+                self.assertIn(asset_id, {
+                    asset["id"] for key in ("cases", "modules") for asset in result["data"][key]
+                })
+        finally:
+            try:
+                request_json("/api/data", original)
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
     def test_recycle_bin_api_exposes_deleted_assets_for_recovery(self):
         self.app.STORAGE.save_data({
             "cases": [{
