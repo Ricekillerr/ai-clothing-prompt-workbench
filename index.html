@@ -359,14 +359,14 @@ async function saveEditor(){
  const list=editKind==="case"?db.cases:db.modules,previous=JSON.parse(JSON.stringify(list));
  let old=list.find(x=>x.id===editId)||{},keys=editKind==="case"?["name","sku","category","subcategory","silhouette","fit","material","fabric","texture","color","details","craftsmanship","constraints","model","status"]:["name","module_type","category_scope","material","model"],x={...old};
  keys.forEach(k=>x[k]=$( "f_"+k).value.trim());
- x.tags=$("f_tags").value.split(/[,，]/).map(s=>s.trim()).filter(Boolean);x.body=$("f_body").value.trim();x.body_en=$("f_body_en")?.value.trim()||"";x.notes=$("f_notes").value.trim();x.image=imagePath;
+ x.tags=$("f_tags").value.split(/[,，]/).map(s=>s.trim()).filter(Boolean);x.body=$("f_body").value;x.body_en=$("f_body_en")?.value||"";x.notes=$("f_notes").value.trim();x.image=imagePath;
  if(editKind==="case"){
   x.outfit_items=parseOutfitItems($("f_outfit_items")?.value||"",old.outfit_items);
   x.outfit_relations=parseOutfitRelations($("f_outfit_relations")?.value||"",x.outfit_items.length,old.outfit_relations);
   x.image_roles=parseImageRoles($("f_image_roles")?.value||"",old.image_roles,Math.max(1,Array.isArray(old.images)&&old.images.length?old.images.length:(imagePath||old.image?1:8)));
  }
  try{const provenance=JSON.parse($("f_composition")?.value||"{}");if(provenance&&Object.keys(provenance).length)x.composition=provenance;else if(editKind==="case"&&old.composition)x.composition=old.composition}catch{return toast("组合来源记录格式异常，未保存")}
- if(!x.name||!x.body)return toast("名称和正文不能为空");
+ if(!x.name||!x.body.trim())return toast("名称和正文不能为空");
  x.id=old.id||crypto.randomUUID();x.created_at=old.created_at||new Date().toISOString();x.updated_at=new Date().toISOString();
  let i=list.findIndex(z=>z.id===x.id);if(i<0)list.unshift(x);else list[i]=x;
  try{await save();closeEditor();render();toast("资产已保存")}catch(e){const outcome=await reconcileSaveFailure(e,()=>{if(editKind==="case")db.cases=previous;else db.modules=previous});if(outcome==="server"){closeEditor();render()}toast(saveFailureMessage("保存资产",outcome,e))}
@@ -437,7 +437,7 @@ function composeNow(){
  $("output").value=chinese+(bilingual?"\n\n【Bilingual English Versions】\n"+bilingual:"")
 }
 function saveDraft(){let body=$("output").value.trim();if(!body)return toast("先生成组合草稿");const baseId=$("base")?.value||"",base=db.cases.find(x=>x.id===baseId),moduleIds=[...document.querySelectorAll("#content input[type=checkbox]:checked")].map(x=>x.value),modules=moduleIds.map(id=>db.modules.find(x=>x.id===id)).filter(Boolean);openEditor("case",{name:"组合提示词草稿",category:"整套搭配",model:"通用",status:"待验证",tags:["组合草稿"],body,notes:"智能组合器生成，尚待实际验证",composition:{schema_version:1,created_at:new Date().toISOString(),base_case_id:base?.id||null,base_case_name:base?.name||"",module_ids:modules.map(x=>x.id),module_names:modules.map(x=>x.name),preflight:"passed"}})}
-function exportJSON(){let a=document.createElement("a"),u=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:"application/json"}));a.href=u;a.download="prompt_library_backup.json";a.click();URL.revokeObjectURL(u);toast("备份已导出")}
+async function exportJSON(){try{await save()}catch(error){toast("备份前保存失败："+error.message);return}let a=document.createElement("a"),u=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:"application/json"}));a.href=u;a.download="prompt_library_backup.json";a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);toast("备份已导出")}
 async function restoreFullBackup(file){
  const status=$("restoreStatus");
  if(!file||!file.name.toLowerCase().endsWith(".zip")){if(status)status.textContent="请选择完整 ZIP 备份文件";return}
@@ -482,6 +482,7 @@ async function downloadFullBackup(){
  }
 }
 function importJSON(f){
+ if(!f||f.size>25*1024*1024){toast("JSON 备份不能超过 25MB");return}
  const reader=new FileReader();
  reader.onload=async()=>{
   const previous=JSON.parse(JSON.stringify(db));
