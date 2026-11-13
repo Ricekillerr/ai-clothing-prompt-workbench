@@ -75,6 +75,16 @@ class Storage:
                     );
                     CREATE INDEX IF NOT EXISTS idx_assets_kind ON assets(kind);
                     CREATE INDEX IF NOT EXISTS idx_assets_updated ON assets(updated_at);
+                    CREATE TABLE IF NOT EXISTS asset_revisions (
+                        revision_id TEXT PRIMARY KEY,
+                        asset_id TEXT NOT NULL,
+                        kind TEXT NOT NULL CHECK(kind IN ('case','module')),
+                        payload_json TEXT NOT NULL,
+                        reason TEXT NOT NULL DEFAULT 'edited',
+                        created_at TEXT NOT NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_asset_revisions_asset
+                        ON asset_revisions(asset_id, created_at DESC);
                     CREATE TABLE IF NOT EXISTS attachments (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         asset_id TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
@@ -252,9 +262,36 @@ class Storage:
                     for key in ("cases", "modules")
                     for item in data[key]
                 }
-                # Upsert existing assets first so attachment rows remain linked.
+                # Keep a bounded immutable snapshot before changing or deleting an asset.
+                from datetime import datetime, timezone
+                import uuid
+                now = datetime.now(timezone.utc).isoformat()
+
+                def retain_revision(asset_id, kind, payload_json, reason):
+                    con.execute(
+                        """INSERT INTO asset_revisions
+                           (revision_id,asset_id,kind,payload_json,reason,created_at)
+                           VALUES(?,?,?,?,?,?)""",
+                        (uuid.uuid4().hex, asset_id, kind, payload_json, reason, now),
+                    )
+                    con.execute(
+                        """DELETE FROM asset_revisions
+                           WHERE asset_id=? AND revision_id NOT IN (
+                             SELECT revision_id FROM asset_revisions
+                             WHERE asset_id=? ORDER BY created_at DESC LIMIT 50
+                           )""",
+                        (asset_id, asset_id),
+                    )
+
                 for key, kind in (("cases", "case"), ("modules", "module")):
                     for item in data[key]:
+                        asset_id = str(item["id"])
+                        payload_json = json.dumps(item, ensure_ascii=False)
+                        previous = con.execute(
+                            "SELECT kind,payload_json FROM assets WHERE id=?", (asset_id,)
+                        ).fetchone()
+                        if previous and previous["payload_json"] != payload_json:
+                            retain_revision(asset_id, previous["kind"], previous["payload_json"], "edited")
                         con.execute(
                             """INSERT INTO assets(id,kind,payload_json,created_at,updated_at)
                                VALUES(?,?,?,?,?)
@@ -263,18 +300,77 @@ class Storage:
                                  payload_json=excluded.payload_json,
                                  created_at=excluded.created_at,
                                  updated_at=excluded.updated_at""",
-                            (str(item["id"]), kind, json.dumps(item, ensure_ascii=False),
-                             item.get("created_at"), item.get("updated_at")),
+                            (asset_id, kind, payload_json, item.get("created_at"), item.get("updated_at")),
                         )
-                existing_ids = {
-                    row[0] for row in con.execute("SELECT id FROM assets").fetchall()
-                }
-                removed_ids = existing_ids - incoming_ids
-                if removed_ids:
-                    con.executemany("DELETE FROM assets WHERE id=?", [(x,) for x in removed_ids])
+
+                existing_rows = con.execute("SELECT id,kind,payload_json FROM assets").fetchall()
+                removed_rows = [row for row in existing_rows if row["id"] not in incoming_ids]
+                for row in removed_rows:
+                    retain_revision(row["id"], row["kind"], row["payload_json"], "deleted")
+                    con.execute("DELETE FROM assets WHERE id=?", (row["id"],))
         except Exception as exc:
             raise StorageError(f"保存失败，事务已回滚：{exc}") from exc
 
+
+    def list_asset_revisions(self, asset_id: str, limit: int = 50) -> list[dict]:
+        asset_id = str(asset_id or "").strip()
+        if not asset_id:
+            raise StorageError("资产 ID 不能为空")
+        limit = min(50, max(1, int(limit)))
+        with self._session() as con:
+            rows = con.execute(
+                """SELECT revision_id,asset_id,kind,reason,created_at,payload_json
+                   FROM asset_revisions WHERE asset_id=?
+                   ORDER BY created_at DESC LIMIT ?""",
+                (asset_id, limit),
+            ).fetchall()
+            results = []
+            for row in rows:
+                payload = json.loads(row["payload_json"])
+                results.append({
+                    "revision_id": row["revision_id"], "asset_id": row["asset_id"],
+                    "kind": row["kind"], "reason": row["reason"],
+                    "created_at": row["created_at"], "name": payload.get("name", "未命名资产"),
+                    "status": payload.get("status", ""),
+                })
+            return results
+
+    def restore_asset_revision(self, asset_id: str, revision_id: str) -> dict:
+        asset_id, revision_id = str(asset_id or "").strip(), str(revision_id or "").strip()
+        if not asset_id or not revision_id:
+            raise StorageError("资产 ID 或历史版本 ID 不能为空")
+        from datetime import datetime, timezone
+        import uuid
+        now = datetime.now(timezone.utc).isoformat()
+        with self._session() as con:
+            revision = con.execute(
+                "SELECT * FROM asset_revisions WHERE asset_id=? AND revision_id=?",
+                (asset_id, revision_id),
+            ).fetchone()
+            if revision is None:
+                raise StorageError("找不到指定的历史版本")
+            current = con.execute(
+                "SELECT * FROM assets WHERE id=?", (asset_id,)
+            ).fetchone()
+            if current:
+                con.execute(
+                    """INSERT INTO asset_revisions
+                       (revision_id,asset_id,kind,payload_json,reason,created_at)
+                       VALUES(?,?,?,?,?,?)""",
+                    (uuid.uuid4().hex, asset_id, current["kind"], current["payload_json"],
+                     "before_restore", now),
+                )
+            payload = json.loads(revision["payload_json"])
+            payload["updated_at"] = now
+            con.execute(
+                """INSERT INTO assets(id,kind,payload_json,created_at,updated_at)
+                   VALUES(?,?,?,?,?)
+                   ON CONFLICT(id) DO UPDATE SET
+                     kind=excluded.kind,payload_json=excluded.payload_json,updated_at=excluded.updated_at""",
+                (asset_id, revision["kind"], json.dumps(payload, ensure_ascii=False),
+                 payload.get("created_at"), now),
+            )
+            return payload
 
     def register_scan_source(self, folder_path: str, recursive: bool = True) -> str:
         canonical = str(Path(folder_path).expanduser().resolve(strict=True))
