@@ -98,6 +98,7 @@ class V065IntegrationTests(unittest.TestCase):
         self.assertIn("downloadFullBackup", html)
         self.assertIn("restoreFullBackup", html)
         self.assertIn("restoreBackupPicker", html)
+        self.assertIn("不是数字签名", html)
         self.assertIn("/api/backup/restore", self.app)
         self.assertIn("restore_full_backup", (self.root / "storage.py").read_text(encoding="utf-8"))
         self.assertIn("backup_manifest.json", (self.root / "storage.py").read_text(encoding="utf-8"))
