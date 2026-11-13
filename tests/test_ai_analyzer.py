@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ai_analyzer import _safe_endpoint, analyze_pair, normalize_asset_roles
+from ai_analyzer import _safe_endpoint, analyze_pair, normalize_asset_roles, normalize_outfit_items
 
 
 class AIAnalyzerTests(unittest.TestCase):
@@ -54,6 +54,35 @@ class AIAnalyzerTests(unittest.TestCase):
             {"asset_index": 1, "role": "back"},
         ], [Path("front.png")])
         self.assertEqual(result[0]["role"], "front")
+
+    def test_outfit_items_are_bounded_and_keep_structured_attributes(self):
+        items, relations = normalize_outfit_items([
+            {"category": "上装", "name": "黑色马甲", "material": "尼龙",
+             "details": ["立领", "双拉头"], "confidence": 0.91},
+            {"category": "奇怪分类", "name": "鞋", "confidence": 2},
+        ], [
+            {"source_item": 1, "target_item": 2, "relation": "over",
+             "evidence": "图片中可见外套覆盖内搭"},
+            {"source_item": 1, "target_item": 99, "relation": "over"},
+        ])
+        self.assertEqual(len(items), 2)
+        self.assertEqual(items[0]["category"], "上装")
+        self.assertEqual(items[0]["details"], ["立领", "双拉头"])
+        self.assertEqual(items[0]["confidence"], 0.91)
+        self.assertEqual(items[1]["category"], "其他")
+        self.assertEqual(items[1]["confidence"], 1.0)
+        self.assertEqual(len(relations), 1)
+        self.assertEqual(relations[0]["relation"], "over")
+
+    def test_outfit_item_normalizer_ignores_invalid_and_caps_item_count(self):
+        raw = [{"category": "下装", "name": f"裤子{i}"} for i in range(15)]
+        raw.insert(1, "not-an-object")
+        items, relations = normalize_outfit_items(raw, [
+            {"source_item": "bad", "target_item": 1, "relation": "over"},
+            {"source_item": 1, "target_item": 1, "relation": "under"},
+        ])
+        self.assertEqual(len(items), 12)
+        self.assertEqual(relations, [])
 
     def test_non_prompt_file_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
