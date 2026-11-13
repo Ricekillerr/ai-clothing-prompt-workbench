@@ -178,6 +178,55 @@ if (selected.size !== 1 || !selected.has("visible")) process.exit(1);
         result = subprocess.run([node, "-e", script], capture_output=True, check=False)
         self.assertEqual(result.returncode, 0, (result.stderr or result.stdout).decode("utf-8", errors="replace"))
 
+    def test_bulk_case_delete_confirms_and_rolls_back_failed_save(self):
+        html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
+        start = html.index("function updateBulkCount(){")
+        end = html.index("function bindBulkModuleControls(", start)
+        helpers = html[start:end]
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("Node.js is not installed in this environment")
+        script = helpers + r"""
+const caseA = {id:"case-A"}, caseB = {id:"case-B"};
+let db = {cases:[caseA,caseB]};
+const selectedCaseIds = new Set(["case-A"]);
+const controls = {
+  bulkCount:{}, selectVisibleBtn:{}, clearSelectionBtn:{},
+  bulkStatus:{value:""}, applyBulkStatusBtn:{}, bulkTagInput:{value:""},
+  applyBulkTagBtn:{}, deleteBulkBtn:{}
+};
+function $(id) { return controls[id]; }
+const document = {querySelectorAll(){return [];}};
+let confirmed = true, failSave = false, galleryCalls = 0, toastMessage = "";
+function confirm(){return confirmed;}
+function gallery(){galleryCalls++;}
+function toast(message){toastMessage=message;}
+function save(){return failSave?Promise.reject(new Error("simulated write failure")):Promise.resolve();}
+async function reconcileSaveFailure(error,rollback){rollback();return "rolled_back";}
+function saveFailureMessage(){return "保存失败，已回滚";}
+async function run(){
+ bindBulkAssetControls([caseA,caseB]);
+ await controls.deleteBulkBtn.onclick();
+ if(db.cases.length!==1||db.cases[0].id!=="case-B")throw new Error("Confirmed bulk delete must remove only selected cases.");
+ if(selectedCaseIds.size!==0||galleryCalls!==1)throw new Error("Successful bulk delete must clear removed selections and refresh the gallery.");
+ if(!toastMessage.includes("已删除"))throw new Error("Successful bulk delete must report completion.");
+
+ db={cases:[caseA,caseB]};
+ selectedCaseIds.clear();selectedCaseIds.add("case-A");
+ confirmed=false;galleryCalls=0;toastMessage="";
+ await controls.deleteBulkBtn.onclick();
+ if(db.cases.length!==2||galleryCalls!==0)throw new Error("Cancel must leave data and UI unchanged.");
+
+ confirmed=true;failSave=true;toastMessage="";
+ await controls.deleteBulkBtn.onclick();
+ if(db.cases.length!==2||db.cases[0].id!=="case-A"||selectedCaseIds.size!==1)throw new Error("Failed bulk save must restore the original cases and selection.");
+ if(!toastMessage.includes("保存失败"))throw new Error("Failed bulk save must report the rollback.");
+}
+run().catch(error=>{console.error(error);process.exit(1);});
+"""
+        result = subprocess.run([node, "-e", script], capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
     def test_inline_javascript_parses_when_node_is_available(self):
         node = shutil.which("node")
         if not node:
