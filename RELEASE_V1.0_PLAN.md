@@ -310,3 +310,9 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Full-backup restore now checks that the JSON export's complete case/module records exactly match the records inside the SQLite snapshot, not merely that both contain the same number of rows. This catches a ZIP whose JSON was altered and whose internal SHA-256 manifest was recomputed while the database remained different.
 - Added a regression test that modifies a prompt while preserving record count and recalculates the ZIP's SHA-256 manifest; restore correctly rejects the archive and leaves live data untouched.
 - GitHub Actions run 43361808990 passed 82 regression tests, all 8 runtime manifest hashes, four Windows Server 2025 runtime tests, PowerShell syntax validation, and the release source/channel gate.
+
+
+## Implementation log — 2026-11-13 (generation outcome feedback loop)
+- Added explicit per-case generation outcome recording. From the case detail view, the user can mark a real reuse attempt as successful or failed and optionally record the observed result/failure cause.
+- Successful outcomes promote the case to `已验证成功`; failed outcomes mark it `失败案例`. Both transitions preserve the prior asset snapshot through the existing revision system and append a local generation-feedback record.
+- Retrieval analytics now includes generation success/failure counts alongside helpful/not-relevant retrieval feedback. The system records these labels but does not automatically change ranking weights without a validated benchmark.
