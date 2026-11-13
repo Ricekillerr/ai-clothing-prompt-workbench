@@ -72,6 +72,12 @@ class FrontendSyntaxTests(unittest.TestCase):
         self.assertIn("服务器已确认恢复成功，但界面未能重新读取数据", restore)
         self.assertIn("if(!loaded)", restore)
 
+    def test_restoring_an_asset_revision_refreshes_the_background_library(self):
+        html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
+        restore = html.split("async function restoreAssetRevision(revisionId){", 1)[1].split("function closeDetail()", 1)[0]
+        self.assertLess(restore.index("db=normalizeAssetData(data.data)"), restore.index("render()"))
+        self.assertIn("render();openDetail(chosen,kind);showAssetHistory()", restore)
+
     def test_json_import_merge_is_additive_and_deduplicates_normalized_ids(self):
         html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
         self.assertIn("reader.onerror=()=>toast(", html)

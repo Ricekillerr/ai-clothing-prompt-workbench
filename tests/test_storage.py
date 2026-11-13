@@ -465,6 +465,30 @@ class StorageTests(unittest.TestCase):
         self.assertTrue(any(x["reason"] == "before_restore"
                             for x in store.list_asset_revisions("case-history")))
 
+    def test_asset_revision_history_stays_bounded_after_repeated_restore(self):
+        store = Storage(self.home)
+        store.save_data({"cases": [{"id": "bounded-history", "name": "v0", "body": "prompt 0"}],
+                         "modules": []})
+        for index in range(1, 56):
+            store.save_data({"cases": [{"id": "bounded-history", "name": f"v{index}", "body": f"prompt {index}"}],
+                             "modules": []})
+        with store._session() as con:
+            before = con.execute(
+                "SELECT COUNT(*) FROM asset_revisions WHERE asset_id=?",
+                ("bounded-history",),
+            ).fetchone()[0]
+        self.assertEqual(before, 50)
+        latest = store.list_asset_revisions("bounded-history")[0]
+        restored = store.restore_asset_revision("bounded-history", latest["revision_id"])
+        self.assertEqual(restored["id"], "bounded-history")
+        with store._session() as con:
+            after = con.execute(
+                "SELECT COUNT(*) FROM asset_revisions WHERE asset_id=?",
+                ("bounded-history",),
+            ).fetchone()[0]
+        self.assertEqual(after, 50)
+        self.assertEqual(store.list_asset_revisions("bounded-history")[0]["reason"], "before_restore")
+
     def test_deleted_asset_can_be_recovered_from_its_last_revision(self):
         store = Storage(self.home)
         store.save_data({"cases": [{"id": "deleted-case", "name": "Recover me", "body": "prompt"}],

@@ -387,7 +387,7 @@ class Storage:
                         """DELETE FROM asset_revisions
                            WHERE asset_id=? AND revision_id NOT IN (
                              SELECT revision_id FROM asset_revisions
-                             WHERE asset_id=? ORDER BY created_at DESC LIMIT 50
+                             WHERE asset_id=? ORDER BY created_at DESC,rowid DESC LIMIT 50
                            )""",
                         (asset_id, asset_id),
                     )
@@ -468,7 +468,7 @@ class Storage:
             rows = con.execute(
                 """SELECT revision_id,asset_id,kind,reason,created_at,payload_json
                    FROM asset_revisions WHERE asset_id=?
-                   ORDER BY created_at DESC LIMIT ?""",
+                   ORDER BY created_at DESC,rowid DESC LIMIT ?""",
                 (asset_id, limit),
             ).fetchall()
             results = []
@@ -529,6 +529,16 @@ class Storage:
                     (uuid.uuid4().hex, asset_id, current["kind"], current["payload_json"],
                      "before_restore", now),
                 )
+            # Repeated restores also create revisions; keep the same 50-entry
+            # per-asset bound used by normal edits and generation outcomes.
+            con.execute(
+                """DELETE FROM asset_revisions
+                   WHERE asset_id=? AND revision_id NOT IN (
+                     SELECT revision_id FROM asset_revisions
+                     WHERE asset_id=? ORDER BY created_at DESC,rowid DESC LIMIT 50
+                   )""",
+                (asset_id, asset_id),
+            )
             payload = json.loads(revision["payload_json"])
             payload["updated_at"] = now
             con.execute(
@@ -1005,7 +1015,7 @@ class Storage:
                 """DELETE FROM asset_revisions
                    WHERE asset_id=? AND revision_id NOT IN (
                      SELECT revision_id FROM asset_revisions
-                     WHERE asset_id=? ORDER BY created_at DESC LIMIT 50
+                     WHERE asset_id=? ORDER BY created_at DESC,rowid DESC LIMIT 50
                    )""",
                 (case_id, case_id),
             )
