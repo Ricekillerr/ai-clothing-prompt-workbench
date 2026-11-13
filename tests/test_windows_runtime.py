@@ -202,6 +202,70 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
         thread.start()
         return server, thread, f"http://127.0.0.1:{server.server_address[1]}"
 
+    def test_loopback_api_rejects_dns_rebinding_host_header(self):
+        server, thread, base = self._start_server()
+        try:
+            port = server.server_address[1]
+            request = Request(
+                base + "/api/data",
+                headers={"Host": f"attacker.example:{port}"},
+            )
+            with self.assertRaises(HTTPError) as rejected:
+                urlopen(request, timeout=5)
+            self.assertEqual(rejected.exception.code, 403)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_loopback_api_rejects_cross_origin_json_writes(self):
+        server, thread, base = self._start_server()
+        try:
+            port = server.server_address[1]
+            before = self.app.STORAGE.load_data()
+            request = Request(
+                base + "/api/data",
+                data=json.dumps({"cases": [{"id": "csrf-injected"}], "modules": []}).encode("utf-8"),
+                headers={
+                    "Host": f"127.0.0.1:{port}",
+                    "Origin": "https://attacker.example",
+                    "Content-Type": "application/json",
+                },
+                method="POST",
+            )
+            with self.assertRaises(HTTPError) as rejected:
+                urlopen(request, timeout=5)
+            self.assertEqual(rejected.exception.code, 403)
+            self.assertEqual(self.app.STORAGE.load_data(), before)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_loopback_api_rejects_simple_form_content_type(self):
+        server, thread, base = self._start_server()
+        try:
+            port = server.server_address[1]
+            before = self.app.STORAGE.load_data()
+            request = Request(
+                base + "/api/data",
+                data=json.dumps({"cases": [{"id": "form-csrf-injected"}], "modules": []}).encode("utf-8"),
+                headers={
+                    "Host": f"127.0.0.1:{port}",
+                    "Origin": "http://127.0.0.1:9999",
+                    "Content-Type": "text/plain",
+                },
+                method="POST",
+            )
+            with self.assertRaises(HTTPError) as rejected:
+                urlopen(request, timeout=5)
+            self.assertEqual(rejected.exception.code, 403)
+            self.assertEqual(self.app.STORAGE.load_data(), before)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     @unittest.skipUnless(os.name == "nt", "actual .bat launcher test requires Windows")
     def test_real_windows_launcher_starts_and_closes_service(self):
         repo_root = Path(__file__).resolve().parents[1]
