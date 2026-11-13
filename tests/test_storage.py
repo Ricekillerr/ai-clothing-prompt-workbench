@@ -212,6 +212,18 @@ class StorageTests(unittest.TestCase):
                   "role_label": "正面图", "observation": "正面整体版型"},
                  {"asset_index": 2, "asset_path": asset_paths[1], "role": "back",
                   "role_label": "背面图", "observation": "背面结构"},
+             ],
+             "outfit_items": [
+                 {"item_index": 1, "category": "上装", "name": "黑色马甲",
+                  "material": "尼龙", "color": "黑色", "details": ["立领"],
+                  "evidence": "正面图片可见", "confidence": 0.9},
+                 {"item_index": 2, "category": "下装", "name": "深灰裤子",
+                  "material": "灯芯绒", "color": "深灰", "details": [],
+                  "evidence": "整体图可见", "confidence": 0.8},
+             ],
+             "outfit_relations": [
+                 {"source_item": 1, "target_item": 2, "relation": "paired_with",
+                  "evidence": "整套搭配参考图"}
              ]},
         )
         self.assertEqual(len(store.list_ai_analyses("review")), 1)
@@ -237,6 +249,9 @@ class StorageTests(unittest.TestCase):
         self.assertEqual([x["role"] for x in cases[0]["image_roles"]], ["front", "back"])
         self.assertEqual([x["role_label"] for x in cases[0]["image_roles"]], ["正面图", "背面图"])
         self.assertEqual(cases[0]["image_roles"][1]["observation"], "背面结构")
+        self.assertEqual([x["name"] for x in cases[0]["outfit_items"]], ["黑色马甲", "深灰裤子"])
+        self.assertEqual(cases[0]["outfit_items"][0]["material"], "尼龙")
+        self.assertEqual(cases[0]["outfit_relations"][0]["relation"], "paired_with")
         self.assertTrue(all((self.home / "references" / name).is_file() for name in cases[0]["images"]))
         self.assertEqual(store.list_ai_analyses("review"), [])
         self.assertEqual(store.list_ai_analyses("approved")[0]["approved_asset_id"], asset_id)
