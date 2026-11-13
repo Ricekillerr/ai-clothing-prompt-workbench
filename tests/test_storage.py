@@ -358,11 +358,11 @@ class StorageTests(unittest.TestCase):
                          "modules": []})
         (references / "current.png").write_bytes(b"current-reference")
         real_replace = __import__("os").replace
-        calls = {"count": 0}
+        failed = {"value": False}
 
         def fail_on_json_swap(src, dst):
-            calls["count"] += 1
-            if calls["count"] == 5:
+            if Path(dst) == store.legacy_json and not failed["value"]:
+                failed["value"] = True
                 raise OSError("injected JSON replacement failure")
             return real_replace(src, dst)
 
