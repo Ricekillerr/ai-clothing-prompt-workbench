@@ -6,11 +6,13 @@ source and is never overwritten by the migration process.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
 import sqlite3
 import tempfile
+import zipfile
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -517,3 +519,71 @@ class Storage:
         temp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         os.replace(temp, destination)
         return destination
+
+    def create_full_backup(self, references_dir: Path | None = None,
+                           app_version: str = "unknown") -> Path:
+        """Create a verified ZIP backup of the SQLite database, JSON data and local references.
+
+        The live database is copied through SQLite's backup API so WAL contents are
+        included consistently. Source reference files are read-only and never moved.
+        """
+        from datetime import datetime, timezone
+
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        backup_dir = self.home / "backups"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        target = backup_dir / f"PromptAtelier_full_backup_{stamp}.zip"
+
+        with tempfile.TemporaryDirectory(prefix=".backup_build_", dir=str(self.home)) as work:
+            work_dir = Path(work)
+            db_copy = self.backup(work_dir / "prompt_library.sqlite3")
+            json_copy = self.export_json(work_dir / "prompt_library.json")
+            payloads: dict[str, Path] = {
+                "database/prompt_library.sqlite3": db_copy,
+                "data/prompt_library.json": json_copy,
+            }
+
+            if references_dir:
+                source = Path(references_dir)
+                if source.is_dir():
+                    for item in sorted(source.rglob("*")):
+                        if item.is_file() and not item.is_symlink():
+                            relative = item.relative_to(source).as_posix()
+                            payloads["references/" + relative] = item
+
+            checksums = {
+                name: hashlib.sha256(path.read_bytes()).hexdigest()
+                for name, path in payloads.items()
+            }
+            manifest = {
+                "format": "PromptAtelierFullBackup",
+                "format_version": 1,
+                "app_version": str(app_version),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "files": checksums,
+            }
+
+            temp_archive = target.with_suffix(".zip.tmp")
+            try:
+                with zipfile.ZipFile(temp_archive, "w", compression=zipfile.ZIP_DEFLATED,
+                                     compresslevel=6) as archive:
+                    for name, path in payloads.items():
+                        archive.write(path, arcname=name)
+                    archive.writestr(
+                        "backup_manifest.json",
+                        json.dumps(manifest, ensure_ascii=False, indent=2),
+                    )
+                # Re-open and verify every archived payload before publishing it.
+                with zipfile.ZipFile(temp_archive, "r") as archive:
+                    bad_member = archive.testzip()
+                    if bad_member:
+                        raise StorageError(f"备份压缩包完整性检查失败：{bad_member}")
+                    for name, expected in checksums.items():
+                        actual = hashlib.sha256(archive.read(name)).hexdigest()
+                        if actual != expected:
+                            raise StorageError(f"备份文件校验失败：{name}")
+                os.replace(temp_archive, target)
+            finally:
+                if temp_archive.exists():
+                    temp_archive.unlink()
+        return target
