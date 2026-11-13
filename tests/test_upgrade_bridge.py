@@ -86,6 +86,9 @@ class V065IntegrationTests(unittest.TestCase):
         self.assertIn("normalize_asset_roles", (self.root / "ai_analyzer.py").read_text(encoding="utf-8"))
         self.assertIn("参考图片自动分类", html)
         self.assertIn("图片分类：", html)
+        self.assertIn("主参考", html)
+        self.assertIn("supporting", (self.root / "ai_analyzer.py").read_text(encoding="utf-8"))
+        self.assertIn('"priority"', (self.root / "storage.py").read_text(encoding="utf-8"))
         import json
         manifest = json.loads((self.root / "update_manifest.json").read_text(encoding="utf-8"))
         self.assertIn("collector.py", manifest["files"])
