@@ -999,6 +999,7 @@ class Storage:
         stage_dir = Path(tempfile.mkdtemp(prefix=".restore_stage_", dir=str(self.home)))
         rollback_dir = Path(tempfile.mkdtemp(prefix=".restore_rollback_", dir=str(self.home)))
         swapped_db = swapped_json = swapped_refs = False
+        keep_rollback_dir = False
         try:
             with zipfile.ZipFile(archive_path, "r") as archive:
                 infos = archive.infolist()
@@ -1162,6 +1163,7 @@ class Storage:
                 if len(verified.get("modules", [])) != len(restored_json["modules"]):
                     raise StorageError("恢复后模块数量与备份清单不一致")
             except Exception as exc:
+                rollback_errors = []
                 if swapped_db:
                     try:
                         for suffix in ("-wal", "-shm"):
@@ -1171,27 +1173,36 @@ class Storage:
                         if self.db_path.exists():
                             self.db_path.unlink()
                         os.replace(old_db, self.db_path)
-                    except Exception:
-                        pass
+                    except Exception as rollback_error:
+                        rollback_errors.append(f"SQLite 数据库：{type(rollback_error).__name__}: {rollback_error}")
                 if swapped_json:
                     try:
                         if self.legacy_json.exists():
                             self.legacy_json.unlink()
                         if old_json.exists():
                             os.replace(old_json, self.legacy_json)
-                    except Exception:
-                        pass
+                    except Exception as rollback_error:
+                        rollback_errors.append(f"JSON 数据：{type(rollback_error).__name__}: {rollback_error}")
                 if swapped_refs:
                     try:
                         if references_dir.exists():
                             shutil.rmtree(references_dir)
                         if old_refs.exists():
                             os.replace(old_refs, references_dir)
-                    except Exception:
-                        pass
+                    except Exception as rollback_error:
+                        rollback_errors.append(f"参考图片目录：{type(rollback_error).__name__}: {rollback_error}")
+                if rollback_errors:
+                    keep_rollback_dir = True
+                    details = "; ".join(rollback_errors)[:2000]
+                    safety_path = self.home / "backups" / safety_backup.name
+                    raise StorageError(
+                        "恢复失败且自动回滚未完整完成；原始数据恢复副本保留在 "
+                        f"{rollback_dir}，恢复前完整备份位于 {safety_path}。"
+                        f"请勿删除这两个备份位置。回滚失败项：{details}"
+                    ) from exc
                 if isinstance(exc, StorageError):
                     raise
-                raise StorageError("恢复过程中发生错误，已尝试回滚原数据") from exc
+                raise StorageError("恢复过程中发生错误，已回滚原数据") from exc
 
             return {
                 "ok": True,
@@ -1203,5 +1214,6 @@ class Storage:
             }
         finally:
             shutil.rmtree(stage_dir, ignore_errors=True)
-            shutil.rmtree(rollback_dir, ignore_errors=True)
+            if not keep_rollback_dir:
+                shutil.rmtree(rollback_dir, ignore_errors=True)
 
