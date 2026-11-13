@@ -32,11 +32,27 @@ function save(){
    let result={};try{result=await response.json()}catch(_){}
    if(!response.ok||result.ok===false)throw new Error(result.error||"数据保存失败");
    return true;
-  }catch(error){if(error.name==="AbortError")throw new Error("保存超时；请勿重复点击，先刷新确认数据状态");throw error}
-  finally{clearTimeout(timer)}
+  }catch(error){
+   if(error.name==="AbortError"){const uncertain=new Error("保存响应超时，服务器可能已经完成写入");uncertain.uncertain=true;throw uncertain}
+   throw error;
+  }finally{clearTimeout(timer)}
  });
  saveQueue=task;
  return task;
+}
+async function reconcileSaveFailure(error,rollback){
+ if(error?.uncertain){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+  try{
+   const response=await fetch("/api/data",{cache:"no-store",signal:controller.signal});
+   if(!response.ok)throw new Error("HTTP "+response.status);
+   db=await response.json();
+   return "server";
+  }catch(_){rollback();return "unknown"}
+  finally{clearTimeout(timer)}
+ }
+ rollback();
+ return "rollback";
 }function stats(){$("caseCount").textContent=db.cases.length;$("moduleCount").textContent=db.modules.length;$("verifiedCount").textContent=db.cases.filter(x=>x.status==="已验证成功").length;$("imageCount").textContent=[...db.cases,...db.modules].filter(x=>x.image).length}
 function setTitle(t,s){$("pageTitle").textContent=t;$("pageSub").textContent=s}function render(){stats();document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.page===page));if(page==="gallery"||page==="all")gallery();else if(page==="modules")modules();else if(page==="vault")vault();else if(page==="smartsearch")smartSearchPage();else if(page==="compose")compose();else settings()}
 
