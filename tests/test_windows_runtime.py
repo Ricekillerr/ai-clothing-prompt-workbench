@@ -485,6 +485,66 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
                 server.server_close()
                 thread.join(timeout=5)
 
+    def test_full_backup_download_and_restore_http_round_trip(self):
+        original = self.app.STORAGE.load_data()
+        case_id = "api-backup-case-" + __import__("uuid").uuid4().hex
+        image_name = "api-backup-" + __import__("uuid").uuid4().hex + ".png"
+        image_path = self.images / image_name
+        server, thread, base = self._start_server()
+
+        def post_json(payload):
+            request = Request(
+                base + "/api/data",
+                data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(request, timeout=10) as response:
+                return json.loads(response.read().decode("utf-8"))
+
+        try:
+            image_path.write_bytes(b"original-reference-image")
+            expected_case = {
+                "id": case_id, "name": "完整备份 API 测试", "body": "original backup prompt",
+                "status": "已验证成功",
+            }
+            post_json({
+                "cases": original["cases"] + [expected_case],
+                "modules": original["modules"],
+            })
+            with urlopen(base + "/api/backup/full", timeout=20) as response:
+                self.assertEqual(response.headers.get_content_type(), "application/zip")
+                archive_bytes = response.read()
+            self.assertGreater(len(archive_bytes), 0)
+
+            post_json({
+                "cases": [item for item in original["cases"] if item.get("id") != case_id],
+                "modules": original["modules"],
+            })
+            image_path.write_bytes(b"changed-reference-image")
+            restore_request = Request(
+                base + "/api/backup/restore",
+                data=archive_bytes,
+                headers={"Content-Type": "application/zip"},
+                method="POST",
+            )
+            with urlopen(restore_request, timeout=30) as response:
+                restored = json.loads(response.read().decode("utf-8"))
+            self.assertTrue(restored.get("ok"))
+            current = self.app.STORAGE.load_data()
+            case = next(item for item in current["cases"] if item["id"] == case_id)
+            self.assertEqual(case["body"], "original backup prompt")
+            self.assertEqual(image_path.read_bytes(), b"original-reference-image")
+        finally:
+            try:
+                post_json(original)
+                if image_path.exists():
+                    image_path.unlink()
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
     def test_recycle_bin_api_exposes_deleted_assets_for_recovery(self):
         self.app.STORAGE.save_data({
             "cases": [{
