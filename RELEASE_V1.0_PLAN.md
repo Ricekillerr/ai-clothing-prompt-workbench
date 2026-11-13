@@ -376,3 +376,9 @@ This branch is an isolated stabilization lane. It is not the production update c
 - A skipped version is stored locally. Fifteen-minute update polling will not repeatedly reschedule the same skipped version; a newer release is eligible for a new idle-gated schedule.
 - Added Windows local API coverage for enabling/disabling automatic-update authorization and confirming the preference persists across GET requests.
 - GitHub Actions run 43363487487 passed 87 regression tests, all 8 runtime hashes, four Windows Server 2025 runtime tests, PowerShell parsing, and release source/channel gate.
+
+
+## Implementation log — 2026-11-13 (clean-install and in-place data-preservation tests)
+- Expanded the Windows acceptance suite with a clean-install scenario and an in-place update scenario that places a sentinel SQLite database, reference image and local settings file beside the program files.
+- The tests verify that the updater replaces only the staged program files while preserving the user database, reference images and local settings. The clean-install test also verifies that a first install succeeds without any prior program files and leaves the user-store directory intact.
+- These two new Windows-runner tests are pending the next full CI run; no release gate is claimed until they pass.
