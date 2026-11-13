@@ -612,8 +612,18 @@ class StorageTests(unittest.TestCase):
         con = sqlite3.connect(db_path)
         try:
             self.assertEqual(con.execute("PRAGMA quick_check").fetchone()[0], "ok")
+            rows = con.execute(
+                "SELECT kind,payload_json FROM assets ORDER BY updated_at DESC, rowid DESC"
+            ).fetchall()
         finally:
             con.close()
+        database_data = {"cases": [], "modules": []}
+        for kind, payload_json in rows:
+            database_data["cases" if kind == "case" else "modules"].append(json.loads(payload_json))
+        with zipfile.ZipFile(archive_path) as archive:
+            exported_data = json.loads(archive.read("data/prompt_library.json").decode("utf-8"))
+        self.assertEqual(exported_data["cases"], database_data["cases"])
+        self.assertEqual(exported_data["modules"], database_data["modules"])
         self.assertEqual(image.read_bytes(), b"fake-image-content")
 
 
