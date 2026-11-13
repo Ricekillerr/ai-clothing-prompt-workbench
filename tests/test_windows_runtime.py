@@ -91,6 +91,8 @@ class WindowsUpdaterTransactionTests(unittest.TestCase):
                 self.assertEqual((root / name).read_text(encoding="utf-8"), value)
             self.assertFalse((root / "installed_version.txt").exists())
             self.assertTrue((root / "_update_error.log").is_file())
+            self.assertFalse(list(root.glob("*.update_tmp")))
+            self.assertFalse(list(root.glob("*.restore_tmp")))
             launch.assert_not_called()
             self.assertFalse(stage.exists())
 
