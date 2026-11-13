@@ -424,13 +424,51 @@ class StorageTests(unittest.TestCase):
             return real_replace(src, dst)
 
         with mock.patch("storage.os.replace", side_effect=fail_on_json_swap):
-            with self.assertRaisesRegex(StorageError, "已尝试回滚"):
+            with self.assertRaisesRegex(StorageError, "已回滚原数据"):
                 store.restore_full_backup(backup)
 
         self.assertEqual(store.load_data()["cases"][0]["id"], "current")
         self.assertTrue((references / "current.png").is_file())
         self.assertTrue((references / "original.png").is_file())
         self.assertEqual((references / "current.png").read_bytes(), b"current-reference")
+
+    def test_restore_rollback_failure_keeps_recovery_copies_and_reports_location(self):
+        store = Storage(self.home)
+        references = self.home / "references"
+        references.mkdir(exist_ok=True)
+        (references / "original.png").write_bytes(b"original-reference")
+        store.save_data({"cases": [{"id": "original", "name": "Original", "body": "original prompt"}],
+                         "modules": []})
+        backup = store.create_full_backup(references, app_version="0.6.5")
+
+        store.save_data({"cases": [{"id": "current", "name": "Current", "body": "current prompt"}],
+                         "modules": []})
+        (references / "current.png").write_bytes(b"current-reference")
+        real_replace = os.replace
+        calls = {"count": 0}
+
+        def fail_json_swap_and_database_rollback(src, dst):
+            calls["count"] += 1
+            if Path(dst) == store.legacy_json or (
+                Path(dst) == store.db_path and calls["count"] >= 4
+            ):
+                raise OSError("injected restore/rollback failure")
+            return real_replace(src, dst)
+
+        with mock.patch("storage.os.replace", side_effect=fail_json_swap_and_database_rollback):
+            with self.assertRaisesRegex(StorageError, "自动回滚未完整完成") as raised:
+                store.restore_full_backup(backup)
+
+        message = str(raised.exception)
+        self.assertIn("请勿删除这两个备份位置", message)
+        rollback_dirs = list(self.home.glob(".restore_rollback_*"))
+        self.assertEqual(len(rollback_dirs), 1)
+        self.assertTrue((rollback_dirs[0] / "old.sqlite3").is_file())
+        self.assertTrue((rollback_dirs[0] / "old_references" / "original.png").is_file())
+        self.assertIn(str(rollback_dirs[0]), message)
+        safety_backups = list((self.home / "backups").glob("PromptAtelier_full_backup_*.zip"))
+        self.assertGreaterEqual(len(safety_backups), 2)
+        self.assertFalse(list(self.home.glob(".restore_stage_*")))
 
     def test_full_backup_restore_rejects_zip_path_traversal(self):
         store = Storage(self.home)
