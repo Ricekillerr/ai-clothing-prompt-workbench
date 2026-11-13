@@ -90,3 +90,9 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 - Added regression guards to ensure smart-search templates contain no escaped interpolation markers and SKU is present in case details.
 - GitHub Actions run 43354537053 completed successfully: frontend JavaScript syntax, runtime manifest SHA-256 validation, all 56 regression tests, Windows PowerShell parser validation, and release source/channel gate passed.
 - This is an isolated staging-branch fix; no production release or main-branch update was made.
+
+
+## Implementation log — 2026-11-13 (exact SKU retrieval regression coverage)
+- Added end-to-end ranking coverage proving an exact SKU query returns the verified case at 100%, not only a raw scoring result.
+- Added compatibility tests for legacy style_number and product_code identifiers so older case records remain searchable without migration.
+- GitHub Actions run 43354619523 completed successfully: all 58 regression tests, frontend syntax, manifest SHA-256 validation, Windows PowerShell parser validation, and release source/channel gate passed.
