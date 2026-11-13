@@ -136,6 +136,8 @@ class V065IntegrationTests(unittest.TestCase):
         self.assertIn("完整 ZIP 备份", html)
         self.assertIn("SHA-256", html)
         self.assertIn("findComposeConflicts", html)
+        self.assertIn('"runninghub"', html)
+        self.assertIn('"Seedance 2.5"', html)
         self.assertIn("composeWarnings", html)
         self.assertIn("function buildCaseReferenceGuide", html)
         self.assertIn("f_body_en", html)
