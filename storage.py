@@ -526,6 +526,17 @@ class Storage:
                 raise StorageError(
                     "资产已重新存在；为避免覆盖新数据，已拒绝从旧回收站快照恢复。请刷新后重试。"
                 )
+            if expected_absent:
+                latest_deleted = con.execute(
+                    """SELECT revision_id FROM asset_revisions
+                       WHERE asset_id=? AND reason='deleted'
+                       ORDER BY created_at DESC,rowid DESC LIMIT 1""",
+                    (asset_id,),
+                ).fetchone()
+                if latest_deleted is None or latest_deleted["revision_id"] != revision_id:
+                    raise StorageError(
+                        "回收站记录已更新；当前恢复项已过期，请刷新回收站后恢复最新版本。"
+                    )
             if current:
                 con.execute(
                     """INSERT INTO asset_revisions

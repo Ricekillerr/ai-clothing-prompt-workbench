@@ -481,6 +481,31 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(current["name"], "Newer asset")
         self.assertEqual(current["body"], "new prompt")
 
+    def test_stale_recycle_bin_snapshot_cannot_restore_an_older_deletion(self):
+        store = Storage(self.home)
+        store.save_data({"cases": [{"id": "recycled-again", "name": "Version 1", "body": "prompt v1"}],
+                         "modules": []})
+        store.save_data({"cases": [], "modules": []})
+        first_deleted = store.list_deleted_assets()[0]
+        store.restore_asset_revision(
+            first_deleted["asset_id"], first_deleted["revision_id"], expected_absent=True
+        )
+        store.save_data({"cases": [{"id": "recycled-again", "name": "Version 2", "body": "prompt v2"}],
+                         "modules": []})
+        store.save_data({"cases": [], "modules": []})
+        latest_deleted = store.list_deleted_assets()[0]
+        self.assertNotEqual(first_deleted["revision_id"], latest_deleted["revision_id"])
+        with self.assertRaisesRegex(StorageError, "回收站记录已更新"):
+            store.restore_asset_revision(
+                first_deleted["asset_id"], first_deleted["revision_id"], expected_absent=True
+            )
+        self.assertEqual(store.load_data()["cases"], [])
+        restored = store.restore_asset_revision(
+            latest_deleted["asset_id"], latest_deleted["revision_id"], expected_absent=True
+        )
+        self.assertEqual(restored["name"], "Version 2")
+        self.assertEqual(restored["body"], "prompt v2")
+
     def test_asset_revision_history_stays_bounded_after_repeated_restore(self):
         store = Storage(self.home)
         store.save_data({"cases": [{"id": "bounded-history", "name": "v0", "body": "prompt 0"}],
