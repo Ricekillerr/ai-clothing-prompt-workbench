@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 """Offline regression tests for Prompt Atelier storage.py."""
+import hashlib
 import json
+import sqlite3
 import tempfile
+import zipfile
 import unittest
 from pathlib import Path
 
@@ -216,6 +219,40 @@ class StorageTests(unittest.TestCase):
         store.reject_ai_analysis(analysis_id)
         self.assertEqual(store.load_data()["cases"], [])
         self.assertEqual(store.list_ai_analyses("rejected")[0]["id"], analysis_id)
+
+    def test_full_backup_contains_verified_database_json_and_references(self):
+        store = Storage(self.home)
+        store.save_data({"cases": [{"id": "case-1", "name": "Test"}],
+                         "modules": [{"id": "module-1", "name": "Module"}]})
+        references = self.home / "references"
+        references.mkdir()
+        image = references / "ref.png"
+        image.write_bytes(b"fake-image-content")
+
+        archive_path = store.create_full_backup(references, app_version="0.6.5-test")
+        self.assertTrue(archive_path.is_file())
+        with zipfile.ZipFile(archive_path) as archive:
+            self.assertIsNone(archive.testzip())
+            names = set(archive.namelist())
+            self.assertEqual(names, {
+                "database/prompt_library.sqlite3",
+                "data/prompt_library.json",
+                "references/ref.png",
+                "backup_manifest.json",
+            })
+            manifest = json.loads(archive.read("backup_manifest.json"))
+            self.assertEqual(manifest["format"], "PromptAtelierFullBackup")
+            self.assertEqual(manifest["app_version"], "0.6.5-test")
+            for name, expected in manifest["files"].items():
+                self.assertEqual(hashlib.sha256(archive.read(name)).hexdigest(), expected)
+            db_path = self.home / "restored_test.sqlite3"
+            db_path.write_bytes(archive.read("database/prompt_library.sqlite3"))
+        con = sqlite3.connect(db_path)
+        try:
+            self.assertEqual(con.execute("PRAGMA quick_check").fetchone()[0], "ok")
+        finally:
+            con.close()
+        self.assertEqual(image.read_bytes(), b"fake-image-content")
 
 
 if __name__ == "__main__":
