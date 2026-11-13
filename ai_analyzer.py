@@ -36,6 +36,36 @@ def _read_text(path: Path) -> str:
     return raw.decode("utf-8-sig", errors="replace")
 
 
+def normalize_asset_roles(raw_roles, image_files: list[Path]) -> list[dict]:
+    """Return one bounded, ordered role record per image; missing AI labels stay unknown."""
+    roles_by_index = {}
+    if isinstance(raw_roles, list):
+        for role in raw_roles:
+            if not isinstance(role, dict):
+                continue
+            try:
+                index = int(role.get("asset_index", 0))
+            except (TypeError, ValueError):
+                continue
+            if 1 <= index <= len(image_files) and index not in roles_by_index:
+                roles_by_index[index] = role
+    allowed_roles = {"overall", "front", "back", "detail", "fabric", "label", "scene", "other", "unknown"}
+    normalized = []
+    for index, image_file in enumerate(image_files, start=1):
+        role = roles_by_index.get(index, {})
+        value = str(role.get("role") or "unknown").strip().lower()
+        if value not in allowed_roles:
+            value = "unknown"
+        normalized.append({
+            "asset_index": index,
+            "asset_path": str(image_file),
+            "role": value,
+            "role_label": str(role.get("role_label") or ("待人工确认" if value == "unknown" else value))[:40],
+            "observation": str(role.get("observation") or "未提供可靠的单图观察")[:500],
+        })
+    return normalized
+
+
 def analyze_assets(prompt_path: str, asset_paths: list[str], api_key: str,
                   endpoint: str = "https://api.openai.com/v1",
                   model: str = "gpt-4o-mini", timeout: int = 120) -> dict:
@@ -134,33 +164,7 @@ def analyze_assets(prompt_path: str, asset_paths: list[str], api_key: str,
         parsed.setdefault(key, value)
     parsed["model"] = model.strip()
     image_files = [path for path in assets if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}]
-    raw_roles = parsed.get("asset_roles")
-    roles_by_index = {}
-    if isinstance(raw_roles, list):
-        for role in raw_roles:
-            if not isinstance(role, dict):
-                continue
-            try:
-                index = int(role.get("asset_index", 0))
-            except (TypeError, ValueError):
-                continue
-            if 1 <= index <= len(image_files) and index not in roles_by_index:
-                roles_by_index[index] = role
-    allowed_roles = {"overall", "front", "back", "detail", "fabric", "label", "scene", "other", "unknown"}
-    normalized_roles = []
-    for index, image_file in enumerate(image_files, start=1):
-        role = roles_by_index.get(index, {})
-        value = str(role.get("role") or "unknown").strip().lower()
-        if value not in allowed_roles:
-            value = "unknown"
-        normalized_roles.append({
-            "asset_index": index,
-            "asset_path": str(image_file),
-            "role": value,
-            "role_label": str(role.get("role_label") or ("待人工确认" if value == "unknown" else value))[:40],
-            "observation": str(role.get("observation") or "未提供可靠的单图观察")[:500],
-        })
-    parsed["asset_roles"] = normalized_roles
+    parsed["asset_roles"] = normalize_asset_roles(parsed.get("asset_roles"), image_files)
     parsed["prompt_path"] = str(prompt_file)
     parsed["asset_paths"] = [str(path) for path in assets]
     parsed["asset_path"] = str(assets[0])
