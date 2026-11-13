@@ -340,13 +340,14 @@ async function deleteCurrent(){
  try{await save();closeDetail();render();toast("已删除；可从版本历史恢复")}catch(e){const outcome=await reconcileSaveFailure(e,()=>{if(kind==="case")db.cases=previous;else db.modules=previous});if(outcome==="server"){closeDetail();render()}toast(saveFailureMessage("删除资产",outcome,e))}
 }
 function findComposeConflicts(base,mods){
- const issues=[],specific=x=>String(x||"").trim().toLowerCase(),generic=new Set(["","通用","全部","不限","all","any","runninghub","平台","platform"]);
+ const issues=[],specific=x=>String(x||"").trim().toLowerCase(),generic=new Set(["","通用","全部","不限","整套搭配","其他","all","any","runninghub","平台","platform"]);
+ const scopeOf=x=>specific(x.category_scope||"通用");
  for(const m of mods){const bm=specific(base.model),mm=specific(m.model);if(!generic.has(bm)&&!generic.has(mm)&&bm!==mm)issues.push("模型不兼容："+m.name+"（案例："+base.model+"；模块："+m.model+"）")}
  const rules=[{label:"拉链状态",yes:["拉链完全打开","拉链全开","拉链保持敞开","前襟完全打开"],no:["拉链完全闭合","拉链完全拉上","拉链闭合","前襟完全闭合"]},{label:"帽子结构",yes:["连帽","有帽"],no:["无帽","不带帽"]},{label:"袖型",yes:["无袖"],no:["长袖","短袖"]}];
  const textOf=x=>String(x.name||"")+" "+String(x.body||"");
  const checkPair=(a,b,label)=>{const ta=textOf(a),tb=textOf(b);for(const rule of rules){const ay=rule.yes.some(t=>ta.includes(t)),an=rule.no.some(t=>ta.includes(t)),by=rule.yes.some(t=>tb.includes(t)),bn=rule.no.some(t=>tb.includes(t));if((ay&&bn)||(an&&by))issues.push(rule.label+"互斥："+label)}};
  for(const m of mods)checkPair(base,m,"基础案例 / "+m.name);
- for(let i=0;i<mods.length;i++)for(let j=i+1;j<mods.length;j++){const a=mods[i],b=mods[j];if(String(a.module_type||"")!==String(b.module_type||""))continue;checkPair(a,b,a.name+" / "+b.name)}
+ for(let i=0;i<mods.length;i++)for(let j=i+1;j<mods.length;j++){const a=mods[i],b=mods[j],sa=scopeOf(a),sb=scopeOf(b);if(!generic.has(sa)&&!generic.has(sb)&&sa!==sb)continue;checkPair(a,b,a.name+" / "+b.name)}
  return [...new Set(issues)]
 }
 function modelPromptGuide(model){
