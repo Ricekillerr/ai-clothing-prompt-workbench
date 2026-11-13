@@ -454,7 +454,7 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
             })
             case_history = request_json("/api/assets/revisions?asset_id=" + case_id)["revisions"]
             module_history = request_json("/api/assets/revisions?asset_id=" + module_id)["revisions"]
-            self.assertEqual(case_history[0]["reason"], "修改前" if case_history[0]["reason"] == "edited" else case_history[0]["reason"])
+            self.assertEqual(case_history[0]["reason"], "edited")
             self.assertEqual(module_history[0]["reason"], "edited")
             self.assertEqual(
                 request_json("/api/assets/revision?asset_id=" + case_id + "&revision_id=" + case_history[0]["revision_id"])["asset"]["body"],
