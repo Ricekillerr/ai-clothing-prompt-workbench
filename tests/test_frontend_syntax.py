@@ -6,6 +6,21 @@ from pathlib import Path
 
 
 class FrontendSyntaxTests(unittest.TestCase):
+    def test_gallery_escapes_imported_timestamps_and_shows_real_update_cadence(self):
+        html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
+        self.assertIn(
+            '${esc((x.updated_at||x.created_at||"").slice(0,10))}',
+            html,
+            "Imported timestamp values must be HTML-escaped before insertion into the gallery",
+        )
+        self.assertNotIn(
+            '${(x.updated_at||x.created_at||"").slice(0,10)}',
+            html,
+            "Raw imported timestamps must never be interpolated into innerHTML",
+        )
+        self.assertIn("每 15 分钟检查 GitHub 新版本", html)
+        self.assertNotIn("每 6 小时自动检查 GitHub 新版本", html)
+
     def test_inline_javascript_parses_when_node_is_available(self):
         node = shutil.which("node")
         if not node:
