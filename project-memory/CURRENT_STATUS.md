@@ -5,14 +5,13 @@
 **生产分支：** main（保持不动）  
 **开发分支：** release/v0.6.5-stabilization  
 **候选版本：** 0.6.5  
-**最近代码提交：** 310b9134844363eb0a4ed457ba006286adceb300  
+**最近代码提交：** 6a23a0f2298b5f0db009ff585e7d6e8a9bcea177  
 **状态：** V1.0 候选开发；不是正式发布。
 
 ## 最新 CI
-[GitHub Actions run 43401220823](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43401220823)：三个 job 全部成功。主回归 136 项（135 通过、1 项环境跳过），Windows 专项 19 项通过，9 个更新文件哈希和 release source/channel gate 通过。
+[GitHub Actions run 43401717130](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43401717130)：三个 job 全部成功。主回归 137 项（136 通过、1 项环境跳过），Windows 专项 19 项通过，9 个更新文件哈希和 release source/channel gate 通过。
+[GitHub Actions run 43401220823](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43401220823)：三个 job 全部成功。主回归 136 项（135 通过、1 项环境跳过），Windows 专项 19 项通过。
 [GitHub Actions run 43400789416](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43400789416)：三个 job 全部成功。主回归 135 项（134 通过、1 项环境跳过），Windows 专项 19 项通过。
-[GitHub Actions run 43399754217](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43399754217)：三个 job 全部成功。主回归 134 项（133 通过、1 项环境跳过），Windows 专项 19 项通过。
-[GitHub Actions run 43398618615](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43398618615)：三个 job 全部成功。主回归 133 项（132 通过、1 项环境跳过），Windows 专项 19 项通过，9 个更新文件哈希和 release gate 通过。
 CI 证明隔离环境中的代码和测试通过，不等于用户本人 Windows 桌面、现有真实资料、杀毒软件和网络环境已验收。
 
 ## 已实现/已集成的候选能力
@@ -22,7 +21,8 @@ CI 证明隔离环境中的代码和测试通过，不等于用户本人 Windows
 - 指定文件夹采集、自动扫描、手动强制重算 SHA-256、人工审核。
 - AI 多图分析、来源路径与 SHA-256 溯源、AI 结果人工确认。
 - 参考图用途角色、主次优先级、控制属性及人工修正。
-- 批量管理、版本历史、提示词修订比较与恢复。
+- 批量管理、版本历史、提示词修订比较与恢复；批量筛选后自动清理隐藏选择。
+- JSON 导入采用跨类别/批次 ID 去重、无效行跳过、读取失败提示与同文件重选。
 - 检索反馈和真实生成成功/失败结果记录。
 - 中英文提示词存储/输出（英文需已有内容，不自动翻译）。
 - WAN 3.0、MiniMax H3、Seedance 2.5 通用模型指导。
