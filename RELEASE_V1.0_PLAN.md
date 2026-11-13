@@ -40,3 +40,12 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 - The update-apply route now creates a verified full backup before staging the program update. If backup creation fails, update staging is not started.
 - Added automated coverage for archive members, hashes, SQLite integrity, reference preservation, API/UI wiring, and pre-update snapshot ordering.
 - GitHub Actions run 43344908636 completed Python compilation, frontend JavaScript syntax, manifest hash validation, all repository regression tests, and Windows PowerShell parser validation successfully. The separate release source/channel gate remains blocked because the branch runtime still declares APP_VERSION 0.5.2 and GITHUB_BRANCH main; no production release or main-branch change was made.
+
+
+## Candidate integration status — 2026-11-13
+- The staging branch now identifies itself as `APP_VERSION=0.6.5` and targets only `release/v0.6.5-stabilization`; it does not target `main`.
+- The release source/channel gate now passes. This validates candidate version/channel consistency only; it is not a production release or GitHub Release tag.
+- Integrated V0.6.4 frontend behavior with the hardened retrieval/composition UI: persistent folder auto-monitoring, browser heartbeat shutdown, and 1–8 image grouping/analysis.
+- Full ZIP backup and automatic pre-update snapshot are integrated. The manifest includes the required runtime files and SHA-256 values.
+- Latest GitHub Actions run: 54 regression tests passed; Python compile, inline JavaScript syntax, release manifest hashes, Windows PowerShell parser, and release source/channel gate all passed.
+- Remaining release gates are native Windows acceptance (launch, close, restart, automatic scan, full backup download, update, failure rollback, and user-data/reference preservation) plus final security/functional review. Keep `main` unchanged until these gates pass.
