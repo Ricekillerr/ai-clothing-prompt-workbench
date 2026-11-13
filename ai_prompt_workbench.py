@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """AI服装提示词资产工作台 V0.5.0。"""
-import base64, hashlib, json, mimetypes, os, shutil, subprocess, sys, tempfile, threading, uuid, webbrowser
+import base64, hashlib, json, mimetypes, os, shutil, subprocess, sys, tempfile, threading, time, uuid, webbrowser
 from pathlib import Path
 from urllib.parse import unquote, quote, parse_qs, urlsplit
 from urllib.request import Request, urlopen
@@ -31,6 +31,64 @@ LEGACY_DATA = DATA if DATA.exists() else next(
     DATA,
 )
 STORAGE = Storage(HOME, legacy_json=LEGACY_DATA)
+
+AUTO_SCAN_INTERVAL_SECONDS = 60
+AUTO_SCAN_WAKE = threading.Event()
+AUTO_SCAN_STOP = threading.Event()
+CLIENT_HEARTBEAT_LOCK = threading.Lock()
+LAST_CLIENT_HEARTBEAT = 0.0
+CLOSE_REQUESTED_AT = 0.0
+CLIENT_HEARTBEAT_TIMEOUT_SECONDS = 15
+
+
+def auto_scan_is_enabled():
+    return STORAGE.get_setting("auto_scan_enabled", "0") == "1"
+
+
+def log_background_error(message):
+    try:
+        log = HOME / "background_tasks.log"
+        with log.open("a", encoding="utf-8") as stream:
+            stream.write(time.strftime("[%Y-%m-%d %H:%M:%S] ") + str(message) + "\n")
+    except Exception:
+        pass
+
+
+def auto_scan_loop():
+    while not AUTO_SCAN_STOP.is_set():
+        AUTO_SCAN_WAKE.wait(AUTO_SCAN_INTERVAL_SECONDS)
+        AUTO_SCAN_WAKE.clear()
+        if AUTO_SCAN_STOP.is_set():
+            break
+        if not auto_scan_is_enabled():
+            continue
+        for source in STORAGE.list_scan_sources():
+            if AUTO_SCAN_STOP.is_set() or not auto_scan_is_enabled():
+                break
+            try:
+                folder = Path(source["folder_path"])
+                if not folder.is_dir():
+                    continue
+                previous = STORAGE.get_scan_snapshot(source["id"])
+                items = scan_folder(folder, bool(source["recursive"]), previous=previous)
+                STORAGE.save_scan_results(source["id"], items)
+            except Exception as exc:
+                log_background_error(f"自动扫描失败 [{source.get('folder_path', '')}]：{exc}")
+
+
+def heartbeat_watchdog(server):
+    while not AUTO_SCAN_STOP.wait(1):
+        now = time.monotonic()
+        with CLIENT_HEARTBEAT_LOCK:
+            last = LAST_CLIENT_HEARTBEAT
+            close_requested = CLOSE_REQUESTED_AT
+        should_close = bool(
+            (last and now - last > CLIENT_HEARTBEAT_TIMEOUT_SECONDS)
+            or (close_requested and now - close_requested > 2 and last < close_requested)
+        )
+        if should_close:
+            threading.Thread(target=server.shutdown, daemon=True).start()
+            return
 
 def load_data():
     return STORAGE.load_data()
@@ -163,6 +221,7 @@ class Handler(BaseHTTPRequestHandler):
                     "include_conflicts": include_conflicts,
                     "message": "冲突案例仅供人工复核" if include_conflicts else "",
                 })
+        elif path == "/api/scan/auto": self.send_json(200, {"enabled": auto_scan_is_enabled(), "interval_seconds": AUTO_SCAN_INTERVAL_SECONDS})
         elif path == "/api/scan/sources": self.send_json(200, {"sources": STORAGE.list_scan_sources()})
         elif path == "/api/scan/pending": self.send_json(200, {"items": STORAGE.list_pending_ingest()})
         elif path == "/api/scan/matches": self.send_json(200, {"matches": rank_matches(STORAGE.list_pending_ingest())})
@@ -183,6 +242,22 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/api/data":
                 if not isinstance(d, dict): raise ValueError("数据格式不正确")
                 d.setdefault("cases", []); d.setdefault("modules", []); save_data(d)
+                self.send_json(200, {"ok": True})
+            elif self.path == "/api/scan/auto":
+                enabled = bool(d.get("enabled", False))
+                STORAGE.set_setting("auto_scan_enabled", "1" if enabled else "0")
+                if enabled:
+                    AUTO_SCAN_WAKE.set()
+                self.send_json(200, {"ok": True, "enabled": enabled, "interval_seconds": AUTO_SCAN_INTERVAL_SECONDS})
+            elif self.path == "/api/client/heartbeat":
+                global LAST_CLIENT_HEARTBEAT, CLOSE_REQUESTED_AT
+                with CLIENT_HEARTBEAT_LOCK:
+                    LAST_CLIENT_HEARTBEAT = time.monotonic()
+                    CLOSE_REQUESTED_AT = 0.0
+                self.send_json(200, {"ok": True})
+            elif self.path == "/api/client/close":
+                with CLIENT_HEARTBEAT_LOCK:
+                    CLOSE_REQUESTED_AT = time.monotonic()
                 self.send_json(200, {"ok": True})
             elif self.path == "/api/scan/source":
                 folder = str(d.get("folder", "")).strip()
@@ -266,11 +341,17 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     server = ThreadingHTTPServer(("127.0.0.1", 8765), Handler)
     url = "http://127.0.0.1:8765"
+    AUTO_SCAN_STOP.clear()
+    threading.Thread(target=auto_scan_loop, name="PromptAtelierAutoScan", daemon=True).start()
+    threading.Thread(target=heartbeat_watchdog, args=(server,), name="PromptAtelierHeartbeat", daemon=True).start()
     threading.Timer(0.8, lambda: webbrowser.open(url)).start()
     print(f"Prompt Atelier V{APP_VERSION}：{url}")
-    print("用户数据目录：" + str(HOME)); print("关闭此窗口即可停止工作台。")
+    print("用户数据目录：" + str(HOME)); print("关闭工作台网页后，后台服务将在短暂等待后自动退出。")
     try: server.serve_forever()
     except KeyboardInterrupt: pass
-    finally: server.server_close()
+    finally:
+        AUTO_SCAN_STOP.set()
+        AUTO_SCAN_WAKE.set()
+        server.server_close()
 
 if __name__ == "__main__": main()
