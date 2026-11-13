@@ -90,6 +90,13 @@ class V065IntegrationTests(unittest.TestCase):
         self.assertIn("source_assets", (self.root / "storage.py").read_text(encoding="utf-8"))
         self.assertIn("f_composition", html)
         self.assertIn("JSON.parse($(\"f_composition\")", html)
+        self.assertIn("function bindBulkAssetControls", html)
+        self.assertIn("applyBulkStatusBtn", html)
+        self.assertIn("applyBulkTagBtn", html)
+        self.assertIn("deleteBulkBtn", html)
+        self.assertIn("selectedCaseIds", html)
+        self.assertIn("批量删除失败，原数据已恢复", html)
+        self.assertIn("if(!response.ok||result.ok===false)", html)
 
     def test_legacy_json_is_migrated_without_replacing_source(self):
         self.assertIn("legacy_json=LEGACY_DATA", self.app)
