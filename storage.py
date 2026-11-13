@@ -911,7 +911,26 @@ class Storage:
         with tempfile.TemporaryDirectory(prefix=".backup_build_", dir=str(self.home)) as work:
             work_dir = Path(work)
             db_copy = self.backup(work_dir / "prompt_library.sqlite3")
-            json_copy = self.export_json(work_dir / "prompt_library.json")
+            # Export JSON from the exact SQLite snapshot above. Reading the live
+            # database a second time could race with a concurrent save and create
+            # a ZIP whose own database and JSON disagree.
+            json_copy = work_dir / "prompt_library.json"
+            try:
+                snapshot = sqlite3.connect(str(db_copy))
+                rows = snapshot.execute(
+                    "SELECT kind,payload_json FROM assets ORDER BY updated_at DESC, rowid DESC"
+                ).fetchall()
+                snapshot.close()
+                snapshot_data = {"version": 3, "cases": [], "modules": []}
+                for kind, payload_json in rows:
+                    item = json.loads(payload_json)
+                    snapshot_data["cases" if kind == "case" else "modules"].append(item)
+                json_copy.write_text(
+                    json.dumps(snapshot_data, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+            except Exception as exc:
+                raise StorageError("无法从一致的数据库快照生成 JSON 备份") from exc
             payloads: dict[str, Path] = {
                 "database/prompt_library.sqlite3": db_copy,
                 "data/prompt_library.json": json_copy,
