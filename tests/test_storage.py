@@ -206,7 +206,13 @@ class StorageTests(unittest.TestCase):
             {"title": "Look test", "category": "服装", "tags": ["黑色"],
              "prompt_text": "保持人物不变，仅替换服装", "prompt_summary": "局部换装",
              "confidence": 0.92, "risk_notes": [],
-             "asset_paths": asset_paths, "asset_sha256s": asset_hashes},
+             "asset_paths": asset_paths, "asset_sha256s": asset_hashes,
+             "asset_roles": [
+                 {"asset_index": 1, "asset_path": asset_paths[0], "role": "front",
+                  "role_label": "正面图", "observation": "正面整体版型"},
+                 {"asset_index": 2, "asset_path": asset_paths[1], "role": "back",
+                  "role_label": "背面图", "observation": "背面结构"},
+             ]},
         )
         self.assertEqual(len(store.list_ai_analyses("review")), 1)
         self.assertEqual(store.load_data()["cases"], [])
@@ -228,6 +234,9 @@ class StorageTests(unittest.TestCase):
         self.assertTrue(all(Path(x["path"]).is_file()
                             for x in provenance["source_assets"]))
         self.assertEqual(len(cases[0]["images"]), 2)
+        self.assertEqual([x["role"] for x in cases[0]["image_roles"]], ["front", "back"])
+        self.assertEqual([x["role_label"] for x in cases[0]["image_roles"]], ["正面图", "背面图"])
+        self.assertEqual(cases[0]["image_roles"][1]["observation"], "背面结构")
         self.assertTrue(all((self.home / "references" / name).is_file() for name in cases[0]["images"]))
         self.assertEqual(store.list_ai_analyses("review"), [])
         self.assertEqual(store.list_ai_analyses("approved")[0]["approved_asset_id"], asset_id)
