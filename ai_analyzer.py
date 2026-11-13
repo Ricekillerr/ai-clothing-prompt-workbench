@@ -71,7 +71,9 @@ def normalize_outfit_items(raw_items, raw_relations=None) -> tuple[list[dict], l
     allowed_categories = {"上装", "下装", "鞋履", "配饰", "连体装", "其他"}
     items = []
     if isinstance(raw_items, list):
-        for index, raw in enumerate(raw_items[:12], start=1):
+        for raw in raw_items[:48]:
+            if len(items) >= 12:
+                break
             if not isinstance(raw, dict):
                 continue
             category = str(raw.get("category") or "其他").strip()[:20]
@@ -83,7 +85,7 @@ def normalize_outfit_items(raw_items, raw_relations=None) -> tuple[list[dict], l
                 return str(value or "").strip()[:limit]
             details = raw.get("details") if isinstance(raw.get("details"), list) else []
             items.append({
-                "item_index": index,
+                "item_index": len(items) + 1,
                 "category": category,
                 "subcategory": clean(raw.get("subcategory"), 60),
                 "name": clean(raw.get("name"), 120),
