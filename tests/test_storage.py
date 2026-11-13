@@ -220,6 +220,14 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(store.load_data()["cases"], [])
         self.assertEqual(store.list_ai_analyses("rejected")[0]["id"], analysis_id)
 
+    def test_local_settings_persist_in_sqlite_metadata(self):
+        store = Storage(self.home)
+        self.assertEqual(store.get_setting("auto_scan_enabled", "0"), "0")
+        store.set_setting("auto_scan_enabled", "1")
+        self.assertEqual(store.get_setting("auto_scan_enabled"), "1")
+        store.set_setting("auto_scan_enabled", "0")
+        self.assertEqual(store.get_setting("auto_scan_enabled"), "0")
+
     def test_full_backup_contains_verified_database_json_and_references(self):
         store = Storage(self.home)
         store.save_data({"cases": [{"id": "case-1", "name": "Test"}],
