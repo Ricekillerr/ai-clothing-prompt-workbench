@@ -53,6 +53,17 @@ def log_background_error(message):
     except Exception:
         pass
 
+def log_api_error(route, error):
+    """Record route and exception diagnostics without logging request bodies or secrets."""
+    try:
+        log = HOME / "api_errors.log"
+        message = f"{type(error).__name__}: {str(error)[:400]}"
+        with log.open("a", encoding="utf-8") as stream:
+            stream.write(time.strftime("[%Y-%m-%d %H:%M:%S] ")
+                         + str(route)[:120] + " | " + message + "\n")
+    except Exception:
+        pass
+
 
 def auto_scan_loop():
     while not AUTO_SCAN_STOP.is_set():
@@ -369,7 +380,9 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(200, {"ok": True, "message": f"已下载并校验 V{latest}；更新前完整备份已保存为 {pre_update_backup.name}。工作台即将关闭并自动更新。"})
                 threading.Timer(1.0, lambda: threading.Thread(target=self.server.shutdown, daemon=True).start()).start()
             else: self.send_json(404, {"ok": False, "error": "接口不存在"})
-        except Exception as e: self.send_json(400, {"ok": False, "error": str(e)})
+        except Exception as e:
+            log_api_error(self.path, e)
+            self.send_json(400, {"ok": False, "error": str(e)})
 
 def main():
     server = ThreadingHTTPServer(("127.0.0.1", 8765), Handler)
