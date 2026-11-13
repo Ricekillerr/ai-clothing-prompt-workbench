@@ -125,6 +125,48 @@ class WindowsUpdaterTransactionTests(unittest.TestCase):
             launch.assert_called_once()
             self.assertFalse(stage.exists())
 
+    def test_rollback_failure_is_reported_and_original_backup_is_retained(self):
+        import updater
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "install"
+            root.mkdir()
+            (root / "index.html").write_text("old-ui", encoding="utf-8")
+            (root / "storage.py").write_text("old-storage", encoding="utf-8")
+            launcher = root / "launcher.bat"
+            launcher.write_text("@echo off", encoding="utf-8")
+            stage = self._stage(root, {
+                "index.html": "new-ui",
+                "storage.py": "new-storage",
+            })
+            real_replace = updater.replace_with_retry
+            calls = {"count": 0}
+
+            def fail_install_and_rollback(src, dst):
+                calls["count"] += 1
+                if calls["count"] in {2, 4}:
+                    raise OSError("injected install/rollback failure")
+                return real_replace(src, dst)
+
+            argv = ["updater.py", str(stage), str(root), str(launcher)]
+            with mock.patch.object(sys, "argv", argv), \
+                 mock.patch.object(updater, "service_running", return_value=False), \
+                 mock.patch.object(updater, "launch_workbench") as launch, \
+                 mock.patch.object(updater, "replace_with_retry", side_effect=fail_install_and_rollback):
+                result = updater.main()
+
+            self.assertEqual(result, 9)
+            self.assertEqual((root / "index.html").read_text(encoding="utf-8"), "new-ui")
+            self.assertEqual((root / "storage.py").read_text(encoding="utf-8"), "old-storage")
+            backups = list(root.glob("prompt_atelier_backup_*"))
+            self.assertEqual(len(backups), 1)
+            self.assertEqual((backups[0] / "index.html").read_text(encoding="utf-8"), "old-ui")
+            log = (root / "_update_error.log").read_text(encoding="utf-8")
+            self.assertIn("自动回滚未完整完成", log)
+            self.assertIn(str(backups[0]), log)
+            self.assertFalse(stage.exists())
+            launch.assert_not_called()
+
     def test_mid_transaction_failure_restores_every_original_file(self):
         import updater
 
