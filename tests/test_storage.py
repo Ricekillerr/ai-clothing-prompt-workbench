@@ -508,6 +508,28 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(analytics["generation_failed"], 1)
         self.assertEqual(analytics["generation_feedback_total"], 2)
 
+    def test_generation_outcome_rolls_back_case_when_feedback_insert_fails(self):
+        store = Storage(self.home)
+        store.save_data({"cases": [{"id": "atomic-outcome", "name": "Atomic",
+                                    "status": "待验证", "body": "prompt"}],
+                         "modules": []})
+        with store._session() as con:
+            con.execute("""
+                CREATE TRIGGER fail_generation_feedback
+                BEFORE INSERT ON generation_feedback
+                BEGIN
+                    SELECT RAISE(ABORT, 'injected feedback failure');
+                END
+            """)
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "injected feedback failure"):
+            store.record_generation_outcome("atomic-outcome", "success", "should roll back")
+        case = store.load_data()["cases"][0]
+        self.assertEqual(case["status"], "待验证")
+        self.assertNotIn("last_generation_outcome", case)
+        self.assertEqual(store.get_retrieval_analytics()["generation_feedback_total"], 0)
+        revisions = store.list_asset_revisions("atomic-outcome")
+        self.assertFalse(any(x["reason"] == "generation_outcome" for x in revisions))
+
     def test_generation_outcome_rejects_unknown_case_or_outcome(self):
         store = Storage(self.home)
         with self.assertRaisesRegex(StorageError, "找不到对应的案例"):
