@@ -27,8 +27,59 @@ function setTitle(t,s){$("pageTitle").textContent=t;$("pageSub").textContent=s}f
 
 function smartSearchPage(){
  setTitle("智能案例检索","输入服装款号或描述，检索匹配度达到 80% 的历史成功案例");
- $("content").innerHTML=`<div class="vault" style="max-width:920px"><h2>用新款服装，寻找过去验证成功的经验</h2><p>支持款号精确匹配，以及品类、版型、面料、颜色、结构细节和生成约束的组合检索。</p><div style="display:flex;gap:9px;flex-wrap:wrap;margin:16px 0"><input id="smartQuery" placeholder="例如：LL-WZWY10278，或黑色立领无袖马甲、柔软哑光面料、双拉头拉链" style="flex:1;min-width:260px;padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--text)"><button class="btn primary" id="smartSearchBtn">检索成功案例</button></div><label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin:10px 0"><input id="includeConflicts" type="checkbox">同时显示属性冲突案例（仅供人工复核）</label><div style="font-size:12px;color:var(--muted)">默认只检索「已验证成功」案例；低于 80% 的结果不显示。当前为可解释的本地属性匹配，不是 AI 置信度。</div><div id="smartSearchStatus" style="margin-top:14px;color:var(--muted)">等待输入款号或服装描述。</div><div id="smartSearchResults" style="margin-top:12px"></div></div>`;
- $("smartSearchBtn").onclick=runSmartCaseSearch;$("smartQuery").onkeydown=e=>{if(e.key==="Enter")runSmartCaseSearch()};
+ $("content").innerHTML=`<div class="vault" style="max-width:920px"><h2>用新款服装，寻找过去验证成功的经验</h2><p>支持款号精确匹配，以及品类、版型、面料、颜色、结构细节和生成约束的组合检索。</p><div style="display:flex;gap:9px;flex-wrap:wrap;margin:16px 0"><input id="smartQuery" placeholder="例如：LL-WZWY10278，或黑色立领无袖马甲、柔软哑光面料、双拉头拉链" style="flex:1;min-width:260px;padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--text)"><button class="btn primary" id="smartSearchBtn">检索成功案例</button></div><div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:12px 0"><button class="btn" id="visualSearchPick">选择图片找相似案例</button><input id="visualSearchFile" type="file" accept="image/*" hidden><span style="font-size:11px;color:var(--muted)">本地感知哈希初筛，不上传图片；适合找近似图/重复素材，不等同于同款语义识别。</span></div><div id="visualSearchStatus" style="font-size:12px;color:var(--muted)"></div><div id="visualSearchResults"></div><label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin:10px 0"><input id="includeConflicts" type="checkbox">同时显示属性冲突案例（仅供人工复核）</label><div style="font-size:12px;color:var(--muted)">默认只检索「已验证成功」案例；低于 80% 的结果不显示。当前为可解释的本地属性匹配，不是 AI 置信度。</div><div id="smartSearchStatus" style="margin-top:14px;color:var(--muted)">等待输入款号或服装描述。</div><div id="smartSearchResults" style="margin-top:12px"></div></div>`;
+ $("smartSearchBtn").onclick=runSmartCaseSearch;$("smartQuery").onkeydown=e=>{if(e.key==="Enter")runSmartCaseSearch()};$("visualSearchPick").onclick=()=>$("visualSearchFile").click();$("visualSearchFile").onchange=e=>{const file=e.target.files?.[0];if(file)runVisualCaseSearch(file);e.target.value=""};
+}
+async function imagePerceptualHash(blob){
+ const url=URL.createObjectURL(blob);
+ try{
+  const img=new Image();img.src=url;
+  await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error("图片读取失败"))});
+  const canvas=document.createElement("canvas");canvas.width=32;canvas.height=32;
+  const ctx=canvas.getContext("2d",{willReadFrequently:true});ctx.drawImage(img,0,0,32,32);
+  const pixels=ctx.getImageData(0,0,32,32).data,gray=new Float64Array(1024);
+  for(let i=0;i<1024;i++)gray[i]=(pixels[i*4]*0.299+pixels[i*4+1]*0.587+pixels[i*4+2]*0.114);
+  const coeff=[];
+  for(let v=0;v<8;v++)for(let u=0;u<8;u++){
+   let sum=0;
+   for(let y=0;y<32;y++)for(let x=0;x<32;x++)
+    sum+=gray[y*32+x]*Math.cos(((2*x+1)*u*Math.PI)/64)*Math.cos(((2*y+1)*v*Math.PI)/64);
+   coeff.push(sum);
+  }
+  const median=[...coeff].sort((a,b)=>a-b)[32];
+  return coeff.map(value=>value>=median?"1":"0").join("");
+ }finally{URL.revokeObjectURL(url)}
+}
+function imageHashDistance(a,b){let distance=0;for(let i=0;i<Math.min(a.length,b.length);i++)if(a[i]!==b[i])distance++;return distance}
+async function runVisualCaseSearch(file){
+ const status=$("visualSearchStatus"),box=$("visualSearchResults");box.innerHTML="";
+ if(!file.type.startsWith("image/")){status.textContent="请选择有效图片文件";return}
+ status.textContent="正在读取查询图片…";
+ try{
+  const queryHash=await imagePerceptualHash(file),sources=[];
+  for(const item of db.cases.filter(x=>x.status==="已验证成功")){
+   const names=[...new Set([...(Array.isArray(item.images)?item.images:[]),item.image].filter(Boolean))];
+   for(let index=0;index<names.length;index++)sources.push({item,name:String(names[index]).split(/[\\/]/).pop(),index});
+  }
+  if(!sources.length){status.textContent="成功案例库中暂无关联图片";return}
+  const candidates=sources.slice(0,500),matches=[];
+  for(let i=0;i<candidates.length;i++){
+   const source=candidates[i];
+   status.textContent="正在比较历史图片 "+(i+1)+" / "+candidates.length+"…";
+   try{
+    const response=await fetch("/media/"+encodeURIComponent(source.name),{cache:"force-cache"});
+    if(!response.ok)continue;
+    const hash=await imagePerceptualHash(await response.blob()),distance=imageHashDistance(queryHash,hash);
+    matches.push({item:source.item,name:source.name,index:source.index,score:1-distance/64,distance});
+   }catch(_){}
+  }
+  matches.sort((a,b)=>a.distance-b.distance||String(a.item.name).localeCompare(String(b.item.name)));
+  const top=matches.slice(0,12).filter(x=>x.distance<=28);
+  if(!top.length){status.textContent="没有找到足够接近的历史图片。不同角度、裁切和背景会显著影响这种像素结构相似度。";return}
+  status.textContent="完成：比较 "+matches.length+" 张历史图片，显示最接近的 "+top.length+" 张。结果仅为视觉近似初筛。";
+  box.innerHTML=top.map(m=>`<div class="vault" style="display:flex;gap:12px;align-items:center;margin:8px 0"><div style="width:84px;height:100px;flex:0 0 84px;overflow:hidden;border-radius:8px">${image({...m.item,image:m.name})}</div><div style="flex:1;min-width:0"><b>${esc(m.item.name||"未命名案例")}</b><p style="font-size:12px;color:var(--muted);margin:6px 0">${esc(m.item.sku||m.item.category||"历史成功案例")} · ${esc(m.name)}</p><p style="font-size:12px;color:var(--muted);margin:4px 0">图像近似分：${Math.round(m.score*100)} / 100 · 汉明距离：${m.distance}</p><button class="btn" data-visual-case="${esc(m.item.id)}">打开完整案例</button></div></div>`).join("");
+  box.querySelectorAll("[data-visual-case]").forEach(button=>button.onclick=()=>openDetail(button.dataset.visualCase,"case"));
+ }catch(error){status.textContent="图片检索失败："+error.message}
 }
 function renderMatchConflicts(m){
  const conflicts=m.conflicts||[];
