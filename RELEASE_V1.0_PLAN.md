@@ -130,3 +130,9 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 - The final manifest now includes all eight files in the actual incremental update payload, including the previously omitted imported modules `collector.py` and `case_matcher.py`. CI's runtime hash reporter derives its file list from the manifest itself, and a regression guard verifies both modules are present and pinned.
 - Full GitHub Actions run 43356815996 passed: all 67 regression tests, Python compilation, frontend JavaScript syntax, SHA-256 validation of all 8 update files, Windows PowerShell parser validation, and release source/channel gate.
 - This confirms the structured outfit decomposition and garment-level retrieval candidate is internally consistent in CI. It does not replace native Windows GUI acceptance or prove visual-semantic image similarity; those remain separate V1.0 tasks.
+
+
+## Implementation log — 2026-11-13 (editable outfit structure and local visual shortlist)
+- The case editor now supports manual maintenance of structured outfit items and explicit pairwise relationships, using one garment per line with category, name, color, material, silhouette, fit, and details. Item count and relationship endpoints are bounded; editing preserves existing AI evidence metadata for retained entries.
+- Added a browser-local perceptual-hash image shortlist in smart search. The query image is processed in the browser and is not uploaded. It compares against up to 500 images attached to verified-success cases and displays nearest visual-structure candidates with a clear limitation notice: this is a coarse near-duplicate/visual-structure aid, not semantic same-garment recognition; different viewpoints and backgrounds can reduce accuracy.
+- Added integration guards for manual outfit editing and local-only visual search. Frontend JavaScript syntax was checked by CI; final manifest hash and complete test run are in progress after the last UI update.
