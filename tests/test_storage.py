@@ -362,7 +362,7 @@ class StorageTests(unittest.TestCase):
 
         def fail_on_json_swap(src, dst):
             calls["count"] += 1
-            if calls["count"] == 4:
+            if calls["count"] == 5:
                 raise OSError("injected JSON replacement failure")
             return real_replace(src, dst)
 
