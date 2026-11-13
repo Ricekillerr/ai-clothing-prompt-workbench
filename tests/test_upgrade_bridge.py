@@ -96,6 +96,11 @@ class V065IntegrationTests(unittest.TestCase):
         self.assertIn("deleteBulkBtn", html)
         self.assertIn("selectedCaseIds", html)
         self.assertIn("批量删除失败，原数据已恢复", html)
+        self.assertIn("function bindBulkModuleControls", html)
+        self.assertIn("moduleSelectVisibleBtn", html)
+        self.assertIn("moduleApplyBulkTagBtn", html)
+        self.assertIn("moduleDeleteBulkBtn", html)
+        self.assertIn("selectedModuleIds", html)
         self.assertIn("if(!response.ok||result.ok===false)", html)
 
     def test_legacy_json_is_migrated_without_replacing_source(self):
