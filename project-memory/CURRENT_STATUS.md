@@ -5,10 +5,11 @@
 **生产分支：** main（保持不动）  
 **开发分支：** release/v0.6.5-stabilization  
 **候选版本：** 0.6.5  
-**最近代码提交：** 632ac9fcd65493f5a23cc1ac9c83631202501bc9  
+**最近代码提交：** 954d4568322b3b4a7967e62b07c4770e0b28b073  
 **状态：** V1.0 候选开发；不是正式发布。
 
 ## 最新 CI
+最新单品检索修复（提交 954d456）正在进行完整 CI；上一轮检索回归测试暴露整套穿搭中单品名称没有参与颜色/材质属性匹配，修复后以完整回归确认，尚未宣称通过。
 [GitHub Actions run 43388913191](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43388913191)：三个 job 全部成功。
 - 主回归：121 项运行，120 项通过，1 项因 Linux runner 不具备 Windows 环境而跳过。
 - Windows Server 2025 专项：18 项通过。
