@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ai_analyzer import _safe_endpoint, analyze_pair
+from ai_analyzer import _safe_endpoint, analyze_pair, normalize_asset_roles
 
 
 class AIAnalyzerTests(unittest.TestCase):
@@ -22,6 +22,38 @@ class AIAnalyzerTests(unittest.TestCase):
             image.write_bytes(b"image")
             with self.assertRaisesRegex(ValueError, "API Key"):
                 analyze_pair(str(prompt), str(image), "")
+
+    def test_image_roles_are_ordered_and_mapped_to_exact_images(self):
+        images = [Path("front.png"), Path("back.jpg"), Path("detail.webp")]
+        roles = [
+            {"asset_index": 3, "role": "detail", "role_label": "细节图"},
+            {"asset_index": 1, "role": "front", "role_label": "正面图"},
+            {"asset_index": 2, "role": "back", "role_label": "背面图"},
+        ]
+        result = normalize_asset_roles(roles, images)
+        self.assertEqual([item["asset_path"] for item in result],
+                         ["front.png", "back.jpg", "detail.webp"])
+        self.assertEqual([item["role"] for item in result],
+                         ["front", "back", "detail"])
+
+    def test_missing_invalid_and_out_of_range_roles_fall_back_to_unknown(self):
+        images = [Path("one.png"), Path("two.png")]
+        roles = [
+            {"asset_index": 1, "role": "invented-role", "role_label": "奇怪分类"},
+            {"asset_index": 9, "role": "back"},
+            {"asset_index": "bad", "role": "front"},
+        ]
+        result = normalize_asset_roles(roles, images)
+        self.assertEqual([item["role"] for item in result], ["unknown", "unknown"])
+        self.assertEqual(result[0]["role_label"], "奇怪分类")
+        self.assertEqual(result[1]["role_label"], "待人工确认")
+
+    def test_duplicate_role_indices_do_not_override_first_valid_role(self):
+        result = normalize_asset_roles([
+            {"asset_index": 1, "role": "front"},
+            {"asset_index": 1, "role": "back"},
+        ], [Path("front.png")])
+        self.assertEqual(result[0]["role"], "front")
 
     def test_non_prompt_file_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
