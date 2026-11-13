@@ -5,20 +5,15 @@
 **生产分支：** main（保持不动）  
 **开发分支：** release/v0.6.5-stabilization  
 **候选版本：** 0.6.5  
-**最近代码提交：** 2d0f1cc245d0c03c3ad62e903b7b3ab33e7f828d  
+**最近代码提交：** 310b9134844363eb0a4ed457ba006286adceb300  
 **状态：** V1.0 候选开发；不是正式发布。
 
 ## 最新 CI
-[GitHub Actions run 43400789416](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43400789416)：三个 job 全部成功。主回归 135 项（134 通过、1 项环境跳过），Windows 专项 19 项通过，9 个更新文件哈希和 release gate 通过。
-[GitHub Actions run 43399754217](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43399754217)：三个 job 全部成功。主回归 134 项（133 通过、1 项环境跳过），Windows 专项 19 项通过，9 个更新文件哈希和 release gate 通过。
-[GitHub Actions run 43398819845](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43398819845)：三个 job 全部成功。主回归 133 项（132 通过、1 项环境跳过），Windows 专项 19 项通过。
-[GitHub Actions run 43398618615](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43398618615)：三个 job 全部成功。主回归 133 项（132 通过、1 项因 Linux 环境跳过），Windows 专项 19 项全部通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
-[GitHub Actions run 43388913191](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43388913191)：三个 job 全部成功。
-- 主回归：121 项运行，120 项通过，1 项因 Linux runner 不具备 Windows 环境而跳过。
-- Windows Server 2025 专项：18 项通过。
-- Release source/channel gate：通过。
-- Python 编译、前端 JavaScript 语法、PowerShell 解析、9 个更新文件 SHA-256 校验均通过。
-- 这证明隔离 CI 环境通过，不等于用户本人 Windows 桌面、现有真实资料、杀毒软件和网络环境已验收。
+[GitHub Actions run 43401220823](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43401220823)：三个 job 全部成功。主回归 136 项（135 通过、1 项环境跳过），Windows 专项 19 项通过，9 个更新文件哈希和 release source/channel gate 通过。
+[GitHub Actions run 43400789416](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43400789416)：三个 job 全部成功。主回归 135 项（134 通过、1 项环境跳过），Windows 专项 19 项通过。
+[GitHub Actions run 43399754217](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43399754217)：三个 job 全部成功。主回归 134 项（133 通过、1 项环境跳过），Windows 专项 19 项通过。
+[GitHub Actions run 43398618615](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43398618615)：三个 job 全部成功。主回归 133 项（132 通过、1 项环境跳过），Windows 专项 19 项通过，9 个更新文件哈希和 release gate 通过。
+CI 证明隔离环境中的代码和测试通过，不等于用户本人 Windows 桌面、现有真实资料、杀毒软件和网络环境已验收。
 
 ## 已实现/已集成的候选能力
 - 本地案例库、提示词模块库、编辑/删除失败回滚。
@@ -40,12 +35,11 @@
 - **AI 审核入库：** 审核时重新核验提示词和素材仍属于原扫描目录且指纹未变化；保留提示词首尾空格与换行；图片复制期间再次计算哈希；数据库事务失败会清理本次复制文件；参考图片目录不允许被符号链接重定向。
 - **数据库恢复与生命周期：** 恢复操作使用独占操作门禁，等待在途写入/分析/扫描完成；浏览器心跳和关闭通知不被恢复锁阻塞；恢复期间空闲关闭监控不会提前终止服务。
 - **本地 API 与媒体：** 增加 Fetch Metadata 跨站请求限制；媒体接口仅提供 PNG/JPG/JPEG/WEBP/GIF/BMP 六类图片，拒绝 HTML、符号链接和目录联接，并添加 nosniff。
-- **前端安全与一致性：** 导入案例时间字段插入 HTML 前转义；更新设置文案与每 15 分钟检查及明确授权后安装的真实行为一致。
+- **前端安全与一致性：** 导入案例时间字段插入 HTML 前转义；更新设置文案与每 15 分钟检查及明确授权后安装的真实行为一致；批量筛选变化会清理隐藏选择；组合器保存生成时来源快照并标记手动修改；所有服务端刷新路径统一归一化旧版标签/时间/图片字段。
 - **日志：** 应用和更新器日志按大小轮转、保留 3 份；应用日志不记录异常原文或用户目录，更新器日志脱敏安装目录、用户目录、Bearer/API Key 模式。
-- **回归证据：** 单品级检索修复新增覆盖案例；最新 CI run 43398618615 三个 job 全部通过：主回归 133 项（132 通过、1 项环境跳过），Windows 专项 19 项通过，9 个更新文件哈希与 release gate 通过。
+- **回归证据：** 最新 CI run 43401220823 三个 job 全部通过：主回归 136 项（135 通过、1 项环境跳过），Windows 专项 19 项通过，9 个更新文件哈希与 release gate 通过。
 
 ## 已知限制
-- 批量操作选择集筛选残留修复正在提交；只有新 CI 通过后才标记完成。
 - 浏览器感知哈希检索只是粗略近重复/视觉结构候选，不是语义服装识别。
 - 英文提示词只保存和复用已有文本，不自动翻译。
 - 原提示词中的 @图片编号需人工映射到资产库图片编号。
