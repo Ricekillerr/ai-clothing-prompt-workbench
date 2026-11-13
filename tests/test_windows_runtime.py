@@ -307,6 +307,24 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
             )
             with urlopen(disable_request, timeout=10) as response:
                 self.assertFalse(json.loads(response.read().decode("utf-8"))["enabled"])
+            skip_request = Request(
+                base + "/api/update/auto/skip",
+                data=json.dumps({"version": "9.9.9"}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(skip_request, timeout=10) as response:
+                self.assertEqual(json.loads(response.read().decode("utf-8"))["skipped_version"], "9.9.9")
+            with urlopen(base + "/api/update/auto", timeout=10) as response:
+                self.assertEqual(json.loads(response.read().decode("utf-8"))["skipped_version"], "9.9.9")
+            clear_skip = Request(
+                base + "/api/update/auto/skip",
+                data=json.dumps({"version": ""}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(clear_skip, timeout=10) as response:
+                self.assertEqual(json.loads(response.read().decode("utf-8"))["skipped_version"], "")
 
             payload = {
                 "cases": [{"id": "windows-smoke-case", "name": "Windows smoke",
