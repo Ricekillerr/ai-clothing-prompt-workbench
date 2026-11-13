@@ -82,3 +82,11 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 - Single-case and single-module edits now roll back the in-memory list if saving fails; single-asset deletion is awaited and similarly restores the prior list on persistence failure.
 - Added integration assertions for SKU capture/indexing and transactional save/delete behavior.
 - GitHub Actions run 43352920143 completed successfully: frontend JavaScript syntax, all release manifest SHA-256 values, 56 regression tests, Windows PowerShell parser validation, and release source/channel gate passed. The branch remains isolated; Windows GUI/runtime acceptance is still pending.
+
+
+## Implementation log — 2026-11-13 (smart-search rendering defect and SKU detail visibility)
+- A focused frontend review found that the smart case-search result template had escaped its JavaScript template interpolations. The source passed syntax checks, but the result cards would display literal template expressions instead of actual case data. Corrected all eight escaped interpolations in the smart-search rendering function.
+- Added SKU/style-number/product-code to the case detail metadata so the identifier is visible when opening a historical result.
+- Added regression guards to ensure smart-search templates contain no escaped interpolation markers and SKU is present in case details.
+- GitHub Actions run 43354537053 completed successfully: frontend JavaScript syntax, runtime manifest SHA-256 validation, all 56 regression tests, Windows PowerShell parser validation, and release source/channel gate passed.
+- This is an isolated staging-branch fix; no production release or main-branch update was made.
