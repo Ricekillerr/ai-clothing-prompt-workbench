@@ -1,18 +1,20 @@
 {
   "version": "0.5.2",
-  "notes": "Prompt Atelier V0.5.2 maintenance update: adds verified full ZIP backups containing the SQLite database, JSON export, and local reference images; the update endpoint creates a verified pre-update snapshot before staging any program update.",
+  "notes": "Prompt Atelier V0.5.2 maintenance build: complete verified ZIP backup and pre-update snapshot; persistent 60-second folder auto-monitoring while the workbench is open; browser heartbeat lifecycle shutdown; multi-image AI case analysis for 1–8 images with hash-verified source provenance.",
   "files": [
     "ai_prompt_workbench.py",
     "index.html",
     "updater.py",
     "启动AI服装提示词工作台.bat",
-    "storage.py"
+    "storage.py",
+    "ai_analyzer.py"
   ],
   "sha256": {
-    "ai_prompt_workbench.py": "4f4f9e4878ecbeedda61c79548d4846c715b53a827796aec48bf121620fae56c",
+    "ai_prompt_workbench.py": "b6ea880e9a2f3ba80f5cfebc6a3738703ab1b9be91ddb495dba7eae2d944c037",
     "updater.py": "1cbdf1d55d07c4c3aa232c79b885b5ffb4ae681818b002178ba28d38fcee092b",
     "启动AI服装提示词工作台.bat": "a64c3ba2bba22c3758857cb138b5eb71d624763be555a25c0694853c96066f02",
-    "index.html": "7a620f93b7017c5abf04a988c712239068ab33cd12d0b1af82695c650b30e04e",
-    "storage.py": "73edc96e4c3bb8abfe4a19311f34e286e306b4cbcbfd116fc9c9d9abd26e652f"
+    "index.html": "84f31a7d2054acb92caafdda4f0c5404e6a49423709bdb3f27bdd5a23669c8f3",
+    "storage.py": "f6054b445cfc5a9dbd1629b23c8560006eba24f10391adb54505774284ad0936",
+    "ai_analyzer.py": "2af05fcd427ecfff08556bca30e6b4a6b1ea9bdece344cf59a0a57eec8f69f67"
   }
 }
