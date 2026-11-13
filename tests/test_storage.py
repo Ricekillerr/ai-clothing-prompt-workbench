@@ -191,14 +191,22 @@ class StorageTests(unittest.TestCase):
         store = Storage(self.home)
         source_dir = self.home / "history"
         source_dir.mkdir()
-        source_id = store.register_scan_source(str(source_dir))
-        prompt = str(source_dir / "look.txt")
-        image = str(source_dir / "look.png")
+        store.register_scan_source(str(source_dir))
+        prompt_file = source_dir / "look.txt"
+        image_front = source_dir / "look_front.png"
+        image_back = source_dir / "look_back.png"
+        prompt_file.write_text("保持人物不变，仅替换服装", encoding="utf-8")
+        image_front.write_bytes(b"front-image")
+        image_back.write_bytes(b"back-image")
+        prompt_hash = hashlib.sha256(prompt_file.read_bytes()).hexdigest()
+        asset_paths = [str(image_front), str(image_back)]
+        asset_hashes = [hashlib.sha256(path.read_bytes()).hexdigest() for path in (image_front, image_back)]
         analysis_id = store.save_ai_analysis(
-            prompt, image, "p" * 64, "i" * 64, "test-model",
+            str(prompt_file), str(image_front), prompt_hash, asset_hashes[0], "test-model",
             {"title": "Look test", "category": "服装", "tags": ["黑色"],
              "prompt_text": "保持人物不变，仅替换服装", "prompt_summary": "局部换装",
-             "confidence": 0.92, "risk_notes": []},
+             "confidence": 0.92, "risk_notes": [],
+             "asset_paths": asset_paths, "asset_sha256s": asset_hashes},
         )
         self.assertEqual(len(store.list_ai_analyses("review")), 1)
         self.assertEqual(store.load_data()["cases"], [])
@@ -207,6 +215,8 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(len(cases), 1)
         self.assertEqual(cases[0]["id"], asset_id)
         self.assertEqual(cases[0]["body"], "保持人物不变，仅替换服装")
+        self.assertEqual(len(cases[0]["images"]), 2)
+        self.assertTrue(all((self.home / "references" / name).is_file() for name in cases[0]["images"]))
         self.assertEqual(store.list_ai_analyses("review"), [])
         self.assertEqual(store.list_ai_analyses("approved")[0]["approved_asset_id"], asset_id)
 
