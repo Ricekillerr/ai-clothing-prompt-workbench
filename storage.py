@@ -576,6 +576,24 @@ class Storage:
                 "body": prompt_text,
                 "notes": "AI 历史案例采集；已人工确认。摘要：" + str(result.get("prompt_summary") or ""),
                 "image": image_names[0] if image_names else "", "images": image_names,
+                "provenance": {
+                    "type": "ai_history_import",
+                    "analysis_id": analysis_id,
+                    "model": str(row["model"] or ""),
+                    "imported_at": now,
+                    "source_prompt": {
+                        "path": str(Path(row["prompt_path"]).resolve()),
+                        "sha256": str(row["prompt_sha256"]),
+                    },
+                    "source_assets": [
+                        {
+                            "path": original_path,
+                            "media_type": media_type,
+                            "sha256": digest,
+                        }
+                        for original_path, media_type, digest, _ in verified_assets
+                    ],
+                },
                 "created_at": now, "updated_at": now,
             }
             con.execute(
