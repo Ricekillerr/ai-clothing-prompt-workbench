@@ -54,6 +54,7 @@ function imageHashDistance(a,b){let distance=0;for(let i=0;i<Math.min(a.length,b
 async function runVisualCaseSearch(file){
  const status=$("visualSearchStatus"),box=$("visualSearchResults");box.innerHTML="";
  if(!file.type.startsWith("image/")){status.textContent="请选择有效图片文件";return}
+ if(file.size>20*1024*1024){status.textContent="查询图片超过 20MB，请先压缩后再检索";return}
  status.textContent="正在读取查询图片…";
  try{
   const queryHash=await imagePerceptualHash(file),sources=[];
