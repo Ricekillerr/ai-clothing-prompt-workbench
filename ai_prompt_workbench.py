@@ -22,7 +22,7 @@ IMAGES = HOME / "references"
 DATA = HOME / "prompt_library.json"
 HOME.mkdir(parents=True, exist_ok=True)
 IMAGES.mkdir(parents=True, exist_ok=True)
-ALLOWED_UPDATE_FILES = {"ai_prompt_workbench.py", "index.html", "启动AI服装提示词工作台.bat", "updater.py", "使用说明_AI服装提示词资产工作台_V0.4.3.txt", "storage.py", "collector.py", "case_matcher.py", "ai_analyzer.py"}
+ALLOWED_UPDATE_FILES = {"ai_prompt_workbench.py", "index.html", "启动AI服装提示词工作台.bat", "updater.py", "使用说明_AI服装提示词资产工作台_V0.4.3.txt", "使用说明_Prompt_Atelier_V1.0_候选版.txt", "storage.py", "collector.py", "case_matcher.py", "ai_analyzer.py"}
 MAX_UPDATE_FILE_SIZE = 20 * 1024 * 1024
 
 # Keep the legacy JSON intact; migrate it transactionally into SQLite on first launch.
