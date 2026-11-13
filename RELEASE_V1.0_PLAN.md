@@ -49,3 +49,12 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 - Full ZIP backup and automatic pre-update snapshot are integrated. The manifest includes the required runtime files and SHA-256 values.
 - Latest GitHub Actions run: 54 regression tests passed; Python compile, inline JavaScript syntax, release manifest hashes, Windows PowerShell parser, and release source/channel gate all passed.
 - Remaining release gates are native Windows acceptance (launch, close, restart, automatic scan, full backup download, update, failure rollback, and user-data/reference preservation) plus final security/functional review. Keep `main` unchanged until these gates pass.
+
+
+## Implementation log — 2026-11-13 (source provenance)
+- Approved AI history imports now persist a structured `provenance` record on the case itself: import type, analysis ID, model, import timestamp, original prompt path and SHA-256, and every original media path/type/SHA-256.
+- The case detail view now exposes this provenance, so a reusable successful case can be traced back to the exact source files and analysis run instead of only retaining copied reference images.
+- Added storage regression assertions for the original paths, hashes, model, analysis ID, and image source files; added integration guards for the provenance UI.
+- Refreshed the V0.6.5 update manifest hashes for all runtime files after integration.
+- GitHub Actions run 43348983368 completed successfully: Python compilation, inline JavaScript syntax, release manifest SHA-256 validation, complete regression suite, Windows PowerShell parser validation, and release source/channel gate all passed.
+- This is a staging-branch implementation only. No changes were made to `main`; Windows-native runtime acceptance is still a separate release gate.
