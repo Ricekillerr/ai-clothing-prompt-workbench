@@ -244,6 +244,56 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
         thread.start()
         return server, thread, f"http://127.0.0.1:{server.server_address[1]}"
 
+    def test_scans_for_the_same_source_are_serialized(self):
+        source_dir = self.home / "history"
+        source_dir.mkdir()
+        (source_dir / "prompt.txt").write_text("prompt", encoding="utf-8")
+        source_id = self.app.STORAGE.register_scan_source(str(source_dir))
+        original_scan = self.app.scan_folder
+        state_lock = threading.Lock()
+        active = 0
+        maximum_active = 0
+        errors = []
+        start = threading.Barrier(2)
+
+        def delayed_scan(folder, recursive=True, extensions=None, previous=None, force_hash=False):
+            nonlocal active, maximum_active
+            with state_lock:
+                active += 1
+                maximum_active = max(maximum_active, active)
+            try:
+                time.sleep(0.15)
+                return original_scan(
+                    folder, recursive, extensions,
+                    previous=previous, force_hash=force_hash,
+                )
+            finally:
+                with state_lock:
+                    active -= 1
+
+        def run_scan():
+            try:
+                start.wait(timeout=5)
+                self.app.scan_registered_source(source_id, force_hash=True)
+            except Exception as exc:
+                errors.append(exc)
+
+        try:
+            with mock.patch.object(self.app, "scan_folder", side_effect=delayed_scan):
+                workers = [
+                    threading.Thread(target=run_scan, daemon=True),
+                    threading.Thread(target=run_scan, daemon=True),
+                ]
+                for worker in workers:
+                    worker.start()
+                for worker in workers:
+                    worker.join(timeout=10)
+                self.assertTrue(all(not worker.is_alive() for worker in workers))
+            self.assertEqual(errors, [])
+            self.assertEqual(maximum_active, 1)
+        finally:
+            pass
+
     def test_heartbeat_endpoint_remains_responsive_during_exclusive_restore(self):
         server, thread, base = self._start_server()
         finished = threading.Event()

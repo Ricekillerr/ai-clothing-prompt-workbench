@@ -47,6 +47,8 @@ CLIENT_HEARTBEAT_LOCK = threading.Lock()
 LAST_CLIENT_HEARTBEAT = 0.0
 CLOSE_REQUESTED_AT = 0.0
 CLIENT_HEARTBEAT_TIMEOUT_SECONDS = 15
+SCAN_SOURCE_LOCKS = {}
+SCAN_SOURCE_LOCKS_LOCK = threading.Lock()
 
 
 def auto_scan_is_enabled():
@@ -54,6 +56,32 @@ def auto_scan_is_enabled():
 
 def auto_update_is_enabled():
     return STORAGE.get_setting("auto_update_enabled", "0") == "1"
+
+
+def _scan_source_lock(source_id):
+    with SCAN_SOURCE_LOCKS_LOCK:
+        return SCAN_SOURCE_LOCKS.setdefault(str(source_id), threading.Lock())
+
+
+def scan_registered_source(source_id, force_hash=False):
+    """Serialize scans for one source so an older snapshot cannot overwrite a newer one."""
+    with STORAGE.operation():
+        with _scan_source_lock(source_id):
+            source = next(
+                (item for item in STORAGE.list_scan_sources() if item["id"] == source_id),
+                None,
+            )
+            if source is None:
+                return None
+            folder = Path(source["folder_path"])
+            if not folder.is_dir():
+                return None
+            previous = STORAGE.get_scan_snapshot(source_id)
+            items = scan_folder(
+                folder, bool(source["recursive"]),
+                previous=previous, force_hash=force_hash,
+            )
+            return STORAGE.save_scan_results(source_id, items)
 
 
 def log_background_error(message):
@@ -89,13 +117,7 @@ def auto_scan_loop():
             if AUTO_SCAN_STOP.is_set() or not auto_scan_is_enabled():
                 break
             try:
-                with STORAGE.operation():
-                    folder = Path(source["folder_path"])
-                    if not folder.is_dir():
-                        continue
-                    previous = STORAGE.get_scan_snapshot(source["id"])
-                    items = scan_folder(folder, bool(source["recursive"]), previous=previous)
-                    STORAGE.save_scan_results(source["id"], items)
+                scan_registered_source(source["id"])
             except Exception as exc:
                 log_background_error(f"自动扫描失败 [{source.get('folder_path', '')}]：{exc}")
 
@@ -488,14 +510,9 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_json(200, {"ok": True, "source_id": source_id})
                 elif self.path == "/api/scan/run":
                     source_id = str(d.get("source_id", "")).strip()
-                    source = next((x for x in STORAGE.list_scan_sources() if x["id"] == source_id), None)
-                    if not source: raise ValueError("扫描来源不存在")
-                    previous = STORAGE.get_scan_snapshot(source_id)
-                    items = scan_folder(
-                        Path(source["folder_path"]), bool(source["recursive"]),
-                        previous=previous, force_hash=True,
-                    )
-                    summary = STORAGE.save_scan_results(source_id, items)
+                    summary = scan_registered_source(source_id, force_hash=True)
+                    if summary is None:
+                        raise ValueError("扫描来源不存在或文件夹已移动")
                     self.send_json(200, {"ok": True, "summary": summary})
                 elif self.path == "/api/cases/feedback":
                     feedback_id = STORAGE.record_retrieval_feedback(
