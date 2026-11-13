@@ -66,6 +66,61 @@ def normalize_asset_roles(raw_roles, image_files: list[Path]) -> list[dict]:
     return normalized
 
 
+def normalize_outfit_items(raw_items, raw_relations=None) -> tuple[list[dict], list[dict]]:
+    """Normalize AI garment breakdown into bounded, explicit item records."""
+    allowed_categories = {"上装", "下装", "鞋履", "配饰", "连体装", "其他"}
+    items = []
+    if isinstance(raw_items, list):
+        for index, raw in enumerate(raw_items[:12], start=1):
+            if not isinstance(raw, dict):
+                continue
+            category = str(raw.get("category") or "其他").strip()[:20]
+            if category not in allowed_categories:
+                category = "其他"
+            def clean(value, limit=120):
+                if isinstance(value, (list, tuple)):
+                    value = "、".join(str(x) for x in value[:20])
+                return str(value or "").strip()[:limit]
+            details = raw.get("details") if isinstance(raw.get("details"), list) else []
+            items.append({
+                "item_index": index,
+                "category": category,
+                "subcategory": clean(raw.get("subcategory"), 60),
+                "name": clean(raw.get("name"), 120),
+                "color": clean(raw.get("color"), 60),
+                "material": clean(raw.get("material"), 120),
+                "silhouette": clean(raw.get("silhouette"), 80),
+                "fit": clean(raw.get("fit"), 60),
+                "details": [clean(value, 100) for value in details[:20] if clean(value, 100)],
+                "evidence": clean(raw.get("evidence"), 300),
+                "confidence": max(0.0, min(1.0, float(raw.get("confidence", 0) or 0)))
+                    if str(raw.get("confidence", 0) or 0).replace(".", "", 1).isdigit() else 0.0,
+            })
+    relations = []
+    if isinstance(raw_relations, list):
+        allowed_relations = {"over", "under", "paired_with", "worn_with", "attached_to", "unknown"}
+        for raw in raw_relations[:20]:
+            if not isinstance(raw, dict):
+                continue
+            relation = str(raw.get("relation") or "unknown").strip().lower()
+            if relation not in allowed_relations:
+                relation = "unknown"
+            try:
+                source = int(raw.get("source_item", 0))
+                target = int(raw.get("target_item", 0))
+            except (TypeError, ValueError):
+                continue
+            if not (1 <= source <= len(items) and 1 <= target <= len(items)) or source == target:
+                continue
+            relations.append({
+                "source_item": source,
+                "target_item": target,
+                "relation": relation,
+                "evidence": str(raw.get("evidence") or "").strip()[:240],
+            })
+    return items, relations
+
+
 def analyze_assets(prompt_path: str, asset_paths: list[str], api_key: str,
                   endpoint: str = "https://api.openai.com/v1",
                   model: str = "gpt-4o-mini", timeout: int = 120) -> dict:
@@ -99,6 +154,11 @@ def analyze_assets(prompt_path: str, asset_paths: list[str], api_key: str,
         "asset_roles（数组，必须与输入图片顺序和数量完全一致；每项包含 asset_index 从1开始、"
         "role 只能为 overall/front/back/detail/fabric/label/scene/other/unknown、"
         "role_label 中文用途标签、observation 该图可见内容；不能确定时 role=unknown）、"
+        "outfit_items（数组，每件可见服装/鞋/配饰一项；字段 category 仅可为上装/下装/鞋履/配饰/连体装/其他，"
+        "subcategory、name、color、material、silhouette、fit、details 字符串数组、evidence 可见证据、confidence 0到1）、"
+        "outfit_relations（数组，字段 source_item 和 target_item 为 outfit_items 从1开始的序号，"
+        "relation 仅可为 over/under/paired_with/worn_with/attached_to/unknown，evidence 为依据；"
+        "只有图片/提示词明确支持时才记录层叠关系，不能推测被遮挡的衣物）、"
         "risk_notes（不确定性或潜在误判，字符串数组）、confidence（0到1）。"
         "不要把视频文件计入图片角色数组。属性只记录提示词或图片明确支持的信息；图片之间存在冲突时写入 risk_notes，不要自行猜测。"
     )
@@ -165,6 +225,9 @@ def analyze_assets(prompt_path: str, asset_paths: list[str], api_key: str,
     parsed["model"] = model.strip()
     image_files = [path for path in assets if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}]
     parsed["asset_roles"] = normalize_asset_roles(parsed.get("asset_roles"), image_files)
+    parsed["outfit_items"], parsed["outfit_relations"] = normalize_outfit_items(
+        parsed.get("outfit_items"), parsed.get("outfit_relations")
+    )
     parsed["prompt_path"] = str(prompt_file)
     parsed["asset_paths"] = [str(path) for path in assets]
     parsed["asset_path"] = str(assets[0])
