@@ -110,7 +110,7 @@ async function restoreAssetRevision(revisionId){
  }catch(error){toast("恢复失败："+error.message)}
 }
 function closeDetail(){$("detailOverlay").classList.remove("open")}function copyText(s){if(!s)return toast("没有可复制内容");navigator.clipboard.writeText(s).then(()=>toast("已复制到剪贴板")).catch(()=>toast("复制失败，请检查浏览器权限"))}
-function formatOutfitItems(items){return (Array.isArray(items)?items:[]).map(p=>[p.category||"其他",p.name||p.subcategory||"",p.color||"",p.material||"",p.silhouette||"",p.fit||",(Array.isArray(p.details)?p.details.join("、"):p.details||"")].join("|")).join("\n")}
+function formatOutfitItems(items){return (Array.isArray(items)?items:[]).map(p=>[p.category||"其他",p.name||p.subcategory||"",p.color||"",p.material||"",p.silhouette||"",p.fit||"",(Array.isArray(p.details)?p.details.join("、"):p.details||"")].join("|")).join("\n")}
 function parseOutfitItems(value,previous=[]){
  const allowed=new Set(["上装","下装","鞋履","配饰","连体装","其他"]);
  const old=Array.isArray(previous)?previous:[];
