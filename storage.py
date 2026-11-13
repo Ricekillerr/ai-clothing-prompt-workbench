@@ -432,13 +432,40 @@ class Storage:
             prompt_text = str(result.get("prompt_text") or "").strip()
             if not prompt_text:
                 raise StorageError("分析结果缺少原始提示词，不能入库")
-            image_name = ""
-            asset_file = Path(row["asset_path"])
-            if asset_file.is_file() and asset_file.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}:
-                references = self.home / "references"
-                references.mkdir(parents=True, exist_ok=True)
-                image_name = "history_" + uuid.uuid4().hex[:16] + asset_file.suffix.lower()
-                shutil.copy2(asset_file, references / image_name)
+
+            asset_paths = result.get("asset_paths") or [row["asset_path"]]
+            asset_hashes = result.get("asset_sha256s") or [row["asset_sha256"]]
+            if (not isinstance(asset_paths, list) or not 1 <= len(asset_paths) <= 8
+                    or not isinstance(asset_hashes, list) or len(asset_hashes) != len(asset_paths)):
+                raise StorageError("关联素材记录不完整，不能入库")
+            if len(set(map(str, asset_paths))) != len(asset_paths):
+                raise StorageError("关联素材重复，不能入库")
+
+            references = self.home / "references"
+            image_names = []
+            verified_assets = []
+            for raw_path, expected_hash in zip(asset_paths, asset_hashes):
+                asset_file = Path(str(raw_path)).resolve()
+                if not asset_file.is_file():
+                    raise StorageError(f"关联素材已不存在，不能入库：{asset_file.name}")
+                digest = hashlib.sha256()
+                with asset_file.open("rb") as stream:
+                    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                        digest.update(chunk)
+                if digest.hexdigest() != str(expected_hash):
+                    raise StorageError(f"关联素材在 AI 分析后发生变化，请重新扫描并分析：{asset_file.name}")
+                media_type = (
+                    "video" if asset_file.suffix.lower() in {".mp4", ".mov", ".m4v", ".webm", ".avi"}
+                    else "image"
+                )
+                copied_name = ""
+                if media_type == "image":
+                    references.mkdir(parents=True, exist_ok=True)
+                    copied_name = "history_" + uuid.uuid4().hex[:16] + asset_file.suffix.lower()
+                    shutil.copy2(asset_file, references / copied_name)
+                    image_names.append(copied_name)
+                verified_assets.append((str(asset_file), media_type, str(expected_hash), copied_name))
+
             item = {
                 "id": asset_id, "name": title, "sku": str(result.get("sku") or "").strip(),
                 "category": str(result.get("category") or "其他"),
@@ -450,24 +477,28 @@ class Storage:
                 "constraints": result.get("constraints") if isinstance(result.get("constraints"), list) else [],
                 "model": str(result.get("model") or ""),
                 "status": "待验证", "tags": result.get("tags") if isinstance(result.get("tags"), list) else [],
-                "body": prompt_text, "notes": "AI 历史案例采集；已人工确认。摘要：" + str(result.get("prompt_summary") or ""),
-                "image": image_name, "created_at": now, "updated_at": now,
+                "body": prompt_text,
+                "notes": "AI 历史案例采集；已人工确认。摘要：" + str(result.get("prompt_summary") or ""),
+                "image": image_names[0] if image_names else "", "images": image_names,
+                "created_at": now, "updated_at": now,
             }
             con.execute(
                 "INSERT INTO assets(id,kind,payload_json,created_at,updated_at) VALUES(?,?,?,?,?)",
                 (asset_id, "case", json.dumps(item, ensure_ascii=False), now, now),
             )
-            for path, role in ((row["asset_path"], "history_reference"), (row["prompt_path"], "source_prompt")):
-                media_type = "text" if role == "source_prompt" else (
-                    "video" if Path(path).suffix.lower() in {".mp4", ".mov", ".m4v", ".webm", ".avi"} else "image"
-                )
+            for path, media_type, digest, _ in verified_assets:
                 con.execute(
                     """INSERT OR IGNORE INTO attachments
                        (asset_id,relative_path,media_type,role,sha256,created_at)
                        VALUES(?,?,?,?,?,?)""",
-                    (asset_id, path, media_type,
-                     role, row["asset_sha256"] if role == "history_reference" else row["prompt_sha256"], now),
+                    (asset_id, path, media_type, "history_reference", digest, now),
                 )
+            con.execute(
+                """INSERT OR IGNORE INTO attachments
+                   (asset_id,relative_path,media_type,role,sha256,created_at)
+                   VALUES(?,?,?,?,?,?)""",
+                (asset_id, row["prompt_path"], "text", "source_prompt", row["prompt_sha256"], now),
+            )
             con.execute(
                 "UPDATE ai_analyses SET status='approved',approved_asset_id=? WHERE id=?",
                 (asset_id, analysis_id),
