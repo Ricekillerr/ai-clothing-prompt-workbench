@@ -188,6 +188,48 @@ class Handler(BaseHTTPRequestHandler):
     def send_json(self, code, obj):
         self.send_bytes(code, json.dumps(obj, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
 
+    def _validate_local_request(self, require_json=False):
+        """Block DNS-rebinding Host headers and cross-origin browser writes to the loopback API."""
+        allowed_hosts = {"127.0.0.1", "localhost"}
+        expected_port = int(self.server.server_address[1])
+        try:
+            host = urlsplit("//" + str(self.headers.get("Host", "")))
+            host_ok = (
+                host.hostname in allowed_hosts
+                and host.port == expected_port
+                and not host.username and not host.password
+            )
+        except ValueError:
+            host_ok = False
+        if not host_ok:
+            self.send_json(403, {"ok": False, "error": "拒绝非本机 Host 请求"})
+            return False
+
+        origin = self.headers.get("Origin")
+        if origin:
+            try:
+                parsed_origin = urlsplit(origin)
+                origin_ok = (
+                    parsed_origin.scheme == "http"
+                    and parsed_origin.hostname in allowed_hosts
+                    and parsed_origin.port == expected_port
+                    and not parsed_origin.username and not parsed_origin.password
+                    and not parsed_origin.path and not parsed_origin.query
+                    and not parsed_origin.fragment
+                )
+            except ValueError:
+                origin_ok = False
+            if not origin_ok:
+                self.send_json(403, {"ok": False, "error": "拒绝跨来源请求"})
+                return False
+
+        if require_json:
+            content_type = str(self.headers.get("Content-Type", "")).split(";", 1)[0].strip().lower()
+            if content_type != "application/json":
+                self.send_json(415, {"ok": False, "error": "本地写入接口只接受 application/json"})
+                return False
+        return True
+
     def send_file_download(self, path, download_name):
         path = Path(path)
         size = path.stat().st_size
@@ -200,6 +242,8 @@ class Handler(BaseHTTPRequestHandler):
         with path.open("rb") as source:
             shutil.copyfileobj(source, self.wfile, length=1024 * 1024)
     def do_GET(self):
+        if not self._validate_local_request():
+            return
         path = unquote(self.path.split("?", 1)[0])
         if path in ("/", "/index.html"):
             f = ROOT / "index.html"
@@ -271,6 +315,8 @@ class Handler(BaseHTTPRequestHandler):
             else: self.send_bytes(404, b"not found", "text/plain")
         else: self.send_bytes(404, b"not found", "text/plain")
     def do_POST(self):
+        if not self._validate_local_request(require_json=self.path != "/api/backup/restore"):
+            return
         try:
             n = int(self.headers.get("Content-Length", "0"))
             max_request = 500 * 1024 * 1024 if self.path == "/api/backup/restore" else 25 * 1024 * 1024
