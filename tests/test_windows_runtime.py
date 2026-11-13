@@ -222,6 +222,27 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
                 version = json.loads(response.read().decode("utf-8"))
             self.assertEqual(version["version"], self.app.APP_VERSION)
 
+            with urlopen(base + "/api/update/auto", timeout=10) as response:
+                self.assertFalse(json.loads(response.read().decode("utf-8"))["enabled"])
+            enable_request = Request(
+                base + "/api/update/auto",
+                data=json.dumps({"enabled": True}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(enable_request, timeout=10) as response:
+                self.assertTrue(json.loads(response.read().decode("utf-8"))["enabled"])
+            with urlopen(base + "/api/update/auto", timeout=10) as response:
+                self.assertTrue(json.loads(response.read().decode("utf-8"))["enabled"])
+            disable_request = Request(
+                base + "/api/update/auto",
+                data=json.dumps({"enabled": False}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(disable_request, timeout=10) as response:
+                self.assertFalse(json.loads(response.read().decode("utf-8"))["enabled"])
+
             payload = {
                 "cases": [{"id": "windows-smoke-case", "name": "Windows smoke",
                            "body": "verified prompt", "status": "已验证成功"}],
