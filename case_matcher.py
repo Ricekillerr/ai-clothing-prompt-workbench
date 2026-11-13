@@ -100,9 +100,12 @@ def _candidate_attribute_text(case):
     ])
     return {
         "category": vals("category","subcategory","silhouette","fit","name")+" "+item_values("category","subcategory","name","silhouette","fit")+" "+tags,
-        "material": vals("material","fabric","texture","material_details")+" "+item_values("material")+" "+tags,
-        "color": vals("color","color_details")+" "+item_values("color")+" "+tags,
-        "details": vals("details","craftsmanship","features","subcategory","silhouette","fit")+" "+item_values("details","subcategory","silhouette","fit")+" "+tags,
+        # A structured outfit item may have only its display name populated.
+        # Its name/subcategory are still item-scoped evidence for color/material
+        # and details; otherwise a valid single-item query is unfairly penalized.
+        "material": vals("material","fabric","texture","material_details")+" "+item_values("material","name","subcategory")+" "+tags,
+        "color": vals("color","color_details")+" "+item_values("color","name","subcategory")+" "+tags,
+        "details": vals("details","craftsmanship","features","subcategory","silhouette","fit")+" "+item_values("details","name","subcategory","silhouette","fit")+" "+tags,
         "context": vals("model","scene","constraints","usage","notes")+" "+tags,
         "all": _match_text(case)+" "+body+" "+item_text+" "+tags,
     }
