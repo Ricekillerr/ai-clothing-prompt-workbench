@@ -518,17 +518,19 @@ document.addEventListener("pointerdown",markAutoUpdateActivity,true);
 document.addEventListener("keydown",markAutoUpdateActivity,true);
 document.addEventListener("touchstart",markAutoUpdateActivity,true);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")markAutoUpdateActivity()});
-function cancelScheduledAutoUpdate(){
+async function cancelScheduledAutoUpdate(){
  autoUpdateSkippedVersion=updateInfo?.latest_version||null;
  clearAutoUpdateTimers();
+ try{await scanApi("/api/update/auto/skip",{version:autoUpdateSkippedVersion||""})}catch(error){}
  const status=$("updateStatus");
- if(status)status.textContent="已取消本次自动安装；仍可随时手动一键更新。下次新版本发布时会重新按授权规则处理。";
- toast("已取消本次自动安装");
+ if(status)status.textContent="已取消 V"+(autoUpdateSkippedVersion||"当前")+" 的自动安装；仍可随时手动一键更新。只有出现更新版本时才会再次自动安排。";
+ toast("已取消此版本的自动安装");
 }
 async function refreshAutoUpdateState(){
  try{
   const state=await scanApi("/api/update/auto");
   autoUpdateAuthorized=state.enabled===true;
+  autoUpdateSkippedVersion=state.skipped_version||null;
   const button=$("autoUpdateToggle"),status=$("autoUpdateStatus");
   if(button)button.textContent=state.enabled?"自动更新：已授权（点击关闭）":"自动更新：未授权（点击开启）";
   if(status)status.textContent=state.enabled?"已授权自动下载、校验和安装；检测到新版本后等待连续空闲 15 分钟，再倒计时 60 秒。任意操作会延期，安装前自动创建完整备份。":"当前仅自动检查更新，不会自动安装；开启后无需每次手动下载或确认。";
@@ -565,10 +567,18 @@ async function checkUpdate(showToast=true){
       const autoResponse=await fetch("/api/update/auto",{cache:"no-store"});
       const autoState=await autoResponse.json();
       autoUpdateAuthorized=autoState.enabled===true;
-      if(autoUpdateAuthorized&&!autoUpdateInProgress){
+      autoUpdateSkippedVersion=autoState.skipped_version||null;
+      if(autoUpdateSkippedVersion&&autoUpdateSkippedVersion!==d.latest_version){
+        await scanApi("/api/update/auto/skip",{version:""});
+        autoUpdateSkippedVersion=null;
+      }
+      if(autoUpdateAuthorized&&!autoUpdateInProgress&&autoUpdateSkippedVersion!==d.latest_version){
         if(status)status.textContent="已授权自动更新：检测到 V"+d.latest_version+"，将在连续空闲 15 分钟并倒计时 60 秒后安装；任意操作可延期。";
         scheduleAuthorizedAutoUpdate();
-      }else clearAutoUpdateTimers();
+      }else{
+        clearAutoUpdateTimers();
+        if(status&&autoUpdateSkippedVersion===d.latest_version)status.textContent="已取消 V"+d.latest_version+" 的自动安装；仍可手动更新。出现更新版本后会重新安排。";
+      }
       if(showToast) toast("发现新版本 V"+d.latest_version);
     }else{
       if(status) status.textContent = `当前已是最新版本 V${d.current_version}。`;
