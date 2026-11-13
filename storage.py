@@ -335,6 +335,28 @@ class Storage:
                 })
             return results
 
+    def get_asset_revision(self, asset_id: str, revision_id: str) -> dict:
+        asset_id = str(asset_id or "").strip()
+        revision_id = str(revision_id or "").strip()
+        if not asset_id or not revision_id:
+            raise StorageError("资产 ID 或历史版本 ID 不能为空")
+        with self._session() as con:
+            row = con.execute(
+                """SELECT revision_id,asset_id,kind,reason,created_at,payload_json
+                   FROM asset_revisions WHERE asset_id=? AND revision_id=?""",
+                (asset_id, revision_id),
+            ).fetchone()
+            if row is None:
+                raise StorageError("找不到指定的历史版本")
+            return {
+                "revision_id": row["revision_id"],
+                "asset_id": row["asset_id"],
+                "kind": row["kind"],
+                "reason": row["reason"],
+                "created_at": row["created_at"],
+                "asset": json.loads(row["payload_json"]),
+            }
+
     def restore_asset_revision(self, asset_id: str, revision_id: str) -> dict:
         asset_id, revision_id = str(asset_id or "").strip(), str(revision_id or "").strip()
         if not asset_id or not revision_id:
