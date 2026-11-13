@@ -218,7 +218,8 @@ class StorageTests(unittest.TestCase):
         prompt_file = source_dir / "look.txt"
         image_front = source_dir / "look_front.png"
         image_back = source_dir / "look_back.png"
-        prompt_file.write_text("保持人物不变，仅替换服装", encoding="utf-8")
+        original_prompt = "\n  保持人物不变，仅替换服装  \n"
+        prompt_file.write_text(original_prompt, encoding="utf-8")
         image_front.write_bytes(b"front-image")
         image_back.write_bytes(b"back-image")
         prompt_hash = hashlib.sha256(prompt_file.read_bytes()).hexdigest()
@@ -227,7 +228,7 @@ class StorageTests(unittest.TestCase):
         analysis_id = store.save_ai_analysis(
             str(prompt_file), str(image_front), prompt_hash, asset_hashes[0], "test-model",
             {"title": "Look test", "category": "服装", "tags": ["黑色"],
-             "prompt_text": "保持人物不变，仅替换服装", "prompt_summary": "局部换装",
+             "prompt_text": original_prompt, "prompt_summary": "局部换装",
              "confidence": 0.92, "risk_notes": [],
              "asset_paths": asset_paths, "asset_sha256s": asset_hashes,
              "asset_roles": [
@@ -256,7 +257,7 @@ class StorageTests(unittest.TestCase):
         cases = store.load_data()["cases"]
         self.assertEqual(len(cases), 1)
         self.assertEqual(cases[0]["id"], asset_id)
-        self.assertEqual(cases[0]["body"], "保持人物不变，仅替换服装")
+        self.assertEqual(cases[0]["body"], original_prompt)
         provenance = cases[0]["provenance"]
         self.assertEqual(provenance["type"], "ai_history_import")
         self.assertEqual(provenance["analysis_id"], analysis_id)
@@ -281,6 +282,69 @@ class StorageTests(unittest.TestCase):
         self.assertTrue(all((self.home / "references" / name).is_file() for name in cases[0]["images"]))
         self.assertEqual(store.list_ai_analyses("review"), [])
         self.assertEqual(store.list_ai_analyses("approved")[0]["approved_asset_id"], asset_id)
+
+    def test_ai_approval_cleans_copied_images_if_database_commit_fails(self):
+        store = Storage(self.home)
+        source_dir = self.home / "history"
+        source_dir.mkdir()
+        prompt = source_dir / "prompt.txt"
+        image = source_dir / "front.png"
+        prompt.write_text("  original prompt  ", encoding="utf-8")
+        image.write_bytes(b"image bytes")
+        prompt_hash = hashlib.sha256(prompt.read_bytes()).hexdigest()
+        image_hash = hashlib.sha256(image.read_bytes()).hexdigest()
+        analysis_id = store.save_ai_analysis(
+            str(prompt), str(image), prompt_hash, image_hash, "test-model",
+            {
+                "prompt_text": "  original prompt  ",
+                "asset_paths": [str(image)],
+                "asset_sha256s": [image_hash],
+            },
+        )
+        with store._session() as con:
+            con.execute("""
+                CREATE TRIGGER fail_ai_asset_insert
+                BEFORE INSERT ON assets
+                BEGIN
+                    SELECT RAISE(ABORT, 'injected AI asset insert failure');
+                END
+            """)
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "injected AI asset insert failure"):
+            store.approve_ai_analysis(analysis_id)
+        references = self.home / "references"
+        self.assertEqual(list(references.glob("history_*")) if references.exists() else [], [])
+        self.assertEqual(store.load_data()["cases"], [])
+        self.assertEqual(len(store.list_ai_analyses("review")), 1)
+
+    def test_ai_approval_rejects_a_redirected_reference_directory(self):
+        store = Storage(self.home)
+        source_dir = self.home / "history"
+        source_dir.mkdir()
+        prompt = source_dir / "prompt.txt"
+        image = source_dir / "front.png"
+        prompt.write_text("prompt", encoding="utf-8")
+        image.write_bytes(b"image bytes")
+        prompt_hash = hashlib.sha256(prompt.read_bytes()).hexdigest()
+        image_hash = hashlib.sha256(image.read_bytes()).hexdigest()
+        analysis_id = store.save_ai_analysis(
+            str(prompt), str(image), prompt_hash, image_hash, "test-model",
+            {
+                "prompt_text": "prompt",
+                "asset_paths": [str(image)],
+                "asset_sha256s": [image_hash],
+            },
+        )
+        outside = self.home / "outside_references"
+        outside.mkdir()
+        references = self.home / "references"
+        try:
+            references.symlink_to(outside, target_is_directory=True)
+        except OSError:
+            self.skipTest("当前系统未授予创建符号链接的权限")
+        with self.assertRaisesRegex(StorageError, "符号链接"):
+            store.approve_ai_analysis(analysis_id)
+        self.assertEqual(list(outside.iterdir()), [])
+        self.assertEqual(store.load_data()["cases"], [])
 
     def test_ai_analysis_can_be_rejected_without_import(self):
         store = Storage(self.home)

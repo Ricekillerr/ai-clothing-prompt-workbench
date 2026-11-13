@@ -658,6 +658,26 @@ class Storage:
             return [{**dict(row), "result": json.loads(row["result_json"])} for row in rows]
 
     def approve_ai_analysis(self, analysis_id: str) -> str:
+        copied_paths: list[Path] = []
+        try:
+            return self._approve_ai_analysis(analysis_id, copied_paths)
+        except BaseException as exc:
+            cleanup_errors = []
+            for copied_path in copied_paths:
+                try:
+                    copied_path.unlink(missing_ok=True)
+                except OSError as cleanup_error:
+                    cleanup_errors.append(
+                        f"{copied_path.name}: {type(cleanup_error).__name__}: {cleanup_error}"
+                    )
+            if cleanup_errors:
+                raise StorageError(
+                    "AI 案例入库失败，且部分参考图片清理不完整："
+                    + "; ".join(cleanup_errors)[:1200]
+                ) from exc
+            raise
+
+    def _approve_ai_analysis(self, analysis_id: str, copied_paths: list[Path]) -> str:
         import uuid
         with self._session() as con:
             row = con.execute(
@@ -670,8 +690,8 @@ class Storage:
             asset_id = uuid.uuid4().hex
             now = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
             title = str(result.get("title") or Path(row["prompt_path"]).stem).strip()[:120]
-            prompt_text = str(result.get("prompt_text") or "").strip()
-            if not prompt_text:
+            prompt_text = result.get("prompt_text")
+            if not isinstance(prompt_text, str) or not prompt_text.strip():
                 raise StorageError("分析结果缺少原始提示词，不能入库")
 
             asset_paths = result.get("asset_paths") or [row["asset_path"]]
@@ -701,9 +721,25 @@ class Storage:
                 )
                 copied_name = ""
                 if media_type == "image":
+                    if _is_link_or_junction(references):
+                        raise StorageError("参考图片目录是符号链接或 Windows 目录联接，拒绝写入。")
                     references.mkdir(parents=True, exist_ok=True)
+                    if _is_link_or_junction(references):
+                        raise StorageError("参考图片目录在写入前发生变化，拒绝写入。")
+                    try:
+                        home_root = self.home.resolve(strict=True)
+                        reference_root = references.resolve(strict=True)
+                        if reference_root.parent != home_root:
+                            raise ValueError("参考图片目录已超出本地数据目录")
+                    except (OSError, RuntimeError, ValueError) as exc:
+                        raise StorageError("参考图片目录路径不安全，拒绝写入。") from exc
                     copied_name = "history_" + uuid.uuid4().hex[:16] + asset_file.suffix.lower()
-                    shutil.copy2(asset_file, references / copied_name)
+                    destination = reference_root / copied_name
+                    with destination.open("xb") as target:
+                        copied_paths.append(destination)
+                        with asset_file.open("rb") as source:
+                            shutil.copyfileobj(source, target)
+                    shutil.copystat(asset_file, destination)
                     image_names.append(copied_name)
                 verified_assets.append((str(asset_file), media_type, str(expected_hash), copied_name))
 
