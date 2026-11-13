@@ -1001,6 +1001,7 @@ class Storage:
             staged_refs = stage_dir / "references"
             if references_dir.is_dir():
                 os.replace(references_dir, old_refs)
+            swapped_refs = True
             try:
                 if references_dir.exists():
                     shutil.rmtree(references_dir)
@@ -1008,7 +1009,6 @@ class Storage:
                     os.replace(staged_refs, references_dir)
                 else:
                     references_dir.mkdir(parents=True, exist_ok=True)
-                swapped_refs = True
 
                 for suffix in ("-wal", "-shm"):
                     sidecar = Path(str(self.db_path) + suffix)
