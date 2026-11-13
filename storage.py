@@ -421,6 +421,44 @@ class Storage:
             raise StorageError(f"保存失败，事务已回滚：{exc}") from exc
 
 
+    def list_deleted_assets(self, limit: int = 500) -> list[dict]:
+        limit = min(500, max(1, int(limit)))
+        with self._session() as con:
+            rows = con.execute(
+                """SELECT r.revision_id,r.asset_id,r.kind,r.created_at,r.payload_json
+                   FROM asset_revisions r
+                   LEFT JOIN assets a ON a.id=r.asset_id
+                   WHERE r.reason='deleted' AND a.id IS NULL
+                   ORDER BY r.created_at DESC,r.rowid DESC
+                   LIMIT ?""",
+                (limit,),
+            ).fetchall()
+            results = []
+            seen_asset_ids = set()
+            for row in rows:
+                asset_id = row["asset_id"]
+                if asset_id in seen_asset_ids:
+                    continue
+                seen_asset_ids.add(asset_id)
+                try:
+                    payload = json.loads(row["payload_json"])
+                except (TypeError, json.JSONDecodeError):
+                    payload = {}
+                images = payload.get("images") if isinstance(payload.get("images"), list) else []
+                image_name = payload.get("image") or (images[0] if images else "")
+                results.append({
+                    "asset_id": asset_id,
+                    "revision_id": row["revision_id"],
+                    "kind": row["kind"],
+                    "deleted_at": row["created_at"],
+                    "name": str(payload.get("name") or "未命名资产")[:160],
+                    "sku": str(payload.get("sku") or payload.get("style_number") or payload.get("product_code") or "")[:100],
+                    "category": str(payload.get("category") or payload.get("module_type") or "")[:80],
+                    "summary": str(payload.get("body") or payload.get("description") or "")[:240],
+                    "image": str(image_name or "")[:260],
+                })
+            return results
+
     def list_asset_revisions(self, asset_id: str, limit: int = 50) -> list[dict]:
         asset_id = str(asset_id or "").strip()
         if not asset_id:

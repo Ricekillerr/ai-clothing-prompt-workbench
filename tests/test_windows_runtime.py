@@ -416,6 +416,31 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
             if not was_stopped:
                 stop_event.clear()
 
+    def test_recycle_bin_api_exposes_deleted_assets_for_recovery(self):
+        self.app.STORAGE.save_data({
+            "cases": [{
+                "id": "api-recycle-001",
+                "name": "API 回收站测试",
+                "body": "recoverable",
+                "status": "已验证成功",
+            }],
+            "modules": [],
+        })
+        self.app.STORAGE.save_data({"cases": [], "modules": []})
+        server, thread, base = self._start_server()
+        try:
+            request = Request(
+                base + "/api/assets/deleted",
+                headers={"Host": f"127.0.0.1:{server.server_address[1]}"},
+            )
+            with urlopen(request, timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            self.assertEqual(payload["items"][0]["asset_id"], "api-recycle-001")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def test_media_endpoint_never_serves_html_as_same_origin_content(self):
         server, thread, base = self._start_server()
         try:

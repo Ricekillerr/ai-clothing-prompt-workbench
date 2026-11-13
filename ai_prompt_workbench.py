@@ -398,6 +398,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_file_download(archive, archive.name)
             except Exception as e:
                 self.send_json(500, {"ok": False, "error": f"完整备份创建失败：{e}"})
+        elif path == "/api/assets/deleted":
+            self.send_json(200, {"items": STORAGE.list_deleted_assets()})
         elif path == "/api/assets/revisions":
             params = parse_qs(urlsplit(self.path).query)
             asset_id = str((params.get("asset_id") or [""])[0]).strip()

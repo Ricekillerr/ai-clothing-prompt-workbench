@@ -189,6 +189,35 @@ class StorageTests(unittest.TestCase):
             store.save_scan_results(source_id, [item])
         self.assertEqual(store.list_pending_ingest(source_id), [])
 
+    def test_deleted_assets_are_listed_in_recycle_bin_and_can_be_restored(self):
+        store = Storage(self.home)
+        original = {
+            "cases": [{
+                "id": "recycle-case-001",
+                "name": "回收站测试马甲",
+                "sku": "TEST-001",
+                "category": "上装",
+                "body": "原始成功提示词",
+                "status": "已验证成功",
+            }],
+            "modules": [],
+        }
+        store.save_data(original)
+        store.save_data({"cases": [], "modules": []})
+        deleted = store.list_deleted_assets()
+        self.assertEqual(len(deleted), 1)
+        self.assertEqual(deleted[0]["asset_id"], "recycle-case-001")
+        self.assertEqual(deleted[0]["name"], "回收站测试马甲")
+        restored = store.restore_asset_revision(
+            deleted[0]["asset_id"], deleted[0]["revision_id"]
+        )
+        self.assertEqual(restored["body"], "原始成功提示词")
+        self.assertEqual(store.list_deleted_assets(), [])
+        self.assertEqual(
+            [item["id"] for item in store.load_data()["cases"]],
+            ["recycle-case-001"],
+        )
+
     def test_changed_ingest_content_returns_to_pending(self):
         store = Storage(self.home)
         source_dir = self.home / "history"
