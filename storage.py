@@ -1135,6 +1135,8 @@ class Storage:
                 os.replace(staged_json, self.legacy_json)
                 swapped_json = True
 
+                # Re-apply additive schema migrations so older backups gain new tables/indexes.
+                self._initialize()
                 verified = self.load_data()
                 if len(verified.get("cases", [])) != len(restored_json["cases"]):
                     raise StorageError("恢复后案例数量与备份清单不一致")
