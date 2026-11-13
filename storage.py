@@ -850,6 +850,16 @@ class Storage:
                     image_names.append(copied_name)
                 verified_assets.append((str(asset_file), media_type, str(expected_hash), copied_name))
 
+            raw_tags = result.get("tags", [])
+            if isinstance(raw_tags, str):
+                raw_tags = raw_tags.replace("，", ",").split(",")
+            if not isinstance(raw_tags, list):
+                raw_tags = []
+            tags = [
+                str(tag).strip()[:80]
+                for tag in raw_tags
+                if isinstance(tag, (str, int, float)) and str(tag).strip()
+            ][:50]
             item = {
                 "id": asset_id, "name": title, "sku": str(result.get("sku") or "").strip(),
                 "category": str(result.get("category") or "其他"),
@@ -860,7 +870,7 @@ class Storage:
                 "scene": str(result.get("scene") or ""),
                 "constraints": result.get("constraints") if isinstance(result.get("constraints"), list) else [],
                 "model": str(result.get("model") or ""),
-                "status": "待验证", "tags": result.get("tags") if isinstance(result.get("tags"), list) else [],
+                "status": "待验证", "tags": tags,
                 "body": prompt_text,
                 "notes": "AI 历史案例采集；已人工确认。摘要：" + str(result.get("prompt_summary") or ""),
                 "image": image_names[0] if image_names else "", "images": image_names,

@@ -258,7 +258,7 @@ class StorageTests(unittest.TestCase):
         asset_hashes = [hashlib.sha256(path.read_bytes()).hexdigest() for path in (image_front, image_back)]
         analysis_id = store.save_ai_analysis(
             str(prompt_file), str(image_front), prompt_hash, asset_hashes[0], "test-model",
-            {"title": "Look test", "category": "服装", "tags": ["黑色"],
+            {"title": "Look test", "category": "服装", "tags": "黑色，立领",
              "prompt_text": original_prompt, "prompt_summary": "局部换装",
              "confidence": 0.92, "risk_notes": [],
              "asset_paths": asset_paths, "asset_sha256s": asset_hashes,
@@ -289,6 +289,7 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(len(cases), 1)
         self.assertEqual(cases[0]["id"], asset_id)
         self.assertEqual(cases[0]["body"], original_prompt)
+        self.assertEqual(cases[0]["tags"], ["黑色", "立领"])
         provenance = cases[0]["provenance"]
         self.assertEqual(provenance["type"], "ai_history_import")
         self.assertEqual(provenance["analysis_id"], analysis_id)

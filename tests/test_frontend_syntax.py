@@ -30,6 +30,12 @@ class FrontendSyntaxTests(unittest.TestCase):
         self.assertIn("async function exportJSON(){try{await save()}", html)
         self.assertIn("f.size>25*1024*1024", html)
 
+    def test_legacy_and_imported_tags_are_normalized_to_arrays(self):
+        html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
+        self.assertIn("function normalizeTags(value)", html)
+        self.assertIn("tags:normalizeTags(item.tags)", html)
+        self.assertIn("value.split(/[,，]/)", html)
+
     def test_inline_javascript_parses_when_node_is_available(self):
         node = shutil.which("node")
         if not node:
