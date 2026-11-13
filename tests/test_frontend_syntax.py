@@ -347,7 +347,7 @@ async function fetch(url,options){
 
  fail=true;button.disabled=false;button.textContent="恢复资产";toastMessage="";
  await restoreDeletedAsset("case-1","stale-revision",button);
- if(!button.disabled===false)throw new Error("Failed restore should leave the button enabled.");
+ if(button.disabled!==false)throw new Error("Failed restore should leave the button enabled.");
  if(button.textContent!=="恢复资产"||!toastMessage.includes("stale recycle snapshot"))throw new Error("Failed restore must restore button state and show the server error.");
 })().catch(error=>{console.error(error);process.exit(1);});
 """
