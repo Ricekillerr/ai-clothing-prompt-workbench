@@ -157,7 +157,7 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
             command = f'cmd.exe /c "{launcher}"'
             process = subprocess.Popen(
                 command, cwd=str(repo_root), env=env, stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT, text=True,
+                stderr=subprocess.STDOUT,
                 creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
             )
             connected = False
@@ -192,7 +192,8 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
                 with urlopen(close_request, timeout=10) as response:
                     self.assertTrue(json.loads(response.read().decode("utf-8"))["ok"])
                 process.wait(timeout=12)
-                self.assertEqual(process.returncode, 0, process.stdout.read() if process.stdout else "")
+                output = process.stdout.read().decode("utf-8", errors="replace") if process.stdout else ""
+                self.assertEqual(process.returncode, 0, output)
                 deadline = time.time() + 5
                 while time.time() < deadline:
                     probe = socket.socket()
