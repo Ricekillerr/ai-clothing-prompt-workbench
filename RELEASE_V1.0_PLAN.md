@@ -184,3 +184,8 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 - Added retention bound of 5,000 feedback records, validation against existing case IDs, and an aggregate analytics endpoint with total/helpful/not-relevant counts and top feedback cases.
 - Settings now provides a local-only retrieval feedback summary. Feedback is intentionally observational and does not automatically change ranking weights; any future tuning requires a labelled evaluation set and regression tests.
 - Added storage and frontend/API integration tests. Runtime manifest hashes have been refreshed; the full pipeline is being rechecked.
+
+
+## Implementation log — 2026-11-13 (retrieval feedback analytics validated)
+- GitHub Actions run 43358221656 passed all 69 regression tests, Python compilation, frontend JavaScript syntax, all 8 update-file SHA-256 checks, Windows PowerShell parser validation, and release source/channel gate.
+- The feedback ledger is local-only, bounded to 5,000 records, validates the referenced case, and does not alter retrieval ranking automatically.
