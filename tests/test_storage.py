@@ -301,6 +301,69 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(restored["name"], "Recover me")
         self.assertEqual(store.load_data()["cases"][0]["id"], "deleted-case")
 
+    def test_full_backup_restore_replaces_database_json_and_references(self):
+        store = Storage(self.home)
+        store.save_data({"cases": [{"id": "before", "name": "Before", "body": "old prompt"}],
+                         "modules": []})
+        references = self.home / "references"
+        references.mkdir(exist_ok=True)
+        (references / "before.png").write_bytes(b"before-image")
+        backup = store.create_full_backup(references, app_version="0.6.5")
+
+        store.save_data({"cases": [{"id": "after", "name": "After", "body": "new prompt"}],
+                         "modules": []})
+        (references / "after.png").write_bytes(b"after-image")
+        result = store.restore_full_backup(backup)
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["cases"], 1)
+        self.assertEqual(store.load_data()["cases"][0]["id"], "before")
+        self.assertEqual(store.load_data()["cases"][0]["body"], "old prompt")
+        self.assertTrue((references / "before.png").is_file())
+        self.assertFalse((references / "after.png").exists())
+        self.assertTrue(store.legacy_json.is_file())
+
+    def test_corrupt_full_backup_is_rejected_without_changing_live_data(self):
+        store = Storage(self.home)
+        references = self.home / "references"
+        references.mkdir(exist_ok=True)
+        (references / "current.png").write_bytes(b"current-image")
+        store.save_data({"cases": [{"id": "current", "name": "Current", "body": "keep me"}],
+                         "modules": []})
+        good = store.create_full_backup(references, app_version="0.6.5")
+        corrupt = self.home / "corrupt_backup.zip"
+        with zipfile.ZipFile(good, "r") as source, zipfile.ZipFile(corrupt, "w") as target:
+            for info in source.infolist():
+                payload = source.read(info.filename)
+                if info.filename == "data/prompt_library.json":
+                    payload += b"tampered"
+                target.writestr(info, payload)
+        with self.assertRaisesRegex(StorageError, "SHA-256"):
+            store.restore_full_backup(corrupt)
+        self.assertEqual(store.load_data()["cases"][0]["id"], "current")
+        self.assertEqual((references / "current.png").read_bytes(), b"current-image")
+
+    def test_full_backup_restore_rejects_zip_path_traversal(self):
+        store = Storage(self.home)
+        references = self.home / "references"
+        references.mkdir(exist_ok=True)
+        (references / "safe.png").write_bytes(b"safe")
+        good = store.create_full_backup(references, app_version="0.6.5")
+        malicious = self.home / "traversal_backup.zip"
+        with zipfile.ZipFile(good, "r") as source:
+            manifest = json.loads(source.read("backup_manifest.json").decode("utf-8"))
+            manifest["files"]["../escape.txt"] = hashlib.sha256(b"escape").hexdigest()
+            with zipfile.ZipFile(malicious, "w") as target:
+                for info in source.infolist():
+                    if info.filename == "backup_manifest.json":
+                        continue
+                    target.writestr(info, source.read(info.filename))
+                target.writestr("../escape.txt", b"escape")
+                target.writestr("backup_manifest.json", json.dumps(manifest))
+        with self.assertRaisesRegex(StorageError, "不安全的文件路径"):
+            store.restore_full_backup(malicious)
+        self.assertFalse((self.home.parent / "escape.txt").exists())
+
     def test_retrieval_feedback_is_local_bounded_and_aggregated(self):
         store = Storage(self.home)
         store.save_data({"cases": [{"id": "feedback-case", "name": "Feedback", "body": "prompt"}],
