@@ -124,3 +124,9 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 - Found and fixed an incremental-update coverage gap: `collector.py` and `case_matcher.py` were imported runtime modules but absent from the update manifest. Both are now included with SHA-256 pins. The CI hash reporter now reads the manifest's actual file list instead of maintaining a separate hard-coded list, reducing future drift.
 - Added tests for item normalization, relation validation, persistence, garment-level retrieval, UI integration, and manifest dependency coverage. Regression suite passed 67 tests on GitHub Actions run 43356694190 before the final manifest-coverage guard was added; the updated manifest and new guard are undergoing a fresh full run.
 - Candidate remains isolated on `release/v0.6.5-stabilization`. No production release is claimed; native Windows GUI/update/rollback acceptance remains outstanding.
+
+
+## Implementation log — 2026-11-13 (V1.0 outfit breakdown validation)
+- The final manifest now includes all eight files in the actual incremental update payload, including the previously omitted imported modules `collector.py` and `case_matcher.py`. CI's runtime hash reporter derives its file list from the manifest itself, and a regression guard verifies both modules are present and pinned.
+- Full GitHub Actions run 43356815996 passed: all 67 regression tests, Python compilation, frontend JavaScript syntax, SHA-256 validation of all 8 update files, Windows PowerShell parser validation, and release source/channel gate.
+- This confirms the structured outfit decomposition and garment-level retrieval candidate is internally consistent in CI. It does not replace native Windows GUI acceptance or prove visual-semantic image similarity; those remain separate V1.0 tasks.
