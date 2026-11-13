@@ -31,7 +31,7 @@ This branch is an isolated stabilization lane. It is not the production update c
 ## Current status — refreshed 2026-11-13
 
 - Development remains isolated on `release/v0.6.5-stabilization`; `main` and the production update channel have not been changed.
-- Latest GitHub Actions run 43361584411 passed 81 regression tests, Python compilation, frontend JavaScript syntax, all 8 update-manifest SHA-256 checks, four Windows Server 2025 runtime smoke tests, PowerShell parser validation, and release source/channel gate.
+- Latest GitHub Actions run 43361808990 passed 82 regression tests, Python compilation, frontend JavaScript syntax, all 8 update-manifest SHA-256 checks, four Windows Server 2025 runtime smoke tests, PowerShell parser validation, and release source/channel gate.
 - Implemented in this candidate: local full backup and pre-update snapshot; source provenance; folder auto-scan and human-reviewed AI ingestion; structured outfit decomposition and garment-level retrieval; reference-image role/priority metadata with manual correction; local perceptual-hash image shortlist; reference-aware prompt composition; bilingual prompt storage/output; revision comparison/restore; retrieval feedback analytics; serialized saves, request timeouts and privacy-safe diagnostics.
 - Important limitations still tracked: browser perceptual hashing is a coarse visual shortlist, not semantic same-garment recognition; English versions are stored/reused but not automatically translated; reference numbering must be manually mapped to the original prompt's @image identifiers.
 - Remaining V1.0 work: complete model-specific guidance and evaluation, broader visual retrieval validation, security/functional audit, clean-install and in-place-update verification, and native Windows launch/close/restart/backup/update/rollback/data-preservation acceptance.
@@ -304,3 +304,9 @@ This branch is an isolated stabilization lane. It is not the production update c
 - ZIP restore now also rejects Windows-specific path hazards: alternate data streams (`:`), reserved device names (CON/PRN/AUX/NUL/COM1–9/LPT1–9), trailing dots/spaces, case-insensitive path collisions, symlink entries, backslashes, NULs, and files outside the expected database/JSON/references roots.
 - Added tests for Windows path aliases/reserved names, ZIP traversal, tampering, successful restore, and a deliberately injected failure during the database/JSON/reference swap to verify rollback keeps the pre-restore live dataset intact.
 - GitHub Actions run 43361584411 passed 81 regression tests, all 8 update manifest hashes, PowerShell parsing, release source/channel gate, and all four Windows Server 2025 runtime tests (actual BAT lifecycle, backup/restore/restart, updater success, updater rollback).
+
+
+## Implementation log — 2026-11-13 (backup payload cross-consistency)
+- Full-backup restore now checks that the JSON export's complete case/module records exactly match the records inside the SQLite snapshot, not merely that both contain the same number of rows. This catches a ZIP whose JSON was altered and whose internal SHA-256 manifest was recomputed while the database remained different.
+- Added a regression test that modifies a prompt while preserving record count and recalculates the ZIP's SHA-256 manifest; restore correctly rejects the archive and leaves live data untouched.
+- GitHub Actions run 43361808990 passed 82 regression tests, all 8 runtime manifest hashes, four Windows Server 2025 runtime tests, PowerShell syntax validation, and the release source/channel gate.
