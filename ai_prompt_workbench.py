@@ -353,6 +353,8 @@ def main():
     server = ThreadingHTTPServer(("127.0.0.1", 8765), Handler)
     url = "http://127.0.0.1:8765"
     AUTO_SCAN_STOP.clear()
+    if auto_scan_is_enabled():
+        AUTO_SCAN_WAKE.set()
     threading.Thread(target=auto_scan_loop, name="PromptAtelierAutoScan", daemon=True).start()
     threading.Thread(target=heartbeat_watchdog, args=(server,), name="PromptAtelierHeartbeat", daemon=True).start()
     threading.Timer(0.8, lambda: webbrowser.open(url)).start()
