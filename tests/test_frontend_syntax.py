@@ -71,6 +71,26 @@ class FrontendSyntaxTests(unittest.TestCase):
         self.assertIn("服务器已确认恢复成功，但界面未能重新读取数据", restore)
         self.assertIn("if(!loaded)", restore)
 
+    def test_bulk_selection_drops_items_hidden_by_current_filters(self):
+        html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
+        self.assertIn("pruneSelectionToVisible(selectedCaseIds,arr)", html)
+        self.assertIn("pruneSelectionToVisible(selectedModuleIds,a)", html)
+        helper = re.search(
+            r"function pruneSelectionToVisible\\(selection,visibleItems\\)\\{[^{}]*\\}",
+            html,
+        )
+        self.assertIsNotNone(helper, "Selection pruning must remain a small independently testable helper")
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("Node.js is not installed in this environment")
+        script = helper.group(0) + """
+const selected = new Set(["visible", "hidden"]);
+pruneSelectionToVisible(selected, [{id: "visible"}]);
+if (selected.size !== 1 || !selected.has("visible")) process.exit(1);
+"""
+        result = subprocess.run([node, "-e", script], capture_output=True, check=False)
+        self.assertEqual(result.returncode, 0, (result.stderr or result.stdout).decode("utf-8", errors="replace"))
+
     def test_inline_javascript_parses_when_node_is_available(self):
         node = shutil.which("node")
         if not node:

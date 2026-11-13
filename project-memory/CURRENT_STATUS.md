@@ -5,10 +5,11 @@
 **生产分支：** main（保持不动）  
 **开发分支：** release/v0.6.5-stabilization  
 **候选版本：** 0.6.5  
-**最近代码提交：** 954d4568322b3b4a7967e62b07c4770e0b28b073  
+**最近代码提交：** 7f0f72d23833d204c27fd4bc8c08b2f0f29f97cf  
 **状态：** V1.0 候选开发；不是正式发布。
 
 ## 最新 CI
+[GitHub Actions run 43398819845](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43398819845)：三个 job 全部成功。主回归 133 项（132 通过、1 项环境跳过），Windows 专项 19 项通过。
 [GitHub Actions run 43398618615](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43398618615)：三个 job 全部成功。主回归 133 项（132 通过、1 项因 Linux 环境跳过），Windows 专项 19 项全部通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
 [GitHub Actions run 43388913191](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43388913191)：三个 job 全部成功。
 - 主回归：121 项运行，120 项通过，1 项因 Linux runner 不具备 Windows 环境而跳过。
@@ -42,6 +43,7 @@
 - **回归证据：** 单品级检索修复新增覆盖案例；最新 CI run 43398618615 三个 job 全部通过：主回归 133 项（132 通过、1 项环境跳过），Windows 专项 19 项通过，9 个更新文件哈希与 release gate 通过。
 
 ## 已知限制
+- 批量操作选择集筛选残留修复正在提交；只有新 CI 通过后才标记完成。
 - 浏览器感知哈希检索只是粗略近重复/视觉结构候选，不是语义服装识别。
 - 英文提示词只保存和复用已有文本，不自动翻译。
 - 原提示词中的 @图片编号需人工映射到资产库图片编号。
