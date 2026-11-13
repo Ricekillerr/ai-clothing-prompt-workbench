@@ -69,6 +69,10 @@ class V065IntegrationTests(unittest.TestCase):
         smart_search = html[html.index("async function runSmartCaseSearch()"):html.index("\nfunction gallery()")]
         self.assertNotIn(chr(92)+"${", smart_search)
         self.assertIn("[[\"商品款号\",x.sku||x.style_number||x.product_code]", html)
+        for field in ("silhouette","fit","fabric","texture","details","craftsmanship","constraints"):
+            self.assertIn(f'["{field}",', html)
+        self.assertIn('["廓形",x.silhouette]', html)
+        self.assertIn('["面料组成",x.fabric]', html)
         self.assertIn("include_conflicts", self.app)
         self.assertIn("threshold_raw", self.app)
         self.assertIn("downloadFullBackup", html)
