@@ -31,7 +31,7 @@ This branch is an isolated stabilization lane. It is not the production update c
 ## Current status — refreshed 2026-11-13
 
 - Development remains isolated on `release/v0.6.5-stabilization`; `main` and the production update channel have not been changed.
-- Latest GitHub Actions run 43363203420 passed 87 regression tests, Python compilation, frontend JavaScript syntax, all 8 update-manifest SHA-256 checks, four Windows Server 2025 runtime smoke tests, PowerShell parser validation, and release source/channel gate.
+- Latest GitHub Actions run 43363487487 passed 87 regression tests, Python compilation, frontend JavaScript syntax, all 8 update-manifest SHA-256 checks, four Windows Server 2025 runtime smoke tests, PowerShell parser validation, and release source/channel gate.
 - Implemented in this candidate: local full backup and pre-update snapshot; source provenance; folder auto-scan and human-reviewed AI ingestion; structured outfit decomposition and garment-level retrieval; reference-image role/priority metadata with manual correction; local perceptual-hash image shortlist; reference-aware prompt composition; bilingual prompt storage/output; revision comparison/restore; retrieval feedback analytics; serialized saves, request timeouts and privacy-safe diagnostics.
 - Important limitations still tracked: browser perceptual hashing is a coarse visual shortlist, not semantic same-garment recognition; English versions are stored/reused but not automatically translated; reference numbering must be manually mapped to the original prompt's @image identifiers.
 - Remaining V1.0 work: complete model-specific guidance and evaluation, broader visual retrieval validation, security/functional audit, clean-install and in-place-update verification, and native Windows launch/close/restart/backup/update/rollback/data-preservation acceptance.
@@ -369,3 +369,10 @@ This branch is an isolated stabilization lane. It is not the production update c
 ## Implementation log — 2026-11-13 (global update notice and persistent cancellation)
 - The idle-update countdown now appears in a persistent global notice with a visible Cancel button, not only inside Settings. Any pointer, keyboard, touch or visibility activity defers the install.
 - Cancelling records the skipped version in local SQLite. The same version will not be auto-installed again in that browser session or after a restart; a newer version clears the skip and is scheduled under the same idle/countdown rules. Manual installation remains available at any time.
+
+
+## Implementation log — 2026-11-13 (persistent update countdown and version skip)
+- Automatic update countdown is now shown in a persistent global notice, not only inside the Settings page. Users can cancel the currently offered version from the global notice.
+- A skipped version is stored locally. Fifteen-minute update polling will not repeatedly reschedule the same skipped version; a newer release is eligible for a new idle-gated schedule.
+- Added Windows local API coverage for enabling/disabling automatic-update authorization and confirming the preference persists across GET requests.
+- GitHub Actions run 43363487487 passed 87 regression tests, all 8 runtime hashes, four Windows Server 2025 runtime tests, PowerShell parsing, and release source/channel gate.
