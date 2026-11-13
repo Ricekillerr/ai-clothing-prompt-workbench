@@ -17,7 +17,7 @@
     "启动AI服装提示词工作台.bat": "a64c3ba2bba22c3758857cb138b5eb71d624763be555a25c0694853c96066f02",
     "index.html": "b6897a190093ce6e95d99cee5fa9f2a36b73dfbf8da91b46d9849f9538292956",
     "storage.py": "174b09e4d9eefc4f2d04d7aacd2d85fe9dbc6842a4e85b515095001a791aeb61",
-    "ai_analyzer.py": "a9e8835eecf22916023d70d2b9a59ae8ef5ed641b616cf6d32f2e3e01dbf18ad",
+    "ai_analyzer.py": "d84a4714e6b5300ae86937008b569967bcbdf297ef3d4d4e7f5cb10f9b7892db",
     "collector.py": "cda27a7ea02542ba5a0f6f031e40c7f7c39810693c60d23c3a52b1fbdac68dac",
     "case_matcher.py": "e7781d3511967b230f3d410948ac4832a9ad1f6df92fa4967952d722cc99ee28"
   }
