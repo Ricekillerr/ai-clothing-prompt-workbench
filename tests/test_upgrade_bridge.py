@@ -80,6 +80,12 @@ class V065IntegrationTests(unittest.TestCase):
         self.assertIn("toggleAutoUpdate", html)
         self.assertIn("refreshAutoUpdateState", html)
         self.assertIn("applyUpdate(true)", html)
+        apply_start = html.index("async function applyUpdate")
+        apply_end = html.index("async function scanApi", apply_start)
+        apply_ui = html[apply_start:apply_end]
+        self.assertIn("responseReceived", apply_ui)
+        self.assertIn("无法确认安装是否启动", apply_ui)
+        self.assertIn("10*60*1000", apply_ui)
         self.assertIn("auto_update_enabled", self.app)
         self.assertIn("/api/update/auto", self.app)
         self.assertIn("startWorkbenchHeartbeat();checkUpdate(false)", html)
