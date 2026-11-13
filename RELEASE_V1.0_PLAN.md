@@ -364,3 +364,8 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Authorized updates no longer close the workbench immediately during a periodic check. The app waits for 15 minutes of user inactivity, requires the window to remain visible and focused, then shows a 60-second countdown. Any pointer, keyboard, touch, or tab-visibility activity defers the installation; the user can also cancel the current version's automatic installation.
 - The workbench now checks for updates at startup and every 15 minutes while open. Every update still verifies downloaded file hashes and creates a full local pre-update backup before the updater replaces program files.
 - GitHub Actions run 43363203420 passed 87 regression tests, all 8 runtime SHA-256 checks, four Windows Server 2025 runtime tests, PowerShell parsing, and the release source/channel gate.
+
+
+## Implementation log — 2026-11-13 (global update notice and persistent cancellation)
+- The idle-update countdown now appears in a persistent global notice with a visible Cancel button, not only inside Settings. Any pointer, keyboard, touch or visibility activity defers the install.
+- Cancelling records the skipped version in local SQLite. The same version will not be auto-installed again in that browser session or after a restart; a newer version clears the skip and is scheduled under the same idle/countdown rules. Manual installation remains available at any time.
