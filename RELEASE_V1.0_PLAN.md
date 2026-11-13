@@ -272,3 +272,9 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Prompt vault and composer IDs now use escaped attribute values; case/module cards open through DOM listeners; prompt copy buttons read from escaped data attributes.
 - JSON import now deduplicates IDs across the entire incoming batch (not only against pre-existing records), skips malformed entries, and restores the pre-import dataset if saving fails. English prompt text is included in case/module library search.
 - Added integration regression guards for DOM-safe ID rendering and import rollback. Runtime hash refresh and full CI rerun are pending.
+
+
+## Implementation log — 2026-11-13 (ambiguous save timeout reconciliation)
+- Hardened save timeout handling: a client-side timeout no longer falsely claims the original data was restored, because the local server may have committed the write before the response was lost.
+- Timed-out saves now wait for any queued writes, then reload the authoritative local server dataset. The UI distinguishes confirmed server state, confirmed rollback after ordinary errors, and unresolved state when reconciliation itself cannot complete.
+- Applied this behavior to single-asset edits/deletes, batch case/module operations, and JSON imports. Added integration guards for reconciliation and truthful timeout messaging.
