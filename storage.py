@@ -120,6 +120,18 @@ class Storage:
                     );
                     CREATE INDEX IF NOT EXISTS idx_ingest_status ON ingest_files(status);
                     CREATE INDEX IF NOT EXISTS idx_ingest_source ON ingest_files(source_id);
+                    CREATE TABLE IF NOT EXISTS retrieval_feedback (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        query_text TEXT NOT NULL,
+                        case_id TEXT NOT NULL,
+                        score REAL NOT NULL,
+                        feedback TEXT NOT NULL CHECK(feedback IN ('useful','not_relevant')),
+                        created_at TEXT NOT NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_retrieval_feedback_created
+                        ON retrieval_feedback(created_at DESC);
+                    CREATE INDEX IF NOT EXISTS idx_retrieval_feedback_case
+                        ON retrieval_feedback(case_id, feedback);
                     CREATE TABLE IF NOT EXISTS ai_analyses (
                         id TEXT PRIMARY KEY,
                         prompt_path TEXT NOT NULL,
@@ -691,6 +703,60 @@ class Storage:
             )
             if cur.rowcount != 1:
                 raise StorageError("找不到待拒绝的 AI 分析结果")
+
+    def record_retrieval_feedback(self, query: str, case_id: str,
+                                   score: float, feedback: str) -> int:
+        query = str(query or "").strip()[:500]
+        case_id = str(case_id or "").strip()[:128]
+        if not query or not case_id:
+            raise StorageError("检索词和案例 ID 不能为空")
+        if feedback not in {"useful", "not_relevant"}:
+            raise StorageError("不支持的检索反馈类型")
+        try:
+            score = max(0.0, min(1.0, float(score)))
+        except (TypeError, ValueError):
+            raise StorageError("匹配分数无效")
+        from datetime import datetime, timezone
+        with self._session() as con:
+            exists = con.execute(
+                "SELECT 1 FROM assets WHERE id=? AND kind='case'", (case_id,)
+            ).fetchone()
+            if exists is None:
+                raise StorageError("找不到对应的案例资产")
+            cur = con.execute(
+                """INSERT INTO retrieval_feedback
+                   (query_text,case_id,score,feedback,created_at)
+                   VALUES(?,?,?,?,?)""",
+                (query, case_id, score, feedback, datetime.now(timezone.utc).isoformat()),
+            )
+            con.execute(
+                """DELETE FROM retrieval_feedback WHERE id NOT IN
+                   (SELECT id FROM retrieval_feedback ORDER BY id DESC LIMIT 5000)"""
+            )
+            return int(cur.lastrowid)
+
+    def get_retrieval_analytics(self) -> dict:
+        with self._session() as con:
+            total = con.execute("SELECT COUNT(*) FROM retrieval_feedback").fetchone()[0]
+            counts = {
+                row["feedback"]: row["count"]
+                for row in con.execute(
+                    "SELECT feedback,COUNT(*) AS count FROM retrieval_feedback GROUP BY feedback"
+                ).fetchall()
+            }
+            top = con.execute(
+                """SELECT case_id,COUNT(*) AS feedback_count,
+                          SUM(CASE WHEN feedback='useful' THEN 1 ELSE 0 END) AS useful_count,
+                          AVG(score) AS average_score
+                   FROM retrieval_feedback GROUP BY case_id
+                   ORDER BY useful_count DESC,feedback_count DESC LIMIT 10"""
+            ).fetchall()
+            return {
+                "total_feedback": int(total),
+                "useful": int(counts.get("useful", 0)),
+                "not_relevant": int(counts.get("not_relevant", 0)),
+                "top_cases": [dict(row) for row in top],
+            }
 
     def get_setting(self, key: str, default: str | None = None) -> str | None:
         key = str(key or "").strip()
