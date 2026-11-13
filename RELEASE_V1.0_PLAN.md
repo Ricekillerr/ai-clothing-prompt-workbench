@@ -96,3 +96,12 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 - Added end-to-end ranking coverage proving an exact SKU query returns the verified case at 100%, not only a raw scoring result.
 - Added compatibility tests for legacy style_number and product_code identifiers so older case records remain searchable without migration.
 - GitHub Actions run 43354619523 completed successfully: all 58 regression tests, frontend syntax, manifest SHA-256 validation, Windows PowerShell parser validation, and release source/channel gate passed.
+
+
+## Implementation log — 2026-11-13 (structured garment taxonomy and synonym-aware retrieval)
+- Expanded case creation/editing with structured fields for silhouette, fit, fabric composition, surface texture, construction details, craftsmanship, and generation constraints. The case detail view now displays these attributes; existing candidate matching already reads the corresponding fields, so the new metadata is searchable without moving it into free-form prompt text.
+- Expanded garment vocabulary for common Chinese apparel terms, including garment lengths/cuts, fabric names, stitching terms, and Seedance model references.
+- Added canonical normalization for common material/color aliases (for example, 锦纶/尼龙, 涤纶/聚酯, 真丝/丝绸, 藏青/蓝色) before tokenization, avoiding partial matches from retaining both alias and canonical tokens.
+- Added structured-field and synonym regression tests. Initial tests exposed missing field indexing and partial alias coverage; corrected the matcher to include fit/silhouette in detail attributes and classify double-needle stitching phrases. No failing test was waived or deleted.
+- GitHub Actions run 43355300227 completed successfully: all 61 regression tests, Python compilation, frontend JavaScript syntax, runtime manifest SHA-256 checks, Windows PowerShell parser validation, and release source/channel gate passed.
+- Candidate remains on the isolated stabilization branch; no production release, main-branch merge, or Windows GUI acceptance is claimed.
