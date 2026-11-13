@@ -721,30 +721,59 @@ class Storage:
             raise StorageError("案例 ID 不能为空")
         if outcome not in {"success", "failed"}:
             raise StorageError("生成结果只支持成功或失败")
-        data = self.load_data()
-        item = next((value for value in data["cases"] if str(value.get("id")) == case_id), None)
-        if item is None:
-            raise StorageError("找不到对应的案例资产")
         from datetime import datetime, timezone
+        import uuid
+
         now = datetime.now(timezone.utc).isoformat()
         note = str(notes or "").strip()[:1000]
-        item["status"] = "已验证成功" if outcome == "success" else "失败案例"
-        item["last_generation_outcome"] = outcome
-        item["last_generation_note"] = note
-        item["last_generation_at"] = now
-        self.save_data(data)
+        status = "已验证成功" if outcome == "success" else "失败案例"
         with self._session() as con:
+            con.execute("BEGIN IMMEDIATE")
+            row = con.execute(
+                "SELECT kind,payload_json FROM assets WHERE id=?", (case_id,)
+            ).fetchone()
+            if row is None or row["kind"] != "case":
+                raise StorageError("找不到对应的案例资产")
+            previous_payload = row["payload_json"]
+            item = json.loads(previous_payload)
+            item["status"] = status
+            item["last_generation_outcome"] = outcome
+            item["last_generation_note"] = note
+            item["last_generation_at"] = now
+            con.execute(
+                """INSERT INTO asset_revisions
+                   (revision_id,asset_id,kind,payload_json,reason,created_at)
+                   VALUES(?,?,?,?,?,?)""",
+                (uuid.uuid4().hex, case_id, "case", previous_payload,
+                 "generation_outcome", now),
+            )
+            con.execute(
+                """DELETE FROM asset_revisions
+                   WHERE asset_id=? AND revision_id NOT IN (
+                     SELECT revision_id FROM asset_revisions
+                     WHERE asset_id=? ORDER BY created_at DESC LIMIT 50
+                   )""",
+                (case_id, case_id),
+            )
+            con.execute(
+                "UPDATE assets SET payload_json=?,updated_at=? WHERE id=? AND kind='case'",
+                (json.dumps(item, ensure_ascii=False), now, case_id),
+            )
             cur = con.execute(
                 """INSERT INTO generation_feedback(case_id,outcome,notes,created_at)
                    VALUES(?,?,?,?)""",
                 (case_id, outcome, note, now),
             )
             feedback_id = int(cur.lastrowid)
+            con.execute(
+                """DELETE FROM generation_feedback WHERE id NOT IN
+                   (SELECT id FROM generation_feedback ORDER BY id DESC LIMIT 5000)"""
+            )
         return {
             "feedback_id": feedback_id,
             "case_id": case_id,
             "outcome": outcome,
-            "status": item["status"],
+            "status": status,
             "created_at": now,
         }
 
