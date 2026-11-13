@@ -581,6 +581,9 @@ class Storage:
                         "asset_index": int(role.get("asset_index", 0)),
                         "role": str(role.get("role") or "unknown")[:20],
                         "role_label": str(role.get("role_label") or "待人工确认")[:40],
+                        "priority": str(role.get("priority") or "supporting")[:20],
+                        "governs": [str(value)[:40] for value in role.get("governs", [])[:6]]
+                            if isinstance(role.get("governs"), list) else [],
                         "observation": str(role.get("observation") or "")[:500],
                         "source_path": str(role.get("asset_path") or "")[:1000],
                     }
