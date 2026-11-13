@@ -27,7 +27,8 @@ class AIAnalyzerTests(unittest.TestCase):
         images = [Path("front.png"), Path("back.jpg"), Path("detail.webp")]
         roles = [
             {"asset_index": 3, "role": "detail", "role_label": "细节图"},
-            {"asset_index": 1, "role": "front", "role_label": "正面图"},
+            {"asset_index": 1, "role": "front", "role_label": "正面图",
+             "priority": "primary", "governs": ["结构", "版型"]},
             {"asset_index": 2, "role": "back", "role_label": "背面图"},
         ]
         result = normalize_asset_roles(roles, images)
@@ -35,6 +36,10 @@ class AIAnalyzerTests(unittest.TestCase):
                          ["front.png", "back.jpg", "detail.webp"])
         self.assertEqual([item["role"] for item in result],
                          ["front", "back", "detail"])
+        self.assertEqual(result[0]["priority"], "primary")
+        self.assertEqual(result[0]["governs"], ["结构", "版型"])
+        self.assertEqual(result[1]["priority"], "primary")
+        self.assertEqual(result[2]["priority"], "secondary")
 
     def test_missing_invalid_and_out_of_range_roles_fall_back_to_unknown(self):
         images = [Path("one.png"), Path("two.png")]
