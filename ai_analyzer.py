@@ -56,20 +56,20 @@ def normalize_asset_roles(raw_roles, image_files: list[Path]) -> list[dict]:
         value = str(role.get("role") or "unknown").strip().lower()
         if value not in allowed_roles:
             value = "unknown"
+        raw_priority = str(role.get("priority") or "").strip().lower()
+        default_priority = (
+            "primary" if value in {"overall", "front", "back"} else
+            "secondary" if value in {"detail", "fabric"} else "supporting"
+        )
+        priority = raw_priority if raw_priority in {"primary", "secondary", "supporting"} else default_priority
+        raw_governs = role.get("governs") if isinstance(role.get("governs"), list) else []
         normalized.append({
             "asset_index": index,
             "asset_path": str(image_file),
             "role": value,
             "role_label": str(role.get("role_label") or ("待人工确认" if value == "unknown" else value))[:40],
-            "priority": str(role.get("priority") or (
-                "primary" if value in {"overall", "front", "back"} else
-                "secondary" if value in {"detail", "fabric"} else "supporting"
-            )).strip().lower() if str(role.get("priority") or "").strip().lower() in {"primary", "secondary", "supporting"} else (
-                "primary" if value in {"overall", "front", "back"} else
-                "secondary" if value in {"detail", "fabric"} else "supporting"
-            ),
-            "governs": [str(item)[:40] for item in role.get("governs", [])[:6] if str(item).strip()]
-                if isinstance(role.get("governs"), list) else [],
+            "priority": priority,
+            "governs": [str(item)[:40] for item in raw_governs[:6] if str(item).strip()],
             "observation": str(role.get("observation") or "未提供可靠的单图观察")[:500],
         })
     return normalized
