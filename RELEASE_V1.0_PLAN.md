@@ -230,3 +230,8 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Added a labelled garment retrieval benchmark covering a black nylon vest, dark-grey corduroy flared trousers, navy wool outerwear, and a brown leather jacket, plus a conflicting red/cashmere outerwear query.
 - The benchmark checks that each positive natural-language query returns its expected verified case at or above the configured 80% ranking threshold, while the conflicting negative query returns no candidate.
 - GitHub Actions run 43358913984 passed all 70 regression tests, Python compilation, frontend JavaScript syntax, all 8 update-file hashes, Windows PowerShell parser validation, and release source/channel gate.
+
+
+## Implementation log — 2026-11-13 (platform/model compatibility correction)
+- Corrected prompt-composition compatibility checks so RunningHub is treated as a hosting platform rather than a concrete model. A base case labelled RunningHub can now be composed with a module targeting WAN 3.0 or another actual model without a false incompatibility warning.
+- Added a regression guard for the platform/model distinction. Runtime hash refresh and CI revalidation are pending.
