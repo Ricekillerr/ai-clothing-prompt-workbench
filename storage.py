@@ -657,6 +657,63 @@ class Storage:
             rows = con.execute(query, args).fetchall()
             return [{**dict(row), "result": json.loads(row["result_json"])} for row in rows]
 
+    def _verified_ingest_source_path(self, con, raw_path: str, expected_media_type: str,
+                                     expected_sha256: str) -> Path:
+        raw_path = str(raw_path or "")
+        if not raw_path:
+            raise StorageError("AI 分析缺少原始素材路径，请重新扫描并分析")
+        candidate = Path(raw_path)
+        if _is_link_or_junction(candidate):
+            raise StorageError("AI 分析来源文件已变为符号链接或目录联接，拒绝入库")
+        try:
+            resolved = candidate.resolve(strict=True)
+        except (OSError, RuntimeError) as exc:
+            raise StorageError("AI 分析来源文件已不存在，请重新扫描并分析") from exc
+        if os.path.normcase(os.path.normpath(str(resolved))) != os.path.normcase(
+            os.path.normpath(raw_path)
+        ):
+            raise StorageError("AI 分析来源文件路径已发生变化，请重新扫描并分析")
+
+        record = con.execute(
+            """SELECT f.media_type,f.sha256,s.folder_path
+               FROM ingest_files f
+               JOIN scan_sources s ON s.id=f.source_id
+               WHERE f.path=?""",
+            (str(resolved),),
+        ).fetchone()
+        if record is None:
+            raise StorageError("AI 分析来源已不在已扫描文件夹中，请重新扫描并分析")
+        if record["media_type"] != expected_media_type:
+            raise StorageError("AI 分析来源文件类型与扫描记录不一致，请重新扫描并分析")
+        if str(record["sha256"]).lower() != str(expected_sha256).lower():
+            raise StorageError("AI 分析来源文件指纹与扫描记录不一致，请重新扫描并分析")
+
+        source_root_path = Path(record["folder_path"])
+        if _is_link_or_junction(source_root_path):
+            raise StorageError("AI 分析来源文件夹已变为符号链接或目录联接，拒绝入库")
+        try:
+            source_root = source_root_path.resolve(strict=True)
+        except (OSError, RuntimeError) as exc:
+            raise StorageError("AI 分析来源文件夹已不存在，请重新扫描并分析") from exc
+        if os.path.normcase(os.path.normpath(str(source_root))) != os.path.normcase(
+            os.path.normpath(str(record["folder_path"]))
+        ):
+            raise StorageError("AI 分析来源文件夹路径已发生变化，拒绝入库")
+        try:
+            resolved.relative_to(source_root)
+        except ValueError as exc:
+            raise StorageError("AI 分析来源文件已移出原扫描文件夹，拒绝入库") from exc
+        if not resolved.is_file():
+            raise StorageError("AI 分析来源文件不再是普通文件，拒绝入库")
+
+        digest = hashlib.sha256()
+        with resolved.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        if digest.hexdigest() != str(expected_sha256).lower():
+            raise StorageError("AI 分析来源文件在分析后发生变化，请重新扫描并分析")
+        return resolved
+
     def approve_ai_analysis(self, analysis_id: str) -> str:
         copied_paths: list[Path] = []
         try:
@@ -690,9 +747,18 @@ class Storage:
             asset_id = uuid.uuid4().hex
             now = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
             title = str(result.get("title") or Path(row["prompt_path"]).stem).strip()[:120]
+            prompt_file = self._verified_ingest_source_path(
+                con, row["prompt_path"], "text", row["prompt_sha256"]
+            )
             prompt_text = result.get("prompt_text")
             if not isinstance(prompt_text, str) or not prompt_text.strip():
                 raise StorageError("分析结果缺少原始提示词，不能入库")
+            try:
+                source_prompt_text = prompt_file.read_bytes().decode("utf-8-sig", errors="replace")
+            except OSError as exc:
+                raise StorageError("原始提示词文件读取失败，请重新扫描并分析") from exc
+            if prompt_text != source_prompt_text:
+                raise StorageError("原始提示词与来源文件内容不一致，拒绝入库")
 
             asset_paths = result.get("asset_paths") or [row["asset_path"]]
             asset_hashes = result.get("asset_sha256s") or [row["asset_sha256"]]
@@ -706,18 +772,14 @@ class Storage:
             image_names = []
             verified_assets = []
             for raw_path, expected_hash in zip(asset_paths, asset_hashes):
-                asset_file = Path(str(raw_path)).resolve()
-                if not asset_file.is_file():
-                    raise StorageError(f"关联素材已不存在，不能入库：{asset_file.name}")
-                digest = hashlib.sha256()
-                with asset_file.open("rb") as stream:
-                    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-                        digest.update(chunk)
-                if digest.hexdigest() != str(expected_hash):
-                    raise StorageError(f"关联素材在 AI 分析后发生变化，请重新扫描并分析：{asset_file.name}")
+                expected_hash = str(expected_hash).lower()
                 media_type = (
-                    "video" if asset_file.suffix.lower() in {".mp4", ".mov", ".m4v", ".webm", ".avi"}
+                    "video" if Path(str(raw_path)).suffix.lower()
+                    in {".mp4", ".mov", ".m4v", ".webm", ".avi"}
                     else "image"
+                )
+                asset_file = self._verified_ingest_source_path(
+                    con, str(raw_path), media_type, expected_hash
                 )
                 copied_name = ""
                 if media_type == "image":
@@ -735,10 +797,17 @@ class Storage:
                         raise StorageError("参考图片目录路径不安全，拒绝写入。") from exc
                     copied_name = "history_" + uuid.uuid4().hex[:16] + asset_file.suffix.lower()
                     destination = reference_root / copied_name
-                    with destination.open("xb") as target:
-                        copied_paths.append(destination)
-                        with asset_file.open("rb") as source:
-                            shutil.copyfileobj(source, target)
+                    copy_digest = hashlib.sha256()
+                    with asset_file.open("rb") as source:
+                        with destination.open("xb") as target:
+                            copied_paths.append(destination)
+                            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                                copy_digest.update(chunk)
+                                target.write(chunk)
+                    if copy_digest.hexdigest() != expected_hash:
+                        raise StorageError(
+                            f"关联素材在复制过程中发生变化，请重新扫描并分析：{asset_file.name}"
+                        )
                     shutil.copystat(asset_file, destination)
                     image_names.append(copied_name)
                 verified_assets.append((str(asset_file), media_type, str(expected_hash), copied_name))
@@ -805,7 +874,7 @@ class Storage:
                     "model": str(row["model"] or ""),
                     "imported_at": now,
                     "source_prompt": {
-                        "path": str(Path(row["prompt_path"]).resolve()),
+                        "path": str(prompt_file),
                         "sha256": str(row["prompt_sha256"]),
                     },
                     "source_assets": [
@@ -834,7 +903,7 @@ class Storage:
                 """INSERT OR IGNORE INTO attachments
                    (asset_id,relative_path,media_type,role,sha256,created_at)
                    VALUES(?,?,?,?,?,?)""",
-                (asset_id, row["prompt_path"], "text", "source_prompt", row["prompt_sha256"], now),
+                (asset_id, str(prompt_file), "text", "source_prompt", row["prompt_sha256"], now),
             )
             con.execute(
                 "UPDATE ai_analyses SET status='approved',approved_asset_id=? WHERE id=?",

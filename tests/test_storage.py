@@ -11,6 +11,7 @@ import unittest
 from unittest import mock
 from pathlib import Path
 
+from collector import scan_folder
 from storage import Storage, StorageError
 
 
@@ -214,7 +215,7 @@ class StorageTests(unittest.TestCase):
         store = Storage(self.home)
         source_dir = self.home / "history"
         source_dir.mkdir()
-        store.register_scan_source(str(source_dir))
+        source_id = store.register_scan_source(str(source_dir))
         prompt_file = source_dir / "look.txt"
         image_front = source_dir / "look_front.png"
         image_back = source_dir / "look_back.png"
@@ -222,6 +223,7 @@ class StorageTests(unittest.TestCase):
         prompt_file.write_text(original_prompt, encoding="utf-8")
         image_front.write_bytes(b"front-image")
         image_back.write_bytes(b"back-image")
+        store.save_scan_results(source_id, scan_folder(source_dir))
         prompt_hash = hashlib.sha256(prompt_file.read_bytes()).hexdigest()
         asset_paths = [str(image_front), str(image_back)]
         asset_hashes = [hashlib.sha256(path.read_bytes()).hexdigest() for path in (image_front, image_back)]
@@ -291,6 +293,8 @@ class StorageTests(unittest.TestCase):
         image = source_dir / "front.png"
         prompt.write_text("  original prompt  ", encoding="utf-8")
         image.write_bytes(b"image bytes")
+        source_id = store.register_scan_source(str(source_dir))
+        store.save_scan_results(source_id, scan_folder(source_dir))
         prompt_hash = hashlib.sha256(prompt.read_bytes()).hexdigest()
         image_hash = hashlib.sha256(image.read_bytes()).hexdigest()
         analysis_id = store.save_ai_analysis(
@@ -324,6 +328,8 @@ class StorageTests(unittest.TestCase):
         image = source_dir / "front.png"
         prompt.write_text("prompt", encoding="utf-8")
         image.write_bytes(b"image bytes")
+        source_id = store.register_scan_source(str(source_dir))
+        store.save_scan_results(source_id, scan_folder(source_dir))
         prompt_hash = hashlib.sha256(prompt.read_bytes()).hexdigest()
         image_hash = hashlib.sha256(image.read_bytes()).hexdigest()
         analysis_id = store.save_ai_analysis(
@@ -344,6 +350,58 @@ class StorageTests(unittest.TestCase):
         with self.assertRaisesRegex(StorageError, "符号链接"):
             store.approve_ai_analysis(analysis_id)
         self.assertEqual(list(outside.iterdir()), [])
+        self.assertEqual(store.load_data()["cases"], [])
+
+    def test_ai_approval_rejects_prompt_changed_after_analysis(self):
+        store = Storage(self.home)
+        source_dir = self.home / "history"
+        source_dir.mkdir()
+        prompt = source_dir / "prompt.txt"
+        image = source_dir / "front.png"
+        prompt.write_text("original prompt", encoding="utf-8")
+        image.write_bytes(b"image bytes")
+        source_id = store.register_scan_source(str(source_dir))
+        store.save_scan_results(source_id, scan_folder(source_dir))
+        prompt_hash = hashlib.sha256(prompt.read_bytes()).hexdigest()
+        image_hash = hashlib.sha256(image.read_bytes()).hexdigest()
+        analysis_id = store.save_ai_analysis(
+            str(prompt), str(image), prompt_hash, image_hash, "test-model",
+            {
+                "prompt_text": "original prompt",
+                "asset_paths": [str(image)],
+                "asset_sha256s": [image_hash],
+            },
+        )
+        prompt.write_text("changed after analysis", encoding="utf-8")
+        with self.assertRaisesRegex(StorageError, "来源文件在分析后发生变化"):
+            store.approve_ai_analysis(analysis_id)
+        self.assertEqual(store.load_data()["cases"], [])
+        self.assertEqual(len(store.list_ai_analyses("review")), 1)
+
+    def test_ai_approval_rejects_asset_moved_outside_scan_source(self):
+        store = Storage(self.home)
+        source_dir = self.home / "history"
+        source_dir.mkdir()
+        prompt = source_dir / "prompt.txt"
+        image = source_dir / "front.png"
+        prompt.write_text("original prompt", encoding="utf-8")
+        image.write_bytes(b"image bytes")
+        source_id = store.register_scan_source(str(source_dir))
+        store.save_scan_results(source_id, scan_folder(source_dir))
+        prompt_hash = hashlib.sha256(prompt.read_bytes()).hexdigest()
+        image_hash = hashlib.sha256(image.read_bytes()).hexdigest()
+        analysis_id = store.save_ai_analysis(
+            str(prompt), str(image), prompt_hash, image_hash, "test-model",
+            {
+                "prompt_text": "original prompt",
+                "asset_paths": [str(image)],
+                "asset_sha256s": [image_hash],
+            },
+        )
+        outside = self.home / "outside.png"
+        image.rename(outside)
+        with self.assertRaisesRegex(StorageError, "来源文件已不存在"):
+            store.approve_ai_analysis(analysis_id)
         self.assertEqual(store.load_data()["cases"], [])
 
     def test_ai_analysis_can_be_rejected_without_import(self):
