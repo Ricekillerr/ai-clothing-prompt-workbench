@@ -93,13 +93,18 @@ def _query_attribute_groups(query):
 def _candidate_attribute_text(case):
     tags=_match_text(case.get("tags")); body=_match_text(case.get("body"))
     def vals(*keys): return _match_text([case.get(k) for k in keys])
+    outfit_items = case.get("outfit_items") if isinstance(case.get("outfit_items"), list) else []
+    item_text = _match_text(outfit_items)
+    item_values = lambda *keys: _match_text([
+        item.get(key) for item in outfit_items if isinstance(item, dict) for key in keys
+    ])
     return {
-        "category": vals("category","subcategory","silhouette","fit","name")+" "+tags,
-        "material": vals("material","fabric","texture","material_details")+" "+tags,
-        "color": vals("color","color_details")+" "+tags,
-        "details": vals("details","craftsmanship","features","subcategory","silhouette","fit")+" "+tags,
+        "category": vals("category","subcategory","silhouette","fit","name")+" "+item_values("category","subcategory","name","silhouette","fit")+" "+tags,
+        "material": vals("material","fabric","texture","material_details")+" "+item_values("material")+" "+tags,
+        "color": vals("color","color_details")+" "+item_values("color")+" "+tags,
+        "details": vals("details","craftsmanship","features","subcategory","silhouette","fit")+" "+item_values("details","subcategory","silhouette","fit")+" "+tags,
         "context": vals("model","scene","constraints","usage","notes")+" "+tags,
-        "all": _match_text(case)+" "+body+" "+tags,
+        "all": _match_text(case)+" "+body+" "+item_text+" "+tags,
     }
 def score_case_attributes(case,query):
     query=str(query or "").strip()
