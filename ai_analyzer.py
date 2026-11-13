@@ -10,11 +10,12 @@ import json
 import mimetypes
 from pathlib import Path
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
 MAX_TEXT_BYTES = 1_000_000
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
+MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 
 
 def _safe_endpoint(endpoint: str) -> str:
@@ -31,11 +32,28 @@ def _safe_endpoint(endpoint: str) -> str:
     return endpoint
 
 
+class _NoRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        # Do not forward a user-supplied API Key to a redirect target.
+        raise ValueError("AI 服务端点返回重定向，已阻止转发 API Key")
+
+
 def _read_text(path: Path) -> str:
-    raw = path.read_bytes()
+    with path.open("rb") as source:
+        raw = source.read(MAX_TEXT_BYTES + 1)
     if len(raw) > MAX_TEXT_BYTES:
         raise ValueError("提示词文件超过 1MB，暂不发送分析")
     return raw.decode("utf-8-sig", errors="replace")
+
+
+def _read_api_response(response) -> dict:
+    raw = response.read(MAX_RESPONSE_BYTES + 1)
+    if len(raw) > MAX_RESPONSE_BYTES:
+        raise ValueError("AI 服务响应超过 4MB，已停止读取")
+    result = json.loads(raw.decode("utf-8"))
+    if not isinstance(result, dict):
+        raise ValueError("AI 服务响应不是有效 JSON 对象")
+    return result
 
 
 def normalize_asset_roles(raw_roles, image_files: list[Path]) -> list[dict]:
@@ -191,7 +209,10 @@ def analyze_assets(prompt_path: str, asset_paths: list[str], api_key: str,
             total_image_bytes += size
             if total_image_bytes > 32 * 1024 * 1024:
                 raise ValueError("本次图片总量超过 32MB，请减少图片数量或压缩图片")
-            raw = asset_file.read_bytes()
+            with asset_file.open("rb") as source:
+                raw = source.read(MAX_IMAGE_BYTES + 1)
+            if len(raw) > MAX_IMAGE_BYTES:
+                raise ValueError(f"第 {index} 张图片超过 8MB，暂不发送分析")
             mime = mimetypes.guess_type(asset_file.name)[0] or "image/png"
             data_url = "data:" + mime + ";base64," + base64.b64encode(raw).decode("ascii")
             user_content.append({"type": "text", "text": f"关联图片 {index}：{asset_file.name}"})
@@ -221,8 +242,9 @@ def analyze_assets(prompt_path: str, asset_paths: list[str], api_key: str,
                  "User-Agent": "Prompt-Atelier/0.6"},
         method="POST",
     )
-    with urlopen(request, timeout=timeout) as response:
-        result = json.loads(response.read().decode("utf-8"))
+    opener = build_opener(_NoRedirectHandler())
+    with opener.open(request, timeout=timeout) as response:
+        result = _read_api_response(response)
     content = result["choices"][0]["message"]["content"]
     parsed = json.loads(content)
     if not isinstance(parsed, dict):
