@@ -565,8 +565,12 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
                 headers={"Content-Type": "application/json"} if body is not None else {},
                 method="POST" if body is not None else "GET",
             )
-            with urlopen(request, timeout=10) as response:
-                return json.loads(response.read().decode("utf-8"))
+            try:
+                with urlopen(request, timeout=10) as response:
+                    return json.loads(response.read().decode("utf-8"))
+            except HTTPError as error:
+                detail = error.read().decode("utf-8", errors="replace")
+                raise AssertionError(f"{path} returned HTTP {error.code}: {detail}") from error
 
         try:
             source = request_json("/api/scan/source", {"folder": str(source_dir), "recursive": True})
