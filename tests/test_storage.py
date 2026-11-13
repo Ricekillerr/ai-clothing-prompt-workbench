@@ -316,6 +316,7 @@ class StorageTests(unittest.TestCase):
         result = store.restore_full_backup(backup)
 
         self.assertTrue(result["ok"])
+        self.assertTrue((self.home / "backups" / result["safety_backup"]).is_file())
         self.assertEqual(result["cases"], 1)
         self.assertEqual(store.load_data()["cases"][0]["id"], "before")
         self.assertEqual(store.load_data()["cases"][0]["body"], "old prompt")
@@ -362,6 +363,7 @@ class StorageTests(unittest.TestCase):
                 target.writestr("backup_manifest.json", json.dumps(manifest))
         with self.assertRaisesRegex(StorageError, "不安全的文件路径"):
             store.restore_full_backup(malicious)
+        self.assertFalse((self.home / "escape.txt").exists())
         self.assertFalse((self.home.parent / "escape.txt").exists())
 
     def test_retrieval_feedback_is_local_bounded_and_aggregated(self):
