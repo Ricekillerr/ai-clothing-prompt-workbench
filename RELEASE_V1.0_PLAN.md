@@ -246,3 +246,9 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Expanded the Windows runner job beyond PowerShell syntax parsing: it now executes dedicated Windows runtime tests for the local HTTP server, version/data APIs, full ZIP backup, process restart/data persistence, verified updater installation, and injected mid-transaction failure rollback.
 - The updater now removes leftover `.update_tmp` and `.restore_tmp` files after a failed transaction rollback; the Windows regression test asserts cleanup as well as restoration of the original program files.
 - These are automated Windows-runner checks, not a substitute for testing on the user's own Windows installation. CI execution and any failures will be inspected before treating this gate as passed.
+
+
+## Implementation log — 2026-11-13 (Windows runner smoke tests executed)
+- Windows Server 2025 CI run 43359383841 executed all three new runtime smoke tests successfully: local API + full backup + restart/data preservation; verified update installation/backup; injected mid-transaction failure with original files restored and no leftover temp files.
+- The updater's rollback cleanup is now covered on Windows. The same run's cross-platform validation stopped only at the expected stale updater SHA-256 manifest gate; the updater hash has since been refreshed and the complete pipeline is being rerun.
+- These tests provide automated Windows runner evidence, but user-machine acceptance remains a separate final gate.
