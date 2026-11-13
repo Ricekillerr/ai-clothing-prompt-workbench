@@ -72,6 +72,46 @@ class FrontendSyntaxTests(unittest.TestCase):
         self.assertIn("服务器已确认恢复成功，但界面未能重新读取数据", restore)
         self.assertIn("if(!loaded)", restore)
 
+    def test_json_import_merge_is_additive_and_deduplicates_normalized_ids(self):
+        html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
+        self.assertIn("reader.onerror=()=>toast(", html)
+        self.assertIn('e.target.value="";if(file)importJSON(file)', html)
+        start = html.index("function mergeImportedAssets(")
+        end = html.index("function importJSON(f)", start)
+        helper = html[start:end]
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("Node.js is not installed in this environment")
+        script = html[html.index("function normalizeTags(value){"):html.index("function normalizeAssetRows(", html.index("function normalizeTags(value){"))] + helper + """
+const current = {
+  cases: [{id: " existing ", name: "Existing"}],
+  modules: [{id: "module-1", name: "Module"}]
+};
+const originalCases = current.cases.slice(), originalModules = current.modules.slice();
+const result = mergeImportedAssets({
+  cases: [
+    {id: "existing", name: "Duplicate existing"},
+    {id: "new-case", name: "New case", tags: "one, two", image: 12},
+    {id: "new-case", name: "Duplicate in batch"},
+    null,
+    {id: "   ", name: "Blank ID"}
+  ],
+  modules: [
+    {id: "new-case", name: "Cross-kind duplicate"},
+    {id: "new-module", name: "New module", tags: [" x ", null, "y"], image: "ref.png"},
+    {id: 42, name: "Numeric legacy ID"},
+    {id: {}, name: "Invalid ID type"}
+  ]
+}, current);
+if (result.added !== 3 || result.skipped !== 6) throw new Error("Unexpected additive import counts: " + JSON.stringify(result));
+if (result.data.cases.length !== 2 || result.data.modules.length !== 3) throw new Error("Cross-kind or in-batch duplicates were not skipped.");
+if (result.data.cases[1].id !== "new-case" || result.data.cases[1].tags.join("|") !== "one|two" || result.data.cases[1].image !== "") throw new Error("Imported case fields were not normalized.");
+if (result.data.modules[1].tags.join("|") !== "x|y" || result.data.modules[1].image !== "ref.png" || result.data.modules[2].id !== "42") throw new Error("Imported module fields were not normalized.");
+if (current.cases[0] !== originalCases[0] || current.modules[0] !== originalModules[0]) throw new Error("Merge must not mutate the current arrays before save.");
+"""
+        result = subprocess.run([node, "-e", script], capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
     def test_server_refresh_paths_share_legacy_data_normalization(self):
         html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
         for required in (

@@ -134,3 +134,9 @@
 - 问题：初始 load() 会把旧版字符串 tags 归一化为数组，并清理异常 image/timestamp 类型；但回收站恢复、历史版本恢复、AI 审核入库、生成结果刷新和超时写入协调会直接把 API 返回对象赋给 db，绕过归一化。旧数据可能在下一次 render 时因 tags.map/slice 不是函数而破坏页面交互。
 - 修复：提取 normalizeAssetRows()/normalizeAssetData()，让启动加载及所有服务器刷新路径共享同一数据结构边界；无效 payload 会被拒绝，而不是注入 UI。
 - 回归：Node 测试覆盖字符串/数组 tags、非法图片路径/时间字段、无效记录过滤及结构错误；静态断言检查所有刷新入口都调用统一函数。
+
+
+## 2026-11-13 JSON 导入合并边界
+- 问题：导入时现有 ID 集合未 trim；若旧资产 ID 带首尾空格，新导入的规范 ID 可能绕过前端去重，最终被存储层拒绝，整批导入回滚。原逻辑也未为 FileReader 设置 error/abort 反馈，且同一文件再次选择可能不触发 change。
+- 修复：抽取 mergeImportedAssets()，以 trim 后的 ID 集合跨 cases/modules 与整个导入批次去重；仅接受 string/number ID；先构建新数组，保存前不修改当前数据；保留重复/无效跳过计数。FileReader 增加错误/取消反馈，文件选择后立即重置 input，允许重复选择同一文件。
+- 回归：Node 行为测试覆盖旧 ID 空格、已有重复、同批重复、跨类别重复、空 ID、非法 ID 类型、标签/图片字段归一化以及不修改原数组。

@@ -530,25 +530,33 @@ async function downloadFullBackup(){
   toast("完整备份失败");
  }
 }
+function mergeImportedAssets(data,current){
+ if(!data||!Array.isArray(data.cases)||!Array.isArray(data.modules))throw new Error("JSON 格式不正确");
+ const ids=new Set([...current.cases,...current.modules].map(item=>String(item?.id??"").trim()).filter(Boolean));
+ const merged={cases:[...current.cases],modules:[...current.modules]};
+ let added=0,skipped=0;
+ for(const [source,target] of [[data.cases,merged.cases],[data.modules,merged.modules]]){
+  for(const item of source){
+   if(!item||typeof item!=="object"||Array.isArray(item)||(typeof item.id!=="string"&&typeof item.id!=="number")||String(item.id).trim()===""){skipped++;continue}
+   const id=String(item.id).trim();
+   if(ids.has(id)){skipped++;continue}
+   ids.add(id);target.push({...item,id,tags:normalizeTags(item.tags),image:typeof item.image==="string"?item.image:""});added++;
+  }
+ }
+ return {data:merged,added,skipped};
+}
 function importJSON(f){
  if(!f||f.size>25*1024*1024){toast("JSON 备份不能超过 25MB");return}
  const reader=new FileReader();
+ reader.onerror=()=>toast("JSON 文件读取失败，请检查文件是否可读后重试");
+ reader.onabort=()=>toast("JSON 导入已取消");
  reader.onload=async()=>{
   const previous=JSON.parse(JSON.stringify(db));
   try{
    const data=JSON.parse(reader.result);
-   if(!data||!Array.isArray(data.cases)||!Array.isArray(data.modules))throw new Error("JSON 格式不正确");
-   const ids=new Set([...db.cases,...db.modules].map(item=>String(item.id)));
-   let added=0,skipped=0;
-   for(const [source,target] of [[data.cases,db.cases],[data.modules,db.modules]]){
-    for(const item of source){
-     if(!item||typeof item!=="object"||Array.isArray(item)||item.id===undefined||item.id===null||String(item.id).trim()===""){skipped++;continue}
-     const id=String(item.id).trim();
-     if(ids.has(id)){skipped++;continue}
-     ids.add(id);target.push({...item,id,tags:normalizeTags(item.tags),image:typeof item.image==="string"?item.image:""});added++;
-    }
-   }
-   await save();render();toast("导入完成："+added+" 条新增，"+skipped+" 条重复或无效记录已跳过");
+   const merged=mergeImportedAssets(data,db);
+   db=merged.data;
+   await save();render();toast("导入完成："+merged.added+" 条新增，"+merged.skipped+" 条重复或无效记录已跳过");
   }catch(error){const outcome=await reconcileSaveFailure(error,()=>db=previous);if(outcome==="server")render();alert(saveFailureMessage("导入",outcome,error))}
  };
  reader.readAsText(f);
@@ -732,7 +740,7 @@ async function approveAiReview(id){try{const d=await scanApi("/api/ai/approve",{
 async function rejectAiReview(id){try{await scanApi("/api/ai/reject",{analysis_id:id});await loadAiReviews()}catch(e){$("scanStatus").textContent="拒绝操作失败："+e.message}}
 async function reviewScanFile(path,status){try{await scanApi("/api/scan/review",{path,status});await loadScanQueue()}catch(e){alert("审核操作失败："+e.message)}}
 
-document.querySelectorAll(".nav").forEach(n=>n.onclick=()=>{if(n.dataset.cat){filter=n.dataset.cat;page="gallery"}else if(n.dataset.page){page=n.dataset.page;filter="全部";if(page==="trash")deletedAssetsCache=null}render()});$("search").oninput=render;$("addBtn").onclick=()=>openEditor(page==="modules"?"module":"case");$("importBtn").onclick=()=>$("jsonPicker").click();$("exportBtn").onclick=exportJSON;$("updateBtn").onclick=()=>{page="settings";render();checkUpdate(true)};$("jsonPicker").onchange=e=>e.target.files[0]&&importJSON(e.target.files[0]);$("imagePicker").onchange=e=>e.target.files[0]&&uploadImage(e.target.files[0]);$("closeDetail").onclick=closeDetail;$("closeModal").onclick=closeEditor;$("detailOverlay").onclick=e=>{if(e.target===$("detailOverlay"))closeDetail()};$("editModal").onclick=e=>{if(e.target===$("editModal"))closeEditor()};
+document.querySelectorAll(".nav").forEach(n=>n.onclick=()=>{if(n.dataset.cat){filter=n.dataset.cat;page="gallery"}else if(n.dataset.page){page=n.dataset.page;filter="全部";if(page==="trash")deletedAssetsCache=null}render()});$("search").oninput=render;$("addBtn").onclick=()=>openEditor(page==="modules"?"module":"case");$("importBtn").onclick=()=>$("jsonPicker").click();$("exportBtn").onclick=exportJSON;$("updateBtn").onclick=()=>{page="settings";render();checkUpdate(true)};$("jsonPicker").onchange=e=>{const file=e.target.files?.[0];e.target.value="";if(file)importJSON(file)};$("imagePicker").onchange=e=>e.target.files[0]&&uploadImage(e.target.files[0]);$("closeDetail").onclick=closeDetail;$("closeModal").onclick=closeEditor;$("detailOverlay").onclick=e=>{if(e.target===$("detailOverlay"))closeDetail()};$("editModal").onclick=e=>{if(e.target===$("editModal"))closeEditor()};
 // Keep the local server alive only while this workbench page is open.
 let heartbeatTimer=null;
 async function sendWorkbenchHeartbeat(){
