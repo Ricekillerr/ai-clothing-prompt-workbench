@@ -345,6 +345,35 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(store.load_data()["cases"][0]["id"], "current")
         self.assertEqual((references / "current.png").read_bytes(), b"current-image")
 
+    def test_full_backup_restore_rejects_json_sqlite_payload_mismatch(self):
+        store = Storage(self.home)
+        references = self.home / "references"
+        references.mkdir(exist_ok=True)
+        store.save_data({"cases": [{"id": "trusted", "name": "Trusted", "body": "original"}],
+                         "modules": []})
+        good = store.create_full_backup(references, app_version="0.6.5")
+        malicious = self.home / "mismatched_payload_backup.zip"
+        with zipfile.ZipFile(good, "r") as source:
+            manifest = json.loads(source.read("backup_manifest.json").decode("utf-8"))
+            payloads = {info.filename: source.read(info.filename)
+                        for info in source.infolist()
+                        if info.filename != "backup_manifest.json"}
+        json_payload = json.loads(payloads["data/prompt_library.json"].decode("utf-8"))
+        json_payload["cases"][0]["body"] = "different but same record count"
+        payloads["data/prompt_library.json"] = json.dumps(
+            json_payload, ensure_ascii=False
+        ).encode("utf-8")
+        manifest["files"]["data/prompt_library.json"] = hashlib.sha256(
+            payloads["data/prompt_library.json"]
+        ).hexdigest()
+        with zipfile.ZipFile(malicious, "w", compression=zipfile.ZIP_DEFLATED) as target:
+            for name, payload in payloads.items():
+                target.writestr(name, payload)
+            target.writestr("backup_manifest.json", json.dumps(manifest))
+        with self.assertRaisesRegex(StorageError, "数据库与 JSON 内容不一致"):
+            store.restore_full_backup(malicious)
+        self.assertEqual(store.load_data()["cases"][0]["body"], "original")
+
     def test_full_backup_restore_rolls_back_mid_swap_failure(self):
         store = Storage(self.home)
         references = self.home / "references"
