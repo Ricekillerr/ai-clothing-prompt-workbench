@@ -419,3 +419,9 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Resolved the recent release-manifest synchronization issue by allowing each code change to finish its validation before refreshing the matching runtime hash manifest. The latest completed run 43374406500 passed all three jobs: 92 repository regression tests, six Windows Server 2025 runtime tests, all nine runtime SHA-256 checks, Python/frontend syntax checks, PowerShell parsing, and the release source/channel gate.
 - The Windows runtime suite includes the real BAT launch/close path, local API and backup/restore round-trip, clean installation, in-place update preserving database/references/settings, and updater failure rollback.
 - The branch remains a V1.0 candidate, not a production release. Personal Windows desktop/browser acceptance and real existing-data verification remain outstanding; no merge to `main` is authorized by this CI result.
+
+
+## Implementation log — 2026-11-13 (corrupt backup restore API regression)
+- Extended the Windows local-server end-to-end test to upload a deliberately corrupt ZIP through the actual `/api/backup/restore` HTTP endpoint after a successful restore.
+- The endpoint returns HTTP 400 for the invalid archive; the test then confirms the restored case and reference image remain intact. This verifies the HTTP upload/validation boundary, not only the storage method in isolation.
+- GitHub Actions run 43374919085 passed all 92 regression tests, all nine update manifest hashes, six Windows Server 2025 runtime tests, PowerShell parsing and the release source/channel gate.
