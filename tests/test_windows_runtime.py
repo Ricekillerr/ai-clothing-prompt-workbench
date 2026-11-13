@@ -290,6 +290,10 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
 
             with urlopen(base + "/api/update/auto", timeout=10) as response:
                 self.assertFalse(json.loads(response.read().decode("utf-8"))["enabled"])
+            with urlopen(base + "/api/settings/auto-update", timeout=10) as response:
+                self.assertFalse(json.loads(response.read().decode("utf-8"))["enabled"])
+            with urlopen(base + "/api/settings/auto-update", timeout=10) as response:
+                self.assertFalse(json.loads(response.read().decode("utf-8"))["enabled"])
             enable_request = Request(
                 base + "/api/update/auto",
                 data=json.dumps({"enabled": True}).encode("utf-8"),
@@ -299,6 +303,8 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
             with urlopen(enable_request, timeout=10) as response:
                 self.assertTrue(json.loads(response.read().decode("utf-8"))["enabled"])
             with urlopen(base + "/api/update/auto", timeout=10) as response:
+                self.assertTrue(json.loads(response.read().decode("utf-8"))["enabled"])
+            with urlopen(base + "/api/settings/auto-update", timeout=10) as response:
                 self.assertTrue(json.loads(response.read().decode("utf-8"))["enabled"])
             disable_request = Request(
                 base + "/api/update/auto",
