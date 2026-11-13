@@ -7,7 +7,9 @@
     "updater.py",
     "启动AI服装提示词工作台.bat",
     "storage.py",
-    "ai_analyzer.py"
+    "ai_analyzer.py",
+    "collector.py",
+    "case_matcher.py"
   ],
   "sha256": {
     "ai_prompt_workbench.py": "35a9535cb5f90f26c14315be30dd39389b6fa7133a1e121ed103a5b96c4faabe",
@@ -15,6 +17,8 @@
     "启动AI服装提示词工作台.bat": "a64c3ba2bba22c3758857cb138b5eb71d624763be555a25c0694853c96066f02",
     "index.html": "010fd570313b279198aa963ff60733225a867283e96f79aca90098639f06db04",
     "storage.py": "fe40d9eb2355a9282ec2ec82b3829fa9374d8b64492be18ee0e65740608ce65c",
-    "ai_analyzer.py": "f363e8544176d8a06dee8585e9e5638279dc5084312f969c91e2eb69b87d8d30"
+    "ai_analyzer.py": "f363e8544176d8a06dee8585e9e5638279dc5084312f969c91e2eb69b87d8d30",
+    "collector.py": "PENDING",
+    "case_matcher.py": "PENDING"
   }
 }
