@@ -1,17 +1,17 @@
 # Prompt Atelier — 当前状态
 
-**核对日期：** 2026-11-13  
+**核对日期：** 2026-11-13（本轮继续开发）  
 **仓库：** https://github.com/Ricekillerr/ai-clothing-prompt-workbench  
 **生产分支：** main（保持不动）  
 **开发分支：** release/v0.6.5-stabilization  
 **候选版本：** 0.6.5  
-**核对提交：** 21dca320e62c41e1069da0e94069ef7c07377b92  
+**核对提交：** 224613d4972ccd491355ceb8fb34efe1a2546b96  
 **状态：** V1.0 候选开发，不是正式发布。
 
 ## 最新 CI
-[GitHub Actions run 43377614481](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43377614481)：三个 job 全部成功。
-- 仓库回归测试：93 项运行，93 项通过，1 项按环境条件跳过。
-- Windows Server 2025 运行验收：6 项通过，包括真实 BAT 启动/关闭、API 与备份恢复、干净安装、原位更新保留用户数据、更新安装和失败回滚。
+[GitHub Actions run 43380232584](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43380232584)：三个 job 全部成功。
+- 仓库回归测试：96 项运行，95 项通过，1 项按环境条件跳过（Windows BAT 实机用例在非 Windows runner 跳过）。
+- Windows Server 2025 运行验收：9 项通过，包括真实 BAT 启动/关闭、API 与备份恢复、干净安装、原位更新保留用户数据、更新安装和失败回滚。
 - Python 编译、前端 JavaScript 语法、更新清单 SHA-256、PowerShell 解析、版本/更新通道门禁均通过。
 - 以上不等于用户本人 Windows 桌面、浏览器、杀毒软件、网络和现有真实资料验收。
 
@@ -28,6 +28,12 @@
 - 完整 ZIP 备份、更新前快照、恢复校验。
 - 更新清单完整性、事务式更新、失败回滚、授权式空闲自动更新。
 - AI API HTTPS 约束、重定向防护、输入输出大小与超时限制。
+
+## 本轮安全审计新增修复
+- 本地 HTTP API 新增 Host 白名单校验，只接受 127.0.0.1/localhost 且端口必须匹配当前服务，阻断 DNS rebinding Host 伪装。
+- 浏览器请求携带 Origin 时必须与本机 loopback 来源和当前端口匹配；跨来源请求返回 403。
+- JSON 写入接口只接受 application/json，拒绝简单表单 content-type；ZIP 恢复仍单独要求 application/zip。
+- 新增 3 项 Windows 本地 API 安全回归测试，分别覆盖恶意 Host、跨来源 JSON 写入、简单表单 content-type。
 
 ## 已知限制
 - 浏览器感知哈希检索只是粗略近重复/视觉结构候选，不是语义服装识别。
