@@ -241,6 +241,9 @@ class Handler(BaseHTTPRequestHandler):
                 name = uuid.uuid4().hex[:16] + ext; (IMAGES / name).write_bytes(content)
                 self.send_json(200, {"path": name})
             elif self.path == "/api/update/apply":
+                # Preserve a verified snapshot of the user's database and local
+                # reference images before any program update is staged or applied.
+                pre_update_backup = STORAGE.create_full_backup(IMAGES, app_version=APP_VERSION)
                 stage, latest = stage_update()
                 # Bootstrap from the verified staged updater. Older installs may not
                 # contain updater.py or the launcher yet; both are included in the
@@ -255,7 +258,7 @@ class Handler(BaseHTTPRequestHandler):
                 subprocess.Popen([sys.executable, str(updater), str(stage), str(ROOT), str(launcher)], cwd=str(ROOT),
                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                     creationflags=flags, close_fds=(sys.platform != "win32"))
-                self.send_json(200, {"ok": True, "message": f"已下载并校验 V{latest}，工作台即将关闭并自动更新。"})
+                self.send_json(200, {"ok": True, "message": f"已下载并校验 V{latest}；更新前完整备份已保存为 {pre_update_backup.name}。工作台即将关闭并自动更新。"})
                 threading.Timer(1.0, lambda: threading.Thread(target=self.server.shutdown, daemon=True).start()).start()
             else: self.send_json(404, {"ok": False, "error": "接口不存在"})
         except Exception as e: self.send_json(400, {"ok": False, "error": str(e)})
