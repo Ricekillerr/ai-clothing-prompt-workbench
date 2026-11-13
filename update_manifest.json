@@ -1,6 +1,6 @@
 {
-  "version": "0.5.2",
-  "notes": "Prompt Atelier V0.5.2 maintenance build: complete verified ZIP backup and pre-update snapshot; persistent 60-second folder auto-monitoring while the workbench is open; browser heartbeat lifecycle shutdown; multi-image AI case analysis for 1–8 images with hash-verified source provenance.",
+  "version": "0.6.5",
+  "notes": "Prompt Atelier V0.6.5 candidate: verified full ZIP backup and pre-update snapshot; persistent 60-second folder auto-monitoring while the workbench is open; browser heartbeat lifecycle shutdown; integrated analysis for 1–8 images with hash-verified source provenance; conservative structured material conflict detection.",
   "files": [
     "ai_prompt_workbench.py",
     "index.html",
