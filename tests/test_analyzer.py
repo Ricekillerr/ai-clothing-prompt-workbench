@@ -40,10 +40,13 @@ class AnalyzerMultiImageTests(unittest.TestCase):
                 def __exit__(self, *_):
                     return False
 
-                def read(self):
-                    return json.dumps(response_payload).encode("utf-8")
+                def read(self, limit=-1):
+                    payload = json.dumps(response_payload).encode("utf-8")
+                    return payload if limit < 0 else payload[:limit]
 
-            with patch("ai_analyzer.urlopen", return_value=FakeResponse()) as mocked:
+            with patch("ai_analyzer.build_opener") as build_opener:
+                mocked = build_opener.return_value.open
+                mocked.return_value.__enter__.return_value = FakeResponse()
                 result = analyze_assets(
                     str(prompt), [str(front), str(back)], "test-key",
                     endpoint="https://example.test/v1", model="test-model"
