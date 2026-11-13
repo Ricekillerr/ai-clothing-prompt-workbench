@@ -351,3 +351,9 @@ This branch is an isolated stabilization lane. It is not the production update c
 
 ## Implementation log — 2026-11-13 (automatic update polling cadence)
 - Tightened the opt-in automatic update polling interval from six hours to 15 minutes, while retaining the immediate startup check. The manifest request is lightweight; actual installation still occurs only when the user has explicitly enabled automatic updates and the update manifest/file hashes validate.
+
+
+## Implementation log — 2026-11-13 (safe idle-aware automatic updates)
+- Automatic update checks now poll every 15 minutes and immediately on startup. When automatic installation is authorized and a new version is available, installation waits for 15 minutes of continuous inactivity, requires the workbench to be visible/focused, then displays a 60-second countdown.
+- Pointer, keyboard, touch, and visibility activity reset the idle timer. The user can cancel the pending install; the next new version will be handled under the authorization rule. The app still creates a full pre-update backup and verifies every staged file before replacement.
+- This avoids interrupting an active editing session while preserving the opt-in no-manual-download workflow.
