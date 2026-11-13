@@ -172,3 +172,8 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 - Added an on-demand endpoint for retrieving one selected asset revision, avoiding loading every full prompt body into the history list.
 - The asset history panel now offers side-by-side display of the historical prompt and current prompt before restoration. The comparison is read-only; restore remains a separate explicit action and first snapshots the current state.
 - Added storage and integration regression tests for revision retrieval and comparison UI. The runtime manifest was refreshed for the three changed runtime files; full pipeline validation is in progress.
+
+
+## Implementation log — 2026-11-13 (prompt revision comparison validation)
+- GitHub Actions run 43357955322 passed all 67 regression tests, Python compilation, frontend JavaScript syntax, all 8 incremental-update file SHA-256 checks, Windows PowerShell parser validation, and release source/channel gate.
+- Prompt revision comparison is now part of the staging candidate. The comparison view is read-only; the separate restore action remains explicit and preserves the pre-restore state.
