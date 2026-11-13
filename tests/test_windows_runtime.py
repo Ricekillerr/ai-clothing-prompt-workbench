@@ -160,7 +160,7 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
                 self.assertIn("database/prompt_library.sqlite3", names)
                 self.assertIn("data/prompt_library.json", names)
                 self.assertIn("references/smoke-reference.png", names)
-                self.assertIn("manifest.json", names)
+                self.assertIn("backup_manifest.json", names)
                 self.assertTrue(archive.testzip() is None)
         finally:
             server.shutdown()
