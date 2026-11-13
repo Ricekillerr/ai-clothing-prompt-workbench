@@ -449,7 +449,8 @@ async function restoreFullBackup(file){
  if(!file||!file.name.toLowerCase().endsWith(".zip")){if(status)status.textContent="请选择完整 ZIP 备份文件";return}
  if(file.size>500*1024*1024){if(status)status.textContent="备份文件超过 500MB，无法恢复";return}
  if(!confirm("即将用此 ZIP 备份覆盖当前案例、模块和本地参考图片。恢复前系统会自动创建当前数据的安全备份。确定继续吗？"))return;
- if(status)status.textContent="正在上传并验证备份；文件较大时可能需要几分钟，请勿关闭工作台…";
+ if(status)status.textContent="正在完成待保存数据，再上传并验证备份；文件较大时可能需要几分钟，请勿关闭工作台…";
+ try{await save()}catch(error){if(status)status.textContent="恢复已取消：当前工作台有未确认保存的数据。请先检查数据连接后重试。"+error.message;toast("恢复已取消，未覆盖现有数据");return}
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),600000);
  try{
   const response=await fetch("/api/backup/restore",{method:"POST",headers:{"Content-Type":"application/zip"},body:file,signal:controller.signal});
@@ -466,8 +467,9 @@ async function restoreFullBackup(file){
 }
 async function downloadFullBackup(){
  const status=$("backupStatus");
- if(status)status.textContent="正在创建并校验数据库、JSON 和参考图片备份…";
+ if(status)status.textContent="正在保存最新修改并创建数据库、JSON 和参考图片备份…";
  try{
+  await save();
   const response=await fetch("/api/backup/full",{cache:"no-store"});
   if(!response.ok){
    let detail="服务器无法创建完整备份";
@@ -648,6 +650,7 @@ async function applyUpdate(automatic=false){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10*60*1000);
   let responseReceived=false;
   try{
+    await save();
     const r = await fetch("/api/update/apply",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}",signal:controller.signal});
     responseReceived=true;
     const d = await r.json();

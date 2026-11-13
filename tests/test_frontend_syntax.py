@@ -50,6 +50,15 @@ class FrontendSyntaxTests(unittest.TestCase):
         self.assertIn('if(!body.trim())return toast("先生成组合草稿")', html)
         self.assertIn('适用品类不匹配：', html)
 
+    def test_full_backup_restore_and_update_flush_pending_saves_first(self):
+        html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
+        restore = html.split("async function restoreFullBackup(file){", 1)[1].split("async function downloadFullBackup()", 1)[0]
+        backup = html.split("async function downloadFullBackup(){", 1)[1].split("function importJSON(f)", 1)[0]
+        update = html.split("async function applyUpdate(automatic=false){", 1)[1].split("async function scanApi(", 1)[0]
+        self.assertLess(restore.index("await save()"), restore.index('fetch("/api/backup/restore"'))
+        self.assertLess(backup.index("await save()"), backup.index('fetch("/api/backup/full"'))
+        self.assertLess(update.index("await save()"), update.index('fetch("/api/update/apply"'))
+
     def test_inline_javascript_parses_when_node_is_available(self):
         node = shutil.which("node")
         if not node:
