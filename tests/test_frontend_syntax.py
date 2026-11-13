@@ -314,6 +314,46 @@ async function fetch(url,options){
         result = subprocess.run([node, "-e", script], capture_output=True, text=True, check=False)
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
+    def test_recycle_restore_ui_sends_stale_snapshot_guard_and_recovers_button_on_error(self):
+        html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
+        restore = html.split("async function restoreDeletedAsset(assetId,revisionId,button){", 1)[1].split("function settings(){", 1)[0]
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("Node.js is not installed in this environment")
+        script = r"""
+let db={cases:[],modules:[]},deletedAssetsCache=[{asset_id:"old"}];
+const button={disabled:false,textContent:"恢复资产"};
+let toastMessage="",statsCalls=0,trashCalls=0,requestBody=null,fail=false;
+function confirm(){return true;}
+function normalizeAssetData(data){return data;}
+function stats(){statsCalls++;}
+function toast(message){toastMessage=message;}
+async function trashPage(){trashCalls++;}
+async function fetch(url,options){
+ if(url!=="/api/assets/revisions/restore"||options.method!=="POST")throw new Error("Unexpected restore request");
+ requestBody=JSON.parse(options.body);
+ return fail
+  ? {ok:false,json:async()=>({error:"stale recycle snapshot"})}
+  : {ok:true,json:async()=>({ok:true,data:{cases:[{id:"case-1",body:"restored"}],modules:[]}})};
+}
+"""
+        script += "async function restoreDeletedAsset(assetId,revisionId,button){" + restore + "\n"
+        script += r"""
+(async()=>{
+ await restoreDeletedAsset("case-1","deleted-revision",button);
+ if(requestBody.expected_absent!==true||requestBody.revision_id!=="deleted-revision")throw new Error("Recycle restore must require absent asset and exact deletion revision.");
+ if(db.cases[0].body!=="restored"||deletedAssetsCache!==null||statsCalls!==1||trashCalls!==1)throw new Error("Successful recycle restore must refresh data, stats and recycle list.");
+ if(!toastMessage.includes("资产已恢复"))throw new Error("Successful recycle restore must notify the user.");
+
+ fail=true;button.disabled=false;button.textContent="恢复资产";toastMessage="";
+ await restoreDeletedAsset("case-1","stale-revision",button);
+ if(!button.disabled===false)throw new Error("Failed restore should leave the button enabled.");
+ if(button.textContent!=="恢复资产"||!toastMessage.includes("stale recycle snapshot"))throw new Error("Failed restore must restore button state and show the server error.");
+})().catch(error=>{console.error(error);process.exit(1);});
+"""
+        result = subprocess.run([node, "-e", script], capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
     def test_inline_javascript_parses_when_node_is_available(self):
         node = shutil.which("node")
         if not node:
