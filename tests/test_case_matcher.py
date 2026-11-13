@@ -108,6 +108,16 @@ class CaseMatcherTests(unittest.TestCase):
         results = rank_case_matches([case], "深灰灯芯绒微喇裤", threshold=0.8)
         self.assertEqual(len(results), 1)
 
+    def test_full_outfit_color_and_material_conflicts_use_item_breakdown(self):
+        case = dict(
+            self.case, category="整套搭配", color="黑色", material="尼龙",
+            outfit_items=[
+                {"category": "上装", "name": "黑色马甲", "color": "黑色", "material": "尼龙"},
+                {"category": "下装", "name": "深灰灯芯绒裤", "color": "深灰", "material": "灯芯绒"},
+            ],
+        )
+        self.assertEqual(find_case_conflicts(case, "深灰灯芯绒裤"), [])
+
     def test_full_outfit_without_breakdown_is_not_assumed_to_miss_an_item(self):
         case = dict(self.case, category="整套搭配", subcategory="冬季穿搭")
         self.assertEqual(find_case_conflicts(case, "黑色立领无袖马甲"), [])

@@ -165,7 +165,7 @@ _EXCLUSIVE_CATEGORIES = {
     "accessory": ("配饰", "腰带", "帽子", "围巾", "包", "戒指", "眼镜", "手表",
                   "belt", "hat", "scarf", "bag", "ring", "glasses", "watch"),
     "onepiece": ("连体装", "连体裤", "连衣裙", "dress", "jumpsuit", "romper"),
-    "full_outfit": ("整套搭配", "全套穿搭", "整套服装", "full outfit", "outfit"),
+    "full_outfit": ("整套搭配", "全套穿搭", "整套服装", "full outfit"),
 }
 _MIXTURE_MARKERS = ("混纺", "混合", "拼接", "复合", "blend", "mixed", "mix")
 
@@ -226,7 +226,10 @@ def find_case_conflicts(case, query):
             })
 
     requested_colors = _color_values(query)
-    stored_colors = _color_values(_match_text([case.get("color"), case.get("color_details")]))
+    stored_colors = _color_values(_match_text([
+        case.get("color"), case.get("color_details"),
+        [item.get("color") for item in outfit_items if isinstance(item, dict)],
+    ]))
     if len(requested_colors) == 1 and len(stored_colors) == 1:
         wanted, actual = next(iter(requested_colors)), next(iter(stored_colors))
         if wanted != actual:
@@ -239,6 +242,7 @@ def find_case_conflicts(case, query):
     stored_material_text = _match_text([
         case.get("material"), case.get("fabric"), case.get("texture"),
         case.get("material_details"),
+        [item.get("material") for item in outfit_items if isinstance(item, dict)],
     ]).casefold()
     requested_materials = _exclusive_values(query_text, _EXCLUSIVE_MATERIALS)
     stored_materials = _exclusive_values(stored_material_text, _EXCLUSIVE_MATERIALS)
