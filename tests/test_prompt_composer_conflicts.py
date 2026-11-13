@@ -39,30 +39,57 @@ if (manual.source_snapshot_available !== false || manual.preflight !== "not_gene
         result = subprocess.run(["node", "-e", script], capture_output=True, text=True, check=False)
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
-    def test_composer_reads_only_selected_module_checkboxes_not_output_options(self):
+    def test_composer_generates_from_module_selection_without_treating_options_as_modules(self):
         root = Path(__file__).resolve().parents[1]
         html = (root / "index.html").read_text(encoding="utf-8")
         compose = html.split("function composeNow(){", 1)[1].split("function saveDraft(){", 1)[0]
         self.assertIn(".compose .pane:first-child input[type=checkbox]:checked", compose)
         self.assertNotIn("#content input[type=checkbox]:checked", compose)
+        find_conflicts = html.split("function findComposeConflicts(base,mods){", 1)[1].split("function modelPromptGuide(model){", 1)[0]
+        model_guide = html.split("function modelPromptGuide(model){", 1)[1].split("function buildCaseReferenceGuide(base){", 1)[0]
+        reference_guide = html.split("function buildCaseReferenceGuide(base){", 1)[1].split("function buildCompositionSnapshot(", 1)[0]
+        snapshot = html.split("function buildCompositionSnapshot(", 1)[1].split("function compositionForDraft(", 1)[0]
         node = shutil.which("node")
         if not node:
             self.skipTest("Node.js is not installed in this environment")
         script = r"""
-const selected = [
-  {value: "module-1", checked: true, parent: "left"},
-  {value: "on", checked: true, parent: "right"}
-];
+function $(id) { return elements[id]; }
+const base = {id:"base-1",name:"Base jacket",model:"WAN 3.0",category:"上装",body:"BASE PROMPT",updated_at:"v1"};
+const chosenModule = {id:"module-1",name:"Jacket fabric",model:"通用",category_scope:"上装",body:"SELECTED MODULE BODY",updated_at:"m1"};
+const accidental = {id:"on",name:"Must not be included",model:"通用",category_scope:"上装",body:"ACCIDENTAL OPTION BODY"};
+const db = {cases:[base],modules:[chosenModule,accidental]};
+let lastCompositionSnapshot = null;
+const moduleChecks = [{value:"module-1",checked:true},{value:"on",checked:false}];
+const rightPaneOptions = [{value:"on",checked:true},{value:"on",checked:true},{value:"on",checked:true}];
+const elements = {
+  base:{value:"base-1"},
+  composeWarnings:{style:{},textContent:""},
+  includeStructureGuide:{checked:true},
+  includeModelGuide:{checked:true},
+  includeBilingual:{checked:false},
+  output:{value:""}
+};
 const document = {
   querySelectorAll(selector) {
-    if (selector !== ".compose .pane:first-child input[type=checkbox]:checked") {
-      throw new Error("Unexpected checkbox scope: " + selector);
-    }
-    return selected.filter(x => x.checked && x.parent === "left");
+    if (selector === ".compose .pane:first-child input[type=checkbox]:checked") return moduleChecks.filter(x=>x.checked);
+    if (selector === "#content input[type=checkbox]:checked") return [...moduleChecks,...rightPaneOptions].filter(x=>x.checked);
+    throw new Error("Unexpected selector: "+selector);
   }
 };
-const ids = [...document.querySelectorAll(".compose .pane:first-child input[type=checkbox]:checked")].map(x => x.value);
-if (ids.length !== 1 || ids[0] !== "module-1") throw new Error("Composer must only include selected module checkboxes.");
+function toast(message) { throw new Error("Unexpected toast: "+message); }
+"""
+        script += "function findComposeConflicts(base,mods){" + find_conflicts + "\n"
+        script += "function modelPromptGuide(model){" + model_guide + "\n"
+        script += "function buildCaseReferenceGuide(base){" + reference_guide + "\n"
+        script += "function buildCompositionSnapshot(" + snapshot + "\n"
+        script += "function composeNow(){" + compose + "\n"
+        script += r"""
+composeNow();
+if (!elements.output.value.includes("SELECTED MODULE BODY")) throw new Error("Selected module body was not composed.");
+if (elements.output.value.includes("ACCIDENTAL OPTION BODY")) throw new Error("A non-module checkbox was treated as a module.");
+if (!lastCompositionSnapshot || lastCompositionSnapshot.composition.module_ids.join(",") !== "module-1") throw new Error("Composition snapshot must contain only the selected module.");
+if (!elements.output.value.includes("BASE PROMPT")) throw new Error("Base prompt was not retained.");
+if (!elements.output.value.includes("模型适配提醒")) throw new Error("Selected structure/model options should be reflected in output.");
 """
         result = subprocess.run([node, "-e", script], capture_output=True, text=True, check=False)
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
