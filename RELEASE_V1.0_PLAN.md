@@ -31,7 +31,7 @@ This branch is an isolated stabilization lane. It is not the production update c
 ## Current status — refreshed 2026-11-13
 
 - Development remains isolated on `release/v0.6.5-stabilization`; `main` and the production update channel have not been changed.
-- Latest GitHub Actions run 43363814316 passed 89 regression tests, Python compilation, frontend JavaScript syntax, all 8 update-manifest SHA-256 checks, six Windows Server 2025 runtime acceptance tests, PowerShell parser validation, and release source/channel gate.
+- Latest GitHub Actions run 43364132866 passed 89 regression tests, Python compilation, frontend JavaScript syntax, all 8 update-manifest SHA-256 checks, six Windows Server 2025 runtime acceptance tests, PowerShell parser validation, and release source/channel gate.
 - Implemented in this candidate: local full backup and pre-update snapshot; source provenance; folder auto-scan and human-reviewed AI ingestion; structured outfit decomposition and garment-level retrieval; reference-image role/priority metadata with manual correction; local perceptual-hash image shortlist; reference-aware prompt composition; bilingual prompt storage/output; revision comparison/restore; retrieval feedback analytics; serialized saves, request timeouts and privacy-safe diagnostics.
 - Important limitations still tracked: browser perceptual hashing is a coarse visual shortlist, not semantic same-garment recognition; English versions are stored/reused but not automatically translated; reference numbering must be manually mapped to the original prompt's @image identifiers.
 - Remaining V1.0 work: complete model-specific guidance and evaluation, broader visual retrieval validation, security/functional audit, clean-install and in-place-update verification, and native Windows launch/close/restart/backup/update/rollback/data-preservation acceptance.
@@ -394,3 +394,8 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Extended the Windows local-server test to verify automatic-update authorization defaults to disabled, can be enabled and disabled through the local API, and persists across reads.
 - Added a persistent per-version skip check: the API records the skipped release, returns it on subsequent reads, and clears it when requested. This prevents a canceled version from repeatedly reappearing in the auto-install countdown.
 - GitHub Actions run 43363814316 passed 89 regression tests and all six Windows Server 2025 runtime acceptance tests, including clean install, in-place user-data preservation, launcher lifecycle, backup/restore, update install and rollback.
+
+
+## Implementation log — 2026-11-13 (truthful update-startup failure handling)
+- The update-start request now has a bounded 10-minute timeout to allow large local backups and downloads. If the HTTP response is lost after the server may have launched the updater, the UI reports that the installation state is unconfirmed and warns against duplicate launches instead of falsely reporting a definite failure.
+- The regression suite guards the ambiguous-response wording and timeout. GitHub Actions run 43364132866 passed 89 regression tests, all 8 update hashes, six Windows Server 2025 runtime tests, PowerShell syntax validation and release source/channel gate.
