@@ -258,7 +258,10 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/scan/matches": self.send_json(200, {"matches": rank_matches(STORAGE.list_pending_ingest())})
         elif path == "/api/ai/reviews": self.send_json(200, {"reviews": STORAGE.list_ai_analyses("review")})
         elif path == "/api/update/auto":
-            self.send_json(200, {"enabled": auto_update_is_enabled()})
+            self.send_json(200, {
+                "enabled": auto_update_is_enabled(),
+                "skipped_version": STORAGE.get_setting("auto_update_skipped_version", "") or "",
+            })
         elif path == "/api/update/check":
             try: self.send_json(200, check_remote_update())
             except Exception as e: self.send_json(200, {"ok": False, "current_version": APP_VERSION, "error": str(e)})
@@ -409,6 +412,10 @@ class Handler(BaseHTTPRequestHandler):
                 enabled = bool(d.get("enabled", False))
                 STORAGE.set_setting("auto_update_enabled", "1" if enabled else "0")
                 self.send_json(200, {"ok": True, "enabled": enabled})
+            elif self.path == "/api/update/auto/skip":
+                version = str(d.get("version", "")).strip()[:40]
+                STORAGE.set_setting("auto_update_skipped_version", version)
+                self.send_json(200, {"ok": True, "skipped_version": version})
             elif self.path == "/api/update/apply":
                 # Preserve a verified snapshot of the user's database and local
                 # reference images before any program update is staged or applied.
