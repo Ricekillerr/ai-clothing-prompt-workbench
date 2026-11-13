@@ -61,6 +61,15 @@ def normalize_asset_roles(raw_roles, image_files: list[Path]) -> list[dict]:
             "asset_path": str(image_file),
             "role": value,
             "role_label": str(role.get("role_label") or ("待人工确认" if value == "unknown" else value))[:40],
+            "priority": str(role.get("priority") or (
+                "primary" if value in {"overall", "front", "back"} else
+                "secondary" if value in {"detail", "fabric"} else "supporting"
+            )).strip().lower() if str(role.get("priority") or "").strip().lower() in {"primary", "secondary", "supporting"} else (
+                "primary" if value in {"overall", "front", "back"} else
+                "secondary" if value in {"detail", "fabric"} else "supporting"
+            ),
+            "governs": [str(item)[:40] for item in role.get("governs", [])[:6] if str(item).strip()]
+                if isinstance(role.get("governs"), list) else [],
             "observation": str(role.get("observation") or "未提供可靠的单图观察")[:500],
         })
     return normalized
@@ -155,7 +164,8 @@ def analyze_assets(prompt_path: str, asset_paths: list[str], api_key: str,
         "asset_observations（综合素材可见特征；无法读取时明确写无法判断）、"
         "asset_roles（数组，必须与输入图片顺序和数量完全一致；每项包含 asset_index 从1开始、"
         "role 只能为 overall/front/back/detail/fabric/label/scene/other/unknown、"
-        "role_label 中文用途标签、observation 该图可见内容；不能确定时 role=unknown）、"
+        "role_label 中文用途标签、priority 只能为 primary/secondary/supporting、governs 受该图约束的属性数组、"
+        "observation 该图可见内容；不能确定时 role=unknown）、"
         "outfit_items（数组，每件可见服装/鞋/配饰一项；字段 category 仅可为上装/下装/鞋履/配饰/连体装/其他，"
         "subcategory、name、color、material、silhouette、fit、details 字符串数组、evidence 可见证据、confidence 0到1）、"
         "outfit_relations（数组，字段 source_item 和 target_item 为 outfit_items 从1开始的序号，"
