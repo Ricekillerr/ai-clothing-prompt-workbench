@@ -874,7 +874,7 @@ class Storage:
         """
         from datetime import datetime, timezone
 
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
         backup_dir = self.home / "backups"
         backup_dir.mkdir(parents=True, exist_ok=True)
         target = backup_dir / f"PromptAtelier_full_backup_{stamp}.zip"
