@@ -260,8 +260,25 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             n = int(self.headers.get("Content-Length", "0"))
-            if n > 25 * 1024 * 1024: raise ValueError("请求内容过大")
-            d = json.loads(self.rfile.read(n).decode("utf-8") or "{}")
+            max_request = 500 * 1024 * 1024 if self.path == "/api/backup/restore" else 25 * 1024 * 1024
+            if n <= 0 or n > max_request: raise ValueError("请求内容为空或超过大小限制")
+            raw_body = self.rfile.read(n)
+            if self.path == "/api/backup/restore":
+                if "application/zip" not in self.headers.get("Content-Type", "").lower():
+                    raise ValueError("恢复文件必须是 ZIP 格式")
+                temp_path = None
+                try:
+                    with tempfile.NamedTemporaryFile(prefix="restore_upload_", suffix=".zip",
+                                                     dir=str(HOME), delete=False) as temp_file:
+                        temp_file.write(raw_body)
+                        temp_path = Path(temp_file.name)
+                    result = STORAGE.restore_full_backup(temp_path)
+                    self.send_json(200, result)
+                finally:
+                    if temp_path and temp_path.exists():
+                        temp_path.unlink()
+                return
+            d = json.loads(raw_body.decode("utf-8") or "{}")
             if self.path == "/api/data":
                 if not isinstance(d, dict): raise ValueError("数据格式不正确")
                 d.setdefault("cases", []); d.setdefault("modules", []); save_data(d)
