@@ -86,6 +86,12 @@ class V065IntegrationTests(unittest.TestCase):
         self.assertIn("normalize_asset_roles", (self.root / "ai_analyzer.py").read_text(encoding="utf-8"))
         self.assertIn("参考图片自动分类", html)
         self.assertIn("图片分类：", html)
+        import json
+        manifest = json.loads((self.root / "update_manifest.json").read_text(encoding="utf-8"))
+        self.assertIn("collector.py", manifest["files"])
+        self.assertIn("case_matcher.py", manifest["files"])
+        self.assertIn("collector.py", manifest["sha256"])
+        self.assertIn("case_matcher.py", manifest["sha256"])
         self.assertIn("整套穿搭拆解（AI 识别，需人工核实）", html)
         self.assertIn("outfit_items", (self.root / "storage.py").read_text(encoding="utf-8"))
         self.assertIn("outfit_relations", (self.root / "storage.py").read_text(encoding="utf-8"))
