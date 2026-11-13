@@ -6,6 +6,7 @@ import sqlite3
 import tempfile
 import zipfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from storage import Storage, StorageError
@@ -343,6 +344,36 @@ class StorageTests(unittest.TestCase):
             store.restore_full_backup(corrupt)
         self.assertEqual(store.load_data()["cases"][0]["id"], "current")
         self.assertEqual((references / "current.png").read_bytes(), b"current-image")
+
+    def test_full_backup_restore_rolls_back_mid_swap_failure(self):
+        store = Storage(self.home)
+        references = self.home / "references"
+        references.mkdir(exist_ok=True)
+        (references / "original.png").write_bytes(b"original-reference")
+        store.save_data({"cases": [{"id": "original", "name": "Original", "body": "original prompt"}],
+                         "modules": []})
+        backup = store.create_full_backup(references, app_version="0.6.5")
+
+        store.save_data({"cases": [{"id": "current", "name": "Current", "body": "current prompt"}],
+                         "modules": []})
+        (references / "current.png").write_bytes(b"current-reference")
+        real_replace = __import__("os").replace
+        calls = {"count": 0}
+
+        def fail_on_json_swap(src, dst):
+            calls["count"] += 1
+            if calls["count"] == 4:
+                raise OSError("injected JSON replacement failure")
+            return real_replace(src, dst)
+
+        with mock.patch("storage.os.replace", side_effect=fail_on_json_swap):
+            with self.assertRaisesRegex(StorageError, "已尝试回滚"):
+                store.restore_full_backup(backup)
+
+        self.assertEqual(store.load_data()["cases"][0]["id"], "current")
+        self.assertTrue((references / "current.png").is_file())
+        self.assertFalse((references / "original.png").exists())
+        self.assertEqual((references / "current.png").read_bytes(), b"current-reference")
 
     def test_full_backup_restore_rejects_zip_path_traversal(self):
         store = Storage(self.home)
