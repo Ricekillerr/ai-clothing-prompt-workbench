@@ -224,3 +224,9 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Added optional composer guidance profiles for WAN 3.0, MiniMax H3, and Seedance 2.5. WAN guidance emphasizes source-video identity/action/camera/background locking and localized garment edits; H3 guidance emphasizes chronological action progression and concise constraints; Seedance guidance emphasizes reference-role separation and cross-frame continuity.
 - RunningHub is explicitly described as a hosting/runtime platform, not a video model; the composer asks the user to identify the actual model before applying model-specific constraints.
 - Guidance is labelled as general workbench advice, not official vendor parameters or a guarantee. Added Seedance to the selectable model list and integration regression guards. Manifest hash refresh and full CI validation are in progress.
+
+
+## Implementation log — 2026-11-13 (curated retrieval benchmark)
+- Added a labelled garment retrieval benchmark covering a black nylon vest, dark-grey corduroy flared trousers, navy wool outerwear, and a brown leather jacket, plus a conflicting red/cashmere outerwear query.
+- The benchmark checks that each positive natural-language query returns its expected verified case at or above the configured 80% ranking threshold, while the conflicting negative query returns no candidate.
+- GitHub Actions run 43358913984 passed all 70 regression tests, Python compilation, frontend JavaScript syntax, all 8 update-file hashes, Windows PowerShell parser validation, and release source/channel gate.
