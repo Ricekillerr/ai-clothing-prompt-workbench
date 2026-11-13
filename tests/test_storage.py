@@ -215,6 +215,18 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(len(cases), 1)
         self.assertEqual(cases[0]["id"], asset_id)
         self.assertEqual(cases[0]["body"], "保持人物不变，仅替换服装")
+        provenance = cases[0]["provenance"]
+        self.assertEqual(provenance["type"], "ai_history_import")
+        self.assertEqual(provenance["analysis_id"], analysis_id)
+        self.assertEqual(provenance["model"], "test-model")
+        self.assertEqual(provenance["source_prompt"]["path"], str(prompt_file.resolve()))
+        self.assertEqual(provenance["source_prompt"]["sha256"], prompt_hash)
+        self.assertEqual(len(provenance["source_assets"]), 2)
+        self.assertEqual(
+            [x["sha256"] for x in provenance["source_assets"]], asset_hashes
+        )
+        self.assertTrue(all(Path(x["path"]).is_file()
+                            for x in provenance["source_assets"]))
         self.assertEqual(len(cases[0]["images"]), 2)
         self.assertTrue(all((self.home / "references" / name).is_file() for name in cases[0]["images"]))
         self.assertEqual(store.list_ai_analyses("review"), [])
