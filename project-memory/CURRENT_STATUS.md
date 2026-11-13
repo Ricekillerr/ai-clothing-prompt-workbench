@@ -5,13 +5,13 @@
 **生产分支：** main（保持不动）  
 **开发分支：** release/v0.6.5-stabilization  
 **候选版本：** 0.6.5  
-**最近代码提交：** 19d473321d9e05036857bbb491cbb98b82ccad1f  
+**最近代码提交：** 6bd11f690d49179edea2e329fe3f8109ec21b575  
 **状态：** V1.0 候选开发；不是正式发布。
 
 ## 最新 CI
-[GitHub Actions run 43408135765](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43408135765)：三个 job 全部成功。主回归 147 项（146 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
+[GitHub Actions run 43408370657](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43408370657)：三个 job 全部成功。主回归 148 项（147 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
+[GitHub Actions run 43408135765](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43408135765)：三个 job 全部成功。主回归 147 项（146 通过、1 项环境跳过），Windows 专项 22 项通过。
 [GitHub Actions run 43407891453](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43407891453)：三个 job 全部成功。主回归 146 项（145 通过、1 项环境跳过），Windows 专项 22 项通过。
-[GitHub Actions run 43406916601](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43406916601)：三个 job 全部成功。主回归 145 项（144 通过、1 项环境跳过），Windows 专项 22 项通过。
 CI 证明隔离环境中的代码和测试通过，不等于用户本人 Windows 桌面、现有真实资料、杀毒软件和网络环境已验收。
 
 ## 已实现/已集成的候选能力
