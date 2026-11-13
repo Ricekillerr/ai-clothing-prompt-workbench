@@ -85,6 +85,9 @@ class V065IntegrationTests(unittest.TestCase):
         self.assertIn("base_case_id", html)
         self.assertIn("module_ids", html)
         self.assertIn("组合来源记录", html)
+        self.assertIn("原始来源与溯源记录", html)
+        self.assertIn("source_prompt", (self.root / "storage.py").read_text(encoding="utf-8"))
+        self.assertIn("source_assets", (self.root / "storage.py").read_text(encoding="utf-8"))
         self.assertIn("f_composition", html)
         self.assertIn("JSON.parse($(\"f_composition\")", html)
 
