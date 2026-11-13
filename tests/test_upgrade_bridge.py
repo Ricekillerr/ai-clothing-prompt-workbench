@@ -101,6 +101,10 @@ class V065IntegrationTests(unittest.TestCase):
         self.assertIn("moduleApplyBulkTagBtn", html)
         self.assertIn("moduleDeleteBulkBtn", html)
         self.assertIn("selectedModuleIds", html)
+        self.assertIn("[\"sku\",\"商品款号 / SKU\"]", html)
+        self.assertIn("\"name\",\"sku\",\"category\"", html)
+        self.assertIn("x.sku,x.style_number,x.product_code", html)
+        self.assertIn("m.case.sku||m.case.style_number||m.case.product_code", html)
         self.assertIn("if(!response.ok||result.ok===false)", html)
 
     def test_legacy_json_is_migrated_without_replacing_source(self):
