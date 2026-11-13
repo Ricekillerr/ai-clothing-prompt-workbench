@@ -31,7 +31,7 @@ This branch is an isolated stabilization lane. It is not the production update c
 ## Current status — refreshed 2026-11-13
 
 - Development remains isolated on `release/v0.6.5-stabilization`; `main` and the production update channel have not been changed.
-- Latest GitHub Actions run 43373903954 passed 92 regression tests, Python compilation, frontend JavaScript syntax, all 9 update-manifest SHA-256 checks, six Windows Server 2025 runtime acceptance tests, PowerShell parser validation, and release source/channel gate.
+- Latest GitHub Actions run 43374406500 passed 92 regression tests, Python compilation, frontend JavaScript syntax, all 9 update-manifest SHA-256 checks, six Windows Server 2025 runtime acceptance tests, PowerShell parser validation, and release source/channel gate.
 - Implemented in this candidate: local full backup and pre-update snapshot; source provenance; folder auto-scan and human-reviewed AI ingestion; structured outfit decomposition and garment-level retrieval; reference-image role/priority metadata with manual correction; local perceptual-hash image shortlist; reference-aware prompt composition; bilingual prompt storage/output; revision comparison/restore; retrieval feedback analytics; serialized saves, request timeouts and privacy-safe diagnostics.
 - Important limitations still tracked: browser perceptual hashing is a coarse visual shortlist, not semantic same-garment recognition; English versions are stored/reused but not automatically translated; reference numbering must be manually mapped to the original prompt's @image identifiers.
 - Additional candidate hardening now includes transactional generation outcome recording with revision history and local success/failure analytics; reconciliation of ambiguous feedback-write timeouts; startup/scheduled update checks; explicit local authorization, inactivity/visibility gating, countdown and cancellation for automatic installs; and update-request ambiguity handling.
@@ -413,3 +413,9 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Refreshed the analyzer SHA-256 entry in the candidate update manifest after confirming all nine allowlisted runtime files match.
 - GitHub Actions run 43373903954 passed 92 regression tests, all 9 update-manifest SHA-256 checks, six Windows Server 2025 runtime tests (including clean install, in-place update preserving database/references/local settings, real BAT start/close, backup/restart, and updater rollback), PowerShell syntax validation, and the release source/channel gate.
 - The Windows tests validate an isolated Windows Server 2025 runner, not the user's own desktop or existing local dataset. The candidate remains isolated from `main` and is not yet a production V1.0 release.
+
+
+## Implementation log — 2026-11-13 (serialized candidate synchronization)
+- Resolved the recent release-manifest synchronization issue by allowing each code change to finish its validation before refreshing the matching runtime hash manifest. The latest completed run 43374406500 passed all three jobs: 92 repository regression tests, six Windows Server 2025 runtime tests, all nine runtime SHA-256 checks, Python/frontend syntax checks, PowerShell parsing, and the release source/channel gate.
+- The Windows runtime suite includes the real BAT launch/close path, local API and backup/restore round-trip, clean installation, in-place update preserving database/references/settings, and updater failure rollback.
+- The branch remains a V1.0 candidate, not a production release. Personal Windows desktop/browser acceptance and real existing-data verification remain outstanding; no merge to `main` is authorized by this CI result.
