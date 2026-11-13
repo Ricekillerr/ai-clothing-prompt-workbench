@@ -235,3 +235,8 @@ This branch is an isolated stabilization lane. It is not the production update c
 ## Implementation log — 2026-11-13 (platform/model compatibility correction)
 - Corrected prompt-composition compatibility checks so RunningHub is treated as a hosting platform rather than a concrete model. A base case labelled RunningHub can now be composed with a module targeting WAN 3.0 or another actual model without a false incompatibility warning.
 - Added a regression guard for the platform/model distinction. Runtime hash refresh and CI revalidation are pending.
+
+
+## Implementation log — 2026-11-13 (AI endpoint transport security)
+- AI analysis now rejects plain HTTP endpoints for non-loopback hosts, requiring HTTPS before sending the API Key. Plain HTTP remains available for localhost/127.0.0.1/::1 development services.
+- Added tests for allowed loopback HTTP and rejected remote HTTP endpoints. This reduces the risk of transmitting provider credentials in cleartext on a network; the updated analyzer hash and full test suite are being revalidated.
