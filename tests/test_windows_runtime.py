@@ -59,6 +59,71 @@ class WindowsUpdaterTransactionTests(unittest.TestCase):
             launch.assert_called_once()
             self.assertFalse(stage.exists())
 
+    def test_in_place_update_preserves_user_database_references_and_local_settings(self):
+        import updater
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "install"
+            root.mkdir()
+            (root / "index.html").write_text("old-ui", encoding="utf-8")
+            (root / "storage.py").write_text("old-storage", encoding="utf-8")
+            data_dir = root / "data"
+            references = root / "references"
+            data_dir.mkdir()
+            references.mkdir()
+            database = data_dir / "prompt_library.sqlite3"
+            database.write_bytes(b"USER_DATABASE_MUST_REMAIN")
+            reference = references / "garment-front.png"
+            reference.write_bytes(b"USER_REFERENCE_MUST_REMAIN")
+            local_settings = root / "local_settings.json"
+            local_settings.write_text('{"private_local_setting":"keep"}', encoding="utf-8")
+            launcher = root / "launcher.bat"
+            launcher.write_text("@echo off", encoding="utf-8")
+            stage = self._stage(root, {
+                "index.html": "new-ui",
+                "storage.py": "new-storage",
+            })
+            argv = ["updater.py", str(stage), str(root), str(launcher)]
+            with mock.patch.object(sys, "argv", argv), \
+                 mock.patch.object(updater, "service_running", return_value=False), \
+                 mock.patch.object(updater, "launch_workbench"):
+                result = updater.main()
+            self.assertEqual(result, 0)
+            self.assertEqual((root / "index.html").read_text(encoding="utf-8"), "new-ui")
+            self.assertEqual(database.read_bytes(), b"USER_DATABASE_MUST_REMAIN")
+            self.assertEqual(reference.read_bytes(), b"USER_REFERENCE_MUST_REMAIN")
+            self.assertEqual(json.loads(local_settings.read_text(encoding="utf-8")),
+                             {"private_local_setting": "keep"})
+            self.assertFalse(stage.exists())
+
+    def test_clean_install_creates_program_files_without_touching_user_store(self):
+        import updater
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "install"
+            root.mkdir()
+            user_store = root / "user_store"
+            user_store.mkdir()
+            (user_store / "sentinel.txt").write_text("keep", encoding="utf-8")
+            launcher = root / "launcher.bat"
+            launcher.write_text("@echo off", encoding="utf-8")
+            stage = self._stage(root, {
+                "index.html": "first-ui",
+                "storage.py": "first-storage",
+            }, version="1.0.0")
+            argv = ["updater.py", str(stage), str(root), str(launcher)]
+            with mock.patch.object(sys, "argv", argv), \
+                 mock.patch.object(updater, "service_running", return_value=False), \
+                 mock.patch.object(updater, "launch_workbench") as launch:
+                result = updater.main()
+            self.assertEqual(result, 0)
+            self.assertEqual((root / "index.html").read_text(encoding="utf-8"), "first-ui")
+            self.assertEqual((root / "storage.py").read_text(encoding="utf-8"), "first-storage")
+            self.assertEqual((user_store / "sentinel.txt").read_text(encoding="utf-8"), "keep")
+            self.assertEqual((root / "installed_version.txt").read_text(encoding="utf-8"), "1.0.0")
+            launch.assert_called_once()
+            self.assertFalse(stage.exists())
+
     def test_mid_transaction_failure_restores_every_original_file(self):
         import updater
 
