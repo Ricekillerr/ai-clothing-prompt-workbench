@@ -10,6 +10,12 @@ class AIAnalyzerTests(unittest.TestCase):
         self.assertEqual(_safe_endpoint("https://api.example.com/v1"),
                          "https://api.example.com/v1/chat/completions")
 
+    def test_endpoint_allows_plain_http_only_for_loopback(self):
+        self.assertEqual(_safe_endpoint("http://127.0.0.1:8080/v1"),
+                         "http://127.0.0.1:8080/v1/chat/completions")
+        with self.assertRaisesRegex(ValueError, "HTTPS"):
+            _safe_endpoint("http://api.example.com/v1")
+
     def test_endpoint_rejects_embedded_credentials(self):
         with self.assertRaises(ValueError):
             _safe_endpoint("https://user:pass@example.com/v1")
