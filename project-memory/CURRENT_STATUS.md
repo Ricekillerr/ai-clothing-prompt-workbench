@@ -5,10 +5,11 @@
 **生产分支：** main（保持不动）  
 **开发分支：** release/v0.6.5-stabilization  
 **候选版本：** 0.6.5  
-**最近代码提交：** 7f0f72d23833d204c27fd4bc8c08b2f0f29f97cf  
+**最近代码提交：** 2d0f1cc245d0c03c3ad62e903b7b3ab33e7f828d  
 **状态：** V1.0 候选开发；不是正式发布。
 
 ## 最新 CI
+[GitHub Actions run 43400789416](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43400789416)：三个 job 全部成功。主回归 135 项（134 通过、1 项环境跳过），Windows 专项 19 项通过，9 个更新文件哈希和 release gate 通过。
 [GitHub Actions run 43399754217](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43399754217)：三个 job 全部成功。主回归 134 项（133 通过、1 项环境跳过），Windows 专项 19 项通过，9 个更新文件哈希和 release gate 通过。
 [GitHub Actions run 43398819845](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43398819845)：三个 job 全部成功。主回归 133 项（132 通过、1 项环境跳过），Windows 专项 19 项通过。
 [GitHub Actions run 43398618615](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43398618615)：三个 job 全部成功。主回归 133 项（132 通过、1 项因 Linux 环境跳过），Windows 专项 19 项全部通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。

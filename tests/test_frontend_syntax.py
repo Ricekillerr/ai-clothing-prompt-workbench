@@ -72,6 +72,41 @@ class FrontendSyntaxTests(unittest.TestCase):
         self.assertIn("服务器已确认恢复成功，但界面未能重新读取数据", restore)
         self.assertIn("if(!loaded)", restore)
 
+    def test_server_refresh_paths_share_legacy_data_normalization(self):
+        html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
+        for required in (
+            "db=normalizeAssetData(data)",
+            "db=normalizeAssetData(await response.json())",
+            "const latest=normalizeAssetData(await check.json())",
+            "db=normalizeAssetData(payload.data)",
+            "db=normalizeAssetData(data.data)",
+            'db=normalizeAssetData(d.data)',
+        ):
+            self.assertIn(required, html)
+        self.assertNotIn("db=payload.data", html)
+        self.assertNotIn("db=data.data", html)
+        self.assertNotIn("db=d.data", html)
+        start = html.index("function normalizeTags(value){")
+        end = html.index("function pruneSelectionToVisible(", start)
+        helpers = html[start:end]
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("Node.js is not installed in this environment")
+        script = helpers + """
+const data = normalizeAssetData({
+  cases: [{id: "case-1", tags: "outerwear, black", image: 12, created_at: 5, updated_at: null}, null, []],
+  modules: [{id: "module-1", tags: [" fabric ", null, "zipper"], image: "ref.png", created_at: "today"}]
+});
+if (data.cases.length !== 1 || data.cases[0].tags.join("|") !== "outerwear|black") throw new Error("Legacy string tags were not normalized.");
+if (data.cases[0].image !== "" || data.cases[0].created_at !== "" || data.cases[0].updated_at !== "") throw new Error("Invalid optional fields were not normalized.");
+if (data.modules.length !== 1 || data.modules[0].tags.join("|") !== "fabric|zipper" || data.modules[0].image !== "ref.png") throw new Error("Array tags or valid image paths were not preserved.");
+let rejected = false;
+try { normalizeAssetData({cases: [], modules: null}); } catch (_) { rejected = true; }
+if (!rejected) throw new Error("Invalid server payload should be rejected.");
+"""
+        result = subprocess.run([node, "-e", script], capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
     def test_bulk_selection_drops_items_hidden_by_current_filters(self):
         html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
         self.assertIn("pruneSelectionToVisible(selectedCaseIds,arr)", html)

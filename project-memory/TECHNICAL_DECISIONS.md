@@ -128,3 +128,9 @@
 - 修复方向：composeNow() 成功生成时冻结基础案例 ID/名称/更新时间及模块 ID/名称/更新时间；saveDraft() 只读取该快照，不再读取当前控件来推断来源。
 - 如果生成后手动编辑输出，保留原始来源并标记 passed_then_manually_edited / modified_after_generation=true；手动输入且无生成快照时明确标记 not_generated_by_composer，不伪称预检通过。
 - 回归：Node 行为测试覆盖未修改、生成后手动编辑、无来源快照三种路径。
+
+
+## 2026-11-13 统一所有服务器刷新路径的数据归一化
+- 问题：初始 load() 会把旧版字符串 tags 归一化为数组，并清理异常 image/timestamp 类型；但回收站恢复、历史版本恢复、AI 审核入库、生成结果刷新和超时写入协调会直接把 API 返回对象赋给 db，绕过归一化。旧数据可能在下一次 render 时因 tags.map/slice 不是函数而破坏页面交互。
+- 修复：提取 normalizeAssetRows()/normalizeAssetData()，让启动加载及所有服务器刷新路径共享同一数据结构边界；无效 payload 会被拒绝，而不是注入 UI。
+- 回归：Node 测试覆盖字符串/数组 tags、非法图片路径/时间字段、无效记录过滤及结构错误；静态断言检查所有刷新入口都调用统一函数。
