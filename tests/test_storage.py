@@ -209,7 +209,8 @@ class StorageTests(unittest.TestCase):
              "asset_paths": asset_paths, "asset_sha256s": asset_hashes,
              "asset_roles": [
                  {"asset_index": 1, "asset_path": asset_paths[0], "role": "front",
-                  "role_label": "正面图", "observation": "正面整体版型"},
+                  "role_label": "正面图", "priority": "primary",
+                  "governs": ["结构", "版型"], "observation": "正面整体版型"},
                  {"asset_index": 2, "asset_path": asset_paths[1], "role": "back",
                   "role_label": "背面图", "observation": "背面结构"},
              ],
@@ -249,6 +250,8 @@ class StorageTests(unittest.TestCase):
         self.assertEqual([x["role"] for x in cases[0]["image_roles"]], ["front", "back"])
         self.assertEqual([x["role_label"] for x in cases[0]["image_roles"]], ["正面图", "背面图"])
         self.assertEqual(cases[0]["image_roles"][1]["observation"], "背面结构")
+        self.assertEqual(cases[0]["image_roles"][0]["priority"], "primary")
+        self.assertEqual(cases[0]["image_roles"][0]["governs"], ["结构", "版型"])
         self.assertEqual([x["name"] for x in cases[0]["outfit_items"]], ["黑色马甲", "深灰裤子"])
         self.assertEqual(cases[0]["outfit_items"][0]["material"], "尼龙")
         self.assertEqual(cases[0]["outfit_relations"][0]["relation"], "paired_with")
