@@ -47,6 +47,7 @@ function saveFailureMessage(action,outcome,error){
 }
 async function reconcileSaveFailure(error,rollback){
  if(error?.uncertain){
+  await saveQueue.catch(()=>{});
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
   try{
    const response=await fetch("/api/data",{cache:"no-store",signal:controller.signal});
