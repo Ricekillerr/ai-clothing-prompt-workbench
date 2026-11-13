@@ -597,18 +597,24 @@ async function applyUpdate(automatic=false){
   if(!automatic&&!confirm(`确定更新到 V${updateInfo.latest_version} 吗？工作台将自动关闭、替换程序并重新启动。你的提示词数据和图片会保留。`)) return;
   if(automatic)autoUpdateInProgress=true;
   const status = document.getElementById("updateStatus");
-  if(status) status.textContent = "正在下载更新文件，请不要关闭此窗口…";
+  if(status) status.textContent = "正在创建完整备份、下载并校验更新文件…";
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10*60*1000);
+  let responseReceived=false;
   try{
-    const r = await fetch("/api/update/apply",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+    const r = await fetch("/api/update/apply",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}",signal:controller.signal});
+    responseReceived=true;
     const d = await r.json();
     if(!r.ok || !d.ok) throw new Error(d.error||"更新启动失败");
     if(status) status.textContent = d.message || "更新已开始，工作台即将重启。";
     if(!automatic)alert(d.message || "更新已开始，工作台即将重启。");
   }catch(e){
-    if(automatic)autoUpdateInProgress=false;
-    if(status) status.textContent = "更新失败：" + e.message;
-    if(!automatic)alert("更新失败：" + e.message);
-  }
+    if(responseReceived&&automatic)autoUpdateInProgress=false;
+    const message=responseReceived
+      ? "更新未能启动："+e.message
+      : "更新请求已发出，但连接中断，无法确认安装是否启动。请等待 1–2 分钟；若工作台未自动重启，再手动检查版本。请勿连续重复启动更新。";
+    if(status)status.textContent=message;
+    if(!automatic)alert(message);
+  }finally{clearTimeout(timer)}
 }
 
 async function scanApi(path,body,timeoutMs){
