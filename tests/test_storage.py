@@ -388,6 +388,20 @@ class StorageTests(unittest.TestCase):
             store.restore_full_backup(malicious)
         self.assertEqual(store.load_data()["cases"][0]["body"], "original")
 
+    def test_restore_runs_additive_schema_migrations_for_older_backups(self):
+        store = Storage(self.home)
+        store.save_data({"cases": [{"id": "legacy-backup", "name": "Legacy", "body": "prompt"}],
+                         "modules": []})
+        with sqlite3.connect(store.db_path) as connection:
+            connection.execute("DROP TABLE IF EXISTS generation_feedback")
+            connection.commit()
+        backup = store.create_full_backup(self.home / "references", app_version="0.6.0")
+        store.restore_full_backup(backup)
+        analytics = store.get_retrieval_analytics()
+        self.assertEqual(analytics["generation_feedback_total"], 0)
+        store.record_generation_outcome("legacy-backup", "success", "migrated schema ok")
+        self.assertEqual(store.load_data()["cases"][0]["status"], "已验证成功")
+
     def test_full_backup_restore_rolls_back_mid_swap_failure(self):
         store = Storage(self.home)
         references = self.home / "references"
