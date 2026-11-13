@@ -37,6 +37,13 @@ class V065IntegrationTests(unittest.TestCase):
                         updater_allow.update(ast.literal_eval(node.value))
         self.assertTrue(set(self.manifest["files"]).issubset(app_allow))
         self.assertTrue(set(self.manifest["files"]).issubset(updater_allow))
+        manual_path = self.root / "使用说明_Prompt_Atelier_V1.0_候选版.txt"
+        self.assertTrue(manual_path.is_file())
+        manual = manual_path.read_text(encoding="utf-8")
+        for topic in ("智能案例检索", "完整备份与恢复", "自动更新授权", "已知限制"):
+            self.assertIn(topic, manual)
+        self.assertIn("使用说明_Prompt_Atelier_V1.0_候选版.txt", app_allow)
+        self.assertIn("使用说明_Prompt_Atelier_V1.0_候选版.txt", updater_allow)
 
     def test_backend_connects_storage_and_exposes_ingestion_routes(self):
         self.assertIn("STORAGE = Storage(", self.app)
