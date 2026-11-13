@@ -131,6 +131,17 @@ _EXCLUSIVE_COLORS = {
     "beige": ("米色", "米白", "beige"),
 }
 
+_EXCLUSIVE_MATERIALS = {
+    "nylon": ("尼龙", "锦纶", "nylon"),
+    "leather": ("皮革", "皮质", "真皮", "leather"),
+    "corduroy": ("灯芯绒", "corduroy"),
+    "wool": ("羊毛", "羊绒", "wool", "cashmere"),
+    "cotton": ("棉", "棉质", "cotton"),
+    "denim": ("牛仔", "denim"),
+}
+_MIXTURE_MARKERS = ("混纺", "混合", "拼接", "复合", "blend", "mixed", "mix")
+
+
 
 def _contains_alias(text, alias):
     """Match English aliases as words; Chinese aliases as explicit phrases."""
@@ -148,27 +159,48 @@ def _color_values(text):
     }
 
 
-def find_case_conflicts(case, query):
-    """Flag only unambiguous single-color contradictions in structured color fields.
+def _exclusive_values(text, vocabulary):
+    return {
+        key for key, aliases in vocabulary.items()
+        if any(_contains_alias(text, alias) for alias in aliases)
+    }
 
-    Material is deliberately not treated as exclusive: blends and multi-material
-    garments are common. Multi-color queries or records are also left for review.
+
+def find_case_conflicts(case, query):
+    """Flag only unambiguous contradictions in structured color/material fields.
+
+    Multi-color and mixed-material records are intentionally left for human review.
+    Free-form prompt body and tags are excluded to avoid scene/background false positives.
     """
-    requested = _color_values(query)
-    stored_text = _match_text([case.get("color"), case.get("color_details")])
-    stored = _color_values(stored_text)
-    if len(requested) != 1 or len(stored) != 1:
-        return []
-    wanted = next(iter(requested))
-    actual = next(iter(stored))
-    if wanted == actual:
-        return []
-    return [{
-        "attribute": "color",
-        "requested": wanted,
-        "case_value": actual,
-        "reason": "查询要求与案例结构化颜色字段冲突",
-    }]
+    conflicts = []
+    requested_colors = _color_values(query)
+    stored_colors = _color_values(_match_text([case.get("color"), case.get("color_details")]))
+    if len(requested_colors) == 1 and len(stored_colors) == 1:
+        wanted, actual = next(iter(requested_colors)), next(iter(stored_colors))
+        if wanted != actual:
+            conflicts.append({
+                "attribute": "color", "requested": wanted, "case_value": actual,
+                "reason": "查询要求与案例结构化颜色字段冲突",
+            })
+
+    query_text = str(query or "").casefold()
+    stored_material_text = _match_text([
+        case.get("material"), case.get("fabric"), case.get("texture"),
+        case.get("material_details"),
+    ]).casefold()
+    requested_materials = _exclusive_values(query_text, _EXCLUSIVE_MATERIALS)
+    stored_materials = _exclusive_values(stored_material_text, _EXCLUSIVE_MATERIALS)
+    query_is_mixed = any(marker in query_text for marker in _MIXTURE_MARKERS)
+    stored_is_mixed = any(marker in stored_material_text for marker in _MIXTURE_MARKERS)
+    if (len(requested_materials) == 1 and len(stored_materials) == 1
+            and not query_is_mixed and not stored_is_mixed):
+        wanted, actual = next(iter(requested_materials)), next(iter(stored_materials))
+        if wanted != actual:
+            conflicts.append({
+                "attribute": "material", "requested": wanted, "case_value": actual,
+                "reason": "查询要求与案例结构化面料字段冲突",
+            })
+    return conflicts
 
 
 def explain_case_match(case, query):
