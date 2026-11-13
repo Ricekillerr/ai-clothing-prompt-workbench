@@ -552,7 +552,7 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
         prompt_path = source_dir / "successful_prompt.txt"
         image_path = source_dir / "jacket_front.png"
         prompt_text = "以参考视频锁定人物与镜头，只替换深黑色夹克。\n保留原始动作和背景。"
-        prompt_path.write_text(prompt_text, encoding="utf-8")
+        prompt_path.write_bytes(prompt_text.encode("utf-8"))
         image_path.write_bytes(b"mock-image-bytes-for-ingestion")
         copied_image = None
         server, thread, base = self._start_server()
@@ -587,7 +587,7 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
 
             def fake_analysis(prompt_file, asset_files, api_key, endpoint, model,
                               expected_prompt_sha256=None, expected_asset_sha256s=None):
-                self.assertEqual(Path(prompt_file).read_text(encoding="utf-8"), prompt_text)
+                self.assertEqual(Path(prompt_file).read_bytes().decode("utf-8-sig", errors="replace"), prompt_text)
                 self.assertEqual(len(asset_files), 1)
                 return {
                     "title": "HTTP 采集测试夹克",
