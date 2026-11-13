@@ -11,6 +11,7 @@ import json
 import os
 import shutil
 import sqlite3
+import stat
 import tempfile
 import zipfile
 from contextlib import contextmanager
@@ -930,16 +931,31 @@ class Storage:
                     raise StorageError("备份缺少数据库或 JSON 数据文件")
 
                 total_size = 0
+                normalized_paths = set()
                 for info in infos:
                     if info.filename == "backup_manifest.json":
                         continue
                     name = info.filename
                     relative = PurePosixPath(name)
-                    if (not name or "\\" in name or relative.is_absolute()
-                            or any(part in {"", ".", ".."} for part in relative.parts)
-                            or (relative.parts and ":" in relative.parts[0])
-                            or info.is_dir()):
+                    raw_parts = name.split("/")
+                    windows_reserved = {"CON", "PRN", "AUX", "NUL"} | {
+                        f"{prefix}{number}" for prefix in ("COM", "LPT") for number in range(1, 10)
+                    }
+                    unsafe_component = any(
+                        not part or part in {".", ".."} or part.endswith((".", " "))
+                        or any(char in part for char in '<>:"|?*')
+                        or part.split(".", 1)[0].upper() in windows_reserved
+                        for part in raw_parts
+                    )
+                    normalized_key = name.casefold()
+                    unix_mode = (info.external_attr >> 16) & 0xFFFF
+                    if (not name or "\\" in name or "\x00" in name
+                            or relative.is_absolute() or unsafe_component
+                            or info.is_dir() or stat.S_ISLNK(unix_mode)
+                            or normalized_key in normalized_paths
+                            or not (name in required or name.startswith("references/"))):
                         raise StorageError(f"备份包含不安全的文件路径：{name[:120]}")
+                    normalized_paths.add(normalized_key)
                     if info.file_size > 1024 * 1024 * 1024:
                         raise StorageError(f"备份单个文件超过 1GB：{name[:120]}")
                     total_size += info.file_size
