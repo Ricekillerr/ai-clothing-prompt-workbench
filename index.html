@@ -148,10 +148,35 @@ async function showAssetHistory(){
    const card=document.createElement("div");card.style.cssText="margin-top:8px;padding:10px;border:1px solid var(--line);border-radius:9px";
    const title=document.createElement("div");title.style.fontSize="12px";title.style.fontWeight="600";title.textContent=revision.name+" · "+({edited:"修改前",deleted:"删除前",before_restore:"恢复前"}[revision.reason]||revision.reason);
    const meta=document.createElement("div");meta.style.cssText="font-size:11px;color:var(--muted);margin:5px 0";meta.textContent=revision.created_at;
+   const compare=document.createElement("button");compare.className="btn";compare.textContent="对比提示词";compare.addEventListener("click",()=>compareAssetRevision(revision.revision_id));
    const restore=document.createElement("button");restore.className="btn";restore.textContent="恢复此版本";restore.addEventListener("click",()=>restoreAssetRevision(revision.revision_id));
-   card.append(title,meta,restore);box.appendChild(card);
+   const actions=document.createElement("div");actions.style.cssText="display:flex;gap:8px;flex-wrap:wrap";actions.append(compare,restore);
+   card.append(title,meta,actions);box.appendChild(card);
   });
  }catch(error){box.textContent="读取历史版本失败："+error.message}
+}
+async function compareAssetRevision(revisionId){
+ const box=$("assetHistory");if(!box)return;
+ let panel=document.getElementById("revisionCompare");
+ if(!panel){panel=document.createElement("div");panel.id="revisionCompare";panel.style.cssText="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:10px";box.appendChild(panel)}
+ panel.textContent="正在读取历史提示词…";
+ try{
+  const url="/api/assets/revision?asset_id="+encodeURIComponent(chosen)+"&revision_id="+encodeURIComponent(revisionId);
+  const response=await fetch(url,{cache:"no-store"}),data=await response.json();
+  if(!response.ok||!data.asset)throw new Error(data.error||"读取历史版本失败");
+  const current=(kind==="case"?db.cases:db.modules).find(x=>x.id===chosen)||{};
+  const oldPrompt=String(data.asset.body||""),newPrompt=String(current.body||"");
+  panel.innerHTML="";
+  const heading=document.createElement("b");heading.textContent="历史提示词与当前版本对比";heading.style.fontSize="12px";
+  const note=document.createElement("p");note.style.cssText="font-size:11px;color:var(--muted);margin:6px 0 10px";note.textContent="历史版本："+data.created_at+" · 修改前后完整文本；不会自动覆盖当前版本。";
+  const grid=document.createElement("div");grid.style.cssText="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px";
+  [[ "历史版本",oldPrompt],["当前版本",newPrompt]].forEach(([label,value])=>{
+   const col=document.createElement("div"),title=document.createElement("b"),pre=document.createElement("pre");
+   title.textContent=label;title.style.fontSize="12px";pre.textContent=value||"（无提示词内容）";pre.style.cssText="white-space:pre-wrap;overflow-wrap:anywhere;max-height:420px;overflow:auto;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font:12px/1.6 inherit";
+   col.append(title,pre);grid.appendChild(col);
+  });
+  panel.append(heading,note,grid);
+ }catch(error){panel.textContent="读取对比失败："+error.message}
 }
 async function restoreAssetRevision(revisionId){
  if(!confirm("确定恢复这个历史版本吗？当前版本会先自动保存到历史记录。"))return;
