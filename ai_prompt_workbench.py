@@ -481,7 +481,7 @@ class Handler(BaseHTTPRequestHandler):
                     if enabled:
                         AUTO_SCAN_WAKE.set()
                     self.send_json(200, {"ok": True, "enabled": enabled, "interval_seconds": AUTO_SCAN_INTERVAL_SECONDS})
-remove nested heartbeat routes                elif self.path == "/api/scan/source":
+                elif self.path == "/api/scan/source":
                     folder = str(d.get("folder", "")).strip()
                     if not folder: raise ValueError("请提供需要扫描的文件夹路径")
                     source_id = STORAGE.register_scan_source(folder, bool(d.get("recursive", True)))

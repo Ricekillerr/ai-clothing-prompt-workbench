@@ -13,7 +13,7 @@
     "使用说明_Prompt_Atelier_V1.0_候选版.txt"
   ],
   "sha256": {
-    "ai_prompt_workbench.py": "4cf68a9d6a2227e4977e0989da397642cc7121da98f81d461eb48e978b7c84f2",
+    "ai_prompt_workbench.py": "e31a94fee479d3f73d7b34c2fc05faed86845c897603029fbbd4358e89a68aed",
     "updater.py": "7809039cca7aca4f770150e1148717c792ba4988abc389863a5b2cd905b6aaf3",
     "启动AI服装提示词工作台.bat": "a64c3ba2bba22c3758857cb138b5eb71d624763be555a25c0694853c96066f02",
     "index.html": "fc58e4274096415f2e90e107824675d1d85af1717158e5f2e6e68b206b679a3b",
