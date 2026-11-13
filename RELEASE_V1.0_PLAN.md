@@ -28,16 +28,16 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Database and reference-image preservation tests.
 - No unresolved critical/high severity regressions.
 
-## Current status — refreshed 2026-11-13
+## Current status — refreshed 2026-11-13 (multi-pass code-side audit)
 
-- Development remains isolated on `release/v0.6.5-stabilization`; `main` and the production update channel have not been changed.
-- Latest GitHub Actions run 43374406500 passed 92 regression tests, Python compilation, frontend JavaScript syntax, all 9 update-manifest SHA-256 checks, six Windows Server 2025 runtime acceptance tests, PowerShell parser validation, and release source/channel gate.
-- Implemented in this candidate: local full backup and pre-update snapshot; source provenance; folder auto-scan and human-reviewed AI ingestion; structured outfit decomposition and garment-level retrieval; reference-image role/priority metadata with manual correction; local perceptual-hash image shortlist; reference-aware prompt composition; bilingual prompt storage/output; revision comparison/restore; retrieval feedback analytics; serialized saves, request timeouts and privacy-safe diagnostics.
-- Important limitations still tracked: browser perceptual hashing is a coarse visual shortlist, not semantic same-garment recognition; English versions are stored/reused but not automatically translated; reference numbering must be manually mapped to the original prompt's @image identifiers.
-- Additional candidate hardening now includes transactional generation outcome recording with revision history and local success/failure analytics; reconciliation of ambiguous feedback-write timeouts; startup/scheduled update checks; explicit local authorization, inactivity/visibility gating, countdown and cancellation for automatic installs; and update-request ambiguity handling.
-- Remaining V1.0 work: evaluate model-specific guidance against real model runs, broaden visual retrieval validation, complete the final security/functional audit, and perform acceptance on the user's own Windows desktop (actual browser/UI behavior, existing data directory, antivirus and network environment). Automated clean-install, in-place-update, backup/restore, in-place-update preservation, rollback and data-preservation gates have passed on Windows Server 2025 CI.
-- This candidate is not a production release. No Windows GUI acceptance is claimed, and no merge to `main` or public release should occur until every mandatory gate passes.
-
+- Development remains isolated on `release/v0.6.5-stabilization`; production `main` and its update channel remain unchanged.
+- Latest code commit: `632ac9fcd65493f5a23cc1ac9c83631202501bc9`.
+- Latest GitHub Actions run [43388913191](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43388913191) passed all three jobs: 121 regression tests (120 passed, 1 Linux-only environment skip), 18 Windows Server 2025 runtime tests, nine manifest SHA-256 checks, Python/frontend syntax, PowerShell parsing, and release source/channel gate.
+- Multi-pass code-side hardening now covers scan/source path boundaries, symlink/junction isolation, forced manual SHA-256 refresh, per-source scan serialization, AI request hash checks, immutable original prompt text, approval-time source/hash revalidation, transactional image copying/cleanup, exclusive restore gating, heartbeat lifecycle handling, local media allowlisting, cross-site request metadata, and bounded/redacted logs.
+- The current update manifest lists nine runtime/manual files and is verified by CI. No database, reference images, credentials, or local configuration are in the update payload.
+- Remaining V1.0 work: complete the remaining functional audit; evaluate model-specific guidance against real WAN 3.0/MiniMax H3/Seedance 2.5 runs; evaluate visual retrieval against a labelled real dataset; and perform acceptance on the user's own Windows desktop with existing data, browser/UI, antivirus and network environment.
+- Isolated Windows Server 2025 CI is strong automated evidence, not a claim that the user's own Windows desktop or existing library has been accepted.
+- This candidate is not a production release. No merge to `main`, formal release or candidate download is authorized until all mandatory gates pass.
 
 ## Implementation log — 2026-11-13
 - Added a complete local ZIP backup containing a consistent SQLite snapshot (via SQLite backup API), a JSON export, and all regular files under the local references directory.
@@ -425,3 +425,15 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Extended the Windows local-server end-to-end test to upload a deliberately corrupt ZIP through the actual `/api/backup/restore` HTTP endpoint after a successful restore.
 - The endpoint returns HTTP 400 for the invalid archive; the test then confirms the restored case and reference image remain intact. This verifies the HTTP upload/validation boundary, not only the storage method in isolation.
 - GitHub Actions run 43374919085 passed all 92 regression tests, all nine update manifest hashes, six Windows Server 2025 runtime tests, PowerShell parsing and the release source/channel gate.
+
+
+## Implementation log — 2026-11-13 (multi-pass security and integrity audit)
+- Hardened collector traversal and storage ingestion against symlinks, Windows junctions and paths escaping registered source roots. Manual rescans can force fresh SHA-256 even when size/mtime are unchanged; per-source scan locks prevent overlapping automatic/manual scans from overwriting newer snapshots.
+- AI analysis now verifies the exact scanned prompt/image bytes. The model cannot replace original prompt text. Approval revalidates the original prompt and each media file against its registered scan source and SHA-256; it preserves whitespace exactly and hashes image bytes while copying.
+- AI approval now treats reference-image copies as part of the database transaction: failed inserts/commits remove files created by that approval. References root redirection is rejected.
+- Full restore now uses an exclusive operation gate. It waits for in-flight storage work and blocks new operations; browser heartbeat/close messages remain responsive, and idle shutdown does not interrupt restore.
+- The local media endpoint only serves six raster image extensions from the canonical references directory, rejects symlink/junction aliases, and sends nosniff headers. Cross-site Fetch Metadata is rejected by the loopback API.
+- Tightened AI endpoint query/fragment handling and input lengths; escaped imported timestamps before HTML insertion; corrected update settings copy to match the 15-minute check cadence and explicit authorization behavior.
+- Application/updater logs now rotate at 1 MiB with three backups; application logs omit exception bodies and user paths, while updater logs redact install/home paths and bearer/API-key patterns.
+- Latest CI run 43388913191 passed 121 repository regression tests (120 passed, 1 Linux-only environment skip), 18 Windows Server 2025 runtime tests, all nine manifest hashes, and all release source/channel checks.
+- User's own Windows desktop, real data backup/restore, antivirus/network and real-model/visual-retrieval acceptance remain outstanding.

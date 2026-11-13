@@ -84,3 +84,19 @@
 - 修复：分别收集数据库、JSON、参考图片目录的回滚异常；有任一项失败则 keep_rollback_dir=True，不删除恢复副本，错误消息同时给出 rollback_dir 和恢复前完整 safety ZIP 的位置，明确提示不要删除。
 - 测试：保留原有中途 JSON swap 失败后正常回滚测试；新增故障注入测试，确保 JSON swap 和 old.sqlite3 回滚再次失败时，恢复前副本目录保留、参考图片仍处于完整状态、路径写入错误信息。
 - CI run 43381205157：3 个 jobs 全成功；主回归 98 项（97 通过、1 个 Linux 环境跳过），Windows Server 2025 10 项通过；manifest 验证 9 个更新文件。
+
+
+## 2026-11-13 多轮代码侧安全与数据一致性审计
+- **扫描路径边界：** 采集器不跟随文件/目录符号链接和 Windows junction；入库再次验证扫描结果必须位于注册来源根目录内。手动重扫使用 force_hash，解决同大小且 mtime 被保留时缓存哈希无法更新的问题。
+- **扫描并发：** 自动扫描与手动扫描共用 per-source lock；先拿 Storage operation lease，再拿来源锁，避免同一来源并行扫描导致旧快照后写覆盖新快照。
+- **AI 请求输入：** 提示词和图片按扫描时 SHA-256 复核；分析器再次校验实际发送的提示词/图片字节。视频只做哈希/元信息处理，不宣称抽帧。
+- **AI 输出原文：** 模型输出中的 prompt_text 不可信；始终以本地原文件解码文本为准。审批入库再次比较原始文件内容，且不 strip 首尾空白。
+- **AI 入库溯源：** 审批时重新确认原提示词与每个素材仍存在于对应已扫描来源目录，文件类型和数据库扫描哈希匹配，当前文件 SHA-256 仍一致。图片复制过程中再次哈希，避免验证与复制之间的 TOCTOU 变化。
+- **AI 文件事务：** 数据库事务失败时删除本次复制的参考图；清理失败时明确报告文件名。参考图片根目录必须是 HOME 下的真实目录，不接受 symlink/junction 重定向。
+- **恢复互斥：** SQLite/JSON/参考图恢复使用 exclusive operation gate；正常操作可并发持有 lease，恢复等待在途操作结束并阻止新操作进入。心跳/关闭路由绕过该 gate，watchdog 在恢复期间暂停空闲退出判断。
+- **媒体服务：** /media 只允许 PNG/JPG/JPEG/WEBP/GIF/BMP；只从 canonical HOME/references 目录提供普通文件；拒绝链接并添加 X-Content-Type-Options: nosniff。
+- **跨站请求：** 在 Host/Origin/Content-Type 之外检查 Sec-Fetch-Site；拒绝 cross-site / same-site 浏览器请求，允许 same-origin 和用户主动导航 none。
+- **AI endpoint：** 拒绝 endpoint query/fragment，避免 URL 查询参数携带凭据；限制 endpoint 长度、API Key 长度和模型名长度。
+- **日志：** 应用日志按 1 MiB 轮转并保留 3 份；后台扫描只记 source token 和异常类型；API 日志去掉 query 且不记录异常正文。更新器日志同样轮转，并脱敏安装目录、用户目录、Authorization Bearer/API Key/sk-* 模式。
+- **前端：** 导入案例时间字段插入 innerHTML 前转义；设置文案与实际 15 分钟检查及明确授权安装行为一致。
+- **CI 证据：** run 43388913191 三个 jobs 全部通过；121 项主回归（120 通过、1 环境跳过），Windows Server 2025 18 项通过，9 个更新文件 SHA-256 校验通过。此证据不代替用户本人 Windows 桌面和真实资料验收。
