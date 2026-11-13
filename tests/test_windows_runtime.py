@@ -252,14 +252,14 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
                 data=json.dumps({"cases": [{"id": "form-csrf-injected"}], "modules": []}).encode("utf-8"),
                 headers={
                     "Host": f"127.0.0.1:{port}",
-                    "Origin": "http://127.0.0.1:9999",
+                    "Origin": f"http://127.0.0.1:{port}",
                     "Content-Type": "text/plain",
                 },
                 method="POST",
             )
             with self.assertRaises(HTTPError) as rejected:
                 urlopen(request, timeout=5)
-            self.assertEqual(rejected.exception.code, 403)
+            self.assertEqual(rejected.exception.code, 415)
             self.assertEqual(self.app.STORAGE.load_data(), before)
         finally:
             server.shutdown()
