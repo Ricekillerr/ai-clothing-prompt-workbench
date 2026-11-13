@@ -193,3 +193,9 @@
 - 测试不再只检查选择器字符串，而是从 index.html 提取实际 findComposeConflicts、modelPromptGuide、buildCaseReferenceGuide、buildCompositionSnapshot 与 composeNow()，在 Node 中以最小 DOM 桩执行真实组合流程。
 - 验证选中的模块正文被加入、未选模块不会混入、右侧结构/模型选项不会被当作模块、基础提示词保留、模型提醒输出以及来源快照只记录被选模块。
 - CI run 43407891453：146 项主回归（145 通过、1 项环境跳过），Windows 专项 22 项，三个 jobs 全部成功。
+
+
+## 批量案例删除交互行为回归 — 2026-11-13
+- Node 从 index.html 提取并执行真实 updateBulkCount() 与 bindBulkAssetControls()，用最小 DOM 桩验证删除流程。
+- 覆盖用户取消时不改动、确认后仅删除已选项、成功后清理选择并刷新列表、服务端保存失败后恢复原始数组及选择状态。
+- CI run 43408135765：147 项主回归（146 通过、1 项环境跳过），Windows 专项 22 项全部通过，三个 jobs 全部成功。
