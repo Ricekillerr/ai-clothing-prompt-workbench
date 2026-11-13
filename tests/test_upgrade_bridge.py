@@ -68,6 +68,9 @@ class V065IntegrationTests(unittest.TestCase):
         self.assertIn("请求超时", html)
         self.assertIn("log_api_error", self.app)
         self.assertIn("api_errors.log", self.app)
+        diagnostics = self.app[self.app.index("def log_api_error"):self.app.index("def auto_scan_loop")]
+        self.assertNotIn("str(error)", diagnostics)
+        self.assertIn("saveQueue", html)
         self.assertIn("匹配有帮助", html)
         self.assertIn("不符合需求", html)
         self.assertIn("recordCaseFeedback", html)
