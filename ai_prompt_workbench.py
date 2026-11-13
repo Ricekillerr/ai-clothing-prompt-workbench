@@ -8,7 +8,7 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from storage import Storage
 from collector import scan_folder, sha256_file
 from case_matcher import rank_matches, rank_case_matches
-from ai_analyzer import analyze_pair
+from ai_analyzer import analyze_pair, analyze_assets
 
 APP_VERSION = "0.5.2"
 GITHUB_OWNER = "Ricekillerr"
@@ -274,24 +274,35 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(200, {"ok": True, "summary": summary})
             elif self.path == "/api/ai/analyze":
                 prompt_path = str(d.get("prompt_path", "")).strip()
-                asset_path = str(d.get("asset_path", "")).strip()
+                raw_paths = d.get("asset_paths")
+                if raw_paths is None:
+                    raw_paths = [d.get("asset_path", "")]
+                if not isinstance(raw_paths, list) or not 1 <= len(raw_paths) <= 8:
+                    raise ValueError("每次必须选择 1–8 张关联素材")
+                asset_paths = [str(value).strip() for value in raw_paths]
+                if any(not value for value in asset_paths) or len(set(asset_paths)) != len(asset_paths):
+                    raise ValueError("关联素材路径为空或重复")
                 prompt_record = STORAGE.get_ingest_record(prompt_path)
-                asset_record = STORAGE.get_ingest_record(asset_path)
                 if not prompt_record or prompt_record["media_type"] != "text":
                     raise ValueError("提示词文件必须来自已扫描的本地文件夹")
-                if not asset_record or asset_record["media_type"] not in {"image", "video"}:
-                    raise ValueError("关联素材必须来自已扫描的本地文件夹")
                 if sha256_file(Path(prompt_path)) != prompt_record["sha256"]:
                     raise ValueError("提示词文件在扫描后发生变化，请重新扫描再分析")
-                if sha256_file(Path(asset_path)) != asset_record["sha256"]:
-                    raise ValueError("关联素材在扫描后发生变化，请重新扫描再分析")
-                result = analyze_pair(
-                    prompt_path, asset_path, str(d.get("api_key", "")),
+                asset_records = []
+                for asset_path in asset_paths:
+                    record = STORAGE.get_ingest_record(asset_path)
+                    if not record or record["media_type"] not in {"image", "video"}:
+                        raise ValueError("所有关联素材都必须来自已扫描的本地文件夹")
+                    if sha256_file(Path(asset_path)) != record["sha256"]:
+                        raise ValueError("至少一个关联素材在扫描后发生变化，请重新扫描再分析")
+                    asset_records.append(record)
+                result = analyze_assets(
+                    prompt_path, asset_paths, str(d.get("api_key", "")),
                     str(d.get("endpoint", "https://api.openai.com/v1")),
                     str(d.get("model", "gpt-4o-mini")),
                 )
+                result["asset_sha256s"] = [record["sha256"] for record in asset_records]
                 analysis_id = STORAGE.save_ai_analysis(
-                    prompt_path, asset_path, prompt_record["sha256"], asset_record["sha256"],
+                    prompt_path, asset_paths[0], prompt_record["sha256"], asset_records[0]["sha256"],
                     str(result.get("model", "")), result,
                 )
                 self.send_json(200, {"ok": True, "analysis_id": analysis_id, "result": result})
