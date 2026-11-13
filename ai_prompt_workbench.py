@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AI服装提示词资产工作台 V0.5.0。"""
+"""AI服装提示词资产工作台 V0.6.5。"""
 import base64, hashlib, json, mimetypes, os, shutil, subprocess, sys, tempfile, threading, time, uuid, webbrowser
 from pathlib import Path
 from urllib.parse import unquote, quote, parse_qs, urlsplit
@@ -10,10 +10,10 @@ from collector import scan_folder, sha256_file
 from case_matcher import rank_matches, rank_case_matches
 from ai_analyzer import analyze_pair, analyze_assets
 
-APP_VERSION = "0.5.2"
+APP_VERSION = "0.6.5"
 GITHUB_OWNER = "Ricekillerr"
 GITHUB_REPO = "ai-clothing-prompt-workbench"
-GITHUB_BRANCH = "main"
+GITHUB_BRANCH = "release/v0.6.5-stabilization"
 RAW_BASE = f"https://raw.githubusercontent.com/{GITHUB_OWNER}/{GITHUB_REPO}/{GITHUB_BRANCH}/"
 MANIFEST_URL = RAW_BASE + "update_manifest.json"
 ROOT = Path(__file__).resolve().parent
