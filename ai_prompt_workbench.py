@@ -57,7 +57,8 @@ def log_api_error(route, error):
     """Record route and exception diagnostics without logging request bodies or secrets."""
     try:
         log = HOME / "api_errors.log"
-        message = f"{type(error).__name__}: {str(error)[:400]}"
+        code = getattr(error, "code", None) or getattr(error, "errno", None)
+        message = type(error).__name__ + (f" code={code}" if code is not None else "")
         with log.open("a", encoding="utf-8") as stream:
             stream.write(time.strftime("[%Y-%m-%d %H:%M:%S] ")
                          + str(route)[:120] + " | " + message + "\n")
