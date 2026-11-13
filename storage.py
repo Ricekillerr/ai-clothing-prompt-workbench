@@ -121,6 +121,15 @@ class Storage:
                     );
                     CREATE INDEX IF NOT EXISTS idx_ingest_status ON ingest_files(status);
                     CREATE INDEX IF NOT EXISTS idx_ingest_source ON ingest_files(source_id);
+                    CREATE TABLE IF NOT EXISTS generation_feedback (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        case_id TEXT NOT NULL,
+                        outcome TEXT NOT NULL CHECK(outcome IN ('success','failed')),
+                        notes TEXT NOT NULL DEFAULT '',
+                        created_at TEXT NOT NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_generation_feedback_case
+                        ON generation_feedback(case_id, created_at DESC);
                     CREATE TABLE IF NOT EXISTS retrieval_feedback (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         query_text TEXT NOT NULL,
@@ -705,6 +714,40 @@ class Storage:
             if cur.rowcount != 1:
                 raise StorageError("找不到待拒绝的 AI 分析结果")
 
+    def record_generation_outcome(self, case_id: str, outcome: str,
+                                  notes: str = "") -> dict:
+        case_id = str(case_id or "").strip()
+        if not case_id:
+            raise StorageError("案例 ID 不能为空")
+        if outcome not in {"success", "failed"}:
+            raise StorageError("生成结果只支持成功或失败")
+        data = self.load_data()
+        item = next((value for value in data["cases"] if str(value.get("id")) == case_id), None)
+        if item is None:
+            raise StorageError("找不到对应的案例资产")
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc).isoformat()
+        note = str(notes or "").strip()[:1000]
+        item["status"] = "已验证成功" if outcome == "success" else "失败案例"
+        item["last_generation_outcome"] = outcome
+        item["last_generation_note"] = note
+        item["last_generation_at"] = now
+        self.save_data(data)
+        with self._session() as con:
+            cur = con.execute(
+                """INSERT INTO generation_feedback(case_id,outcome,notes,created_at)
+                   VALUES(?,?,?,?)""",
+                (case_id, outcome, note, now),
+            )
+            feedback_id = int(cur.lastrowid)
+        return {
+            "feedback_id": feedback_id,
+            "case_id": case_id,
+            "outcome": outcome,
+            "status": item["status"],
+            "created_at": now,
+        }
+
     def record_retrieval_feedback(self, query: str, case_id: str,
                                    score: float, feedback: str) -> int:
         query = str(query or "").strip()[:500]
@@ -752,10 +795,17 @@ class Storage:
                    FROM retrieval_feedback GROUP BY case_id
                    ORDER BY useful_count DESC,feedback_count DESC LIMIT 10"""
             ).fetchall()
+            generation = con.execute(
+                "SELECT outcome,COUNT(*) AS count FROM generation_feedback GROUP BY outcome"
+            ).fetchall()
+            generation_counts = {row["outcome"]: int(row["count"]) for row in generation}
             return {
                 "total_feedback": int(total),
                 "useful": int(counts.get("useful", 0)),
                 "not_relevant": int(counts.get("not_relevant", 0)),
+                "generation_success": generation_counts.get("success", 0),
+                "generation_failed": generation_counts.get("failed", 0),
+                "generation_feedback_total": sum(generation_counts.values()),
                 "top_cases": [dict(row) for row in top],
             }
 
