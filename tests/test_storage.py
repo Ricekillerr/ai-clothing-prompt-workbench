@@ -397,6 +397,56 @@ class StorageTests(unittest.TestCase):
         self.assertFalse((self.home / "escape.txt").exists())
         self.assertFalse((self.home.parent / "escape.txt").exists())
 
+    def test_full_backup_restore_rejects_windows_path_aliases_and_reserved_names(self):
+        store = Storage(self.home)
+        references = self.home / "references"
+        references.mkdir(exist_ok=True)
+        (references / "safe.png").write_bytes(b"safe")
+        good = store.create_full_backup(references, app_version="0.6.5")
+
+        unsafe_entries = [
+            "references/evil:stream.txt",
+            "references/CON.txt",
+            "references/trailingdot.",
+            "references/trailingspace ",
+        ]
+        for index, unsafe_name in enumerate(unsafe_entries):
+            with self.subTest(path=unsafe_name):
+                malicious = self.home / f"windows_path_{index}.zip"
+                with zipfile.ZipFile(good, "r") as source:
+                    manifest = json.loads(source.read("backup_manifest.json").decode("utf-8"))
+                    payload = b"untrusted"
+                    manifest["files"][unsafe_name] = hashlib.sha256(payload).hexdigest()
+                    with zipfile.ZipFile(malicious, "w") as target:
+                        for info in source.infolist():
+                            if info.filename == "backup_manifest.json":
+                                continue
+                            target.writestr(info, source.read(info.filename))
+                        target.writestr(unsafe_name, payload)
+                        target.writestr("backup_manifest.json", json.dumps(manifest))
+                with self.assertRaisesRegex(StorageError, "不安全的文件路径"):
+                    store.restore_full_backup(malicious)
+
+    def test_full_backup_restore_rejects_case_insensitive_path_collisions(self):
+        store = Storage(self.home)
+        references = self.home / "references"
+        references.mkdir(exist_ok=True)
+        (references / "safe.png").write_bytes(b"safe")
+        good = store.create_full_backup(references, app_version="0.6.5")
+        malicious = self.home / "case_collision_backup.zip"
+        with zipfile.ZipFile(good, "r") as source:
+            manifest = json.loads(source.read("backup_manifest.json").decode("utf-8"))
+            manifest["files"]["references/SAFE.png"] = hashlib.sha256(b"alias").hexdigest()
+            with zipfile.ZipFile(malicious, "w") as target:
+                for info in source.infolist():
+                    if info.filename == "backup_manifest.json":
+                        continue
+                    target.writestr(info, source.read(info.filename))
+                target.writestr("references/SAFE.png", b"alias")
+                target.writestr("backup_manifest.json", json.dumps(manifest))
+        with self.assertRaisesRegex(StorageError, "不安全的文件路径"):
+            store.restore_full_backup(malicious)
+
     def test_retrieval_feedback_is_local_bounded_and_aggregated(self):
         store = Storage(self.home)
         store.save_data({"cases": [{"id": "feedback-case", "name": "Feedback", "body": "prompt"}],
