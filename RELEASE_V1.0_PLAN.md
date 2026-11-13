@@ -166,3 +166,9 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 - The prompt composer now has an optional, enabled-by-default structure guide. When the base case contains structured outfit items or reference roles, it appends the garment breakdown, explicit saved layering relations, reference role/priority, governed attributes, and a conflict-precedence rule (primary > secondary > supporting).
 - The generated guide clearly states that stored associated-image numbering does not automatically rewrite `@图片` identifiers in the original prompt; the user must verify the mapping. This avoids silently pointing the video model at the wrong reference image.
 - Added integration checks for the composer guide and its reference-numbering warning. The code change passed frontend syntax validation; its updated runtime hash and full pipeline are being rechecked.
+
+
+## Implementation log — 2026-11-13 (prompt revision comparison)
+- Added an on-demand endpoint for retrieving one selected asset revision, avoiding loading every full prompt body into the history list.
+- The asset history panel now offers side-by-side display of the historical prompt and current prompt before restoration. The comparison is read-only; restore remains a separate explicit action and first snapshots the current state.
+- Added storage and integration regression tests for revision retrieval and comparison UI. The runtime manifest was refreshed for the three changed runtime files; full pipeline validation is in progress.
