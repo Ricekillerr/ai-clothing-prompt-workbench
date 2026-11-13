@@ -67,3 +67,10 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 - Hardened the shared save helper to surface HTTP/application save failures. Batch status and tag operations restore the in-memory dataset if persistence fails; deletion also restores the previous dataset on failure.
 - Added integration guards for the batch controls and rollback behavior. The visual selection checkbox is anchored to each case card.
 - GitHub Actions run 43352327949: JavaScript syntax, manifest SHA-256 validation, 56 regression tests, Windows PowerShell parser validation, and release source/channel gate are being checked on the staging branch. Production `main` remains untouched.
+
+
+## Implementation log — 2026-11-13 (batch prompt module management)
+- Extended the batch workflow to reusable prompt modules: select all visible modules, clear selection, add a shared tag, and delete selected modules after explicit confirmation.
+- Batch tag and delete operations restore the prior in-memory module list if persistence fails; deletions continue to use the storage layer's per-asset revision retention.
+- Added integration guards for module selection, bulk tagging, and deletion. Runtime manifest SHA-256 was refreshed after the UI changes.
+- GitHub Actions run 43352556214: frontend JavaScript syntax, release manifest hash validation, 56 regression tests, Windows PowerShell parser, and source/channel gate are passing or completing on the isolated staging branch. No production files were changed.
