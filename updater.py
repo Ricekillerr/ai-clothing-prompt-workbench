@@ -133,7 +133,8 @@ def main():
             version_tmp.write_text(str(meta["version"]), encoding="utf-8")
             replace_with_retry(version_tmp, version_dst)
 
-        except Exception:
+        except Exception as update_error:
+            rollback_errors = []
             for dst, backup_path, existed in reversed(transaction):
                 try:
                     if existed and backup_path.is_file():
@@ -142,8 +143,8 @@ def main():
                         replace_with_retry(restore, dst)
                     elif dst.exists():
                         dst.unlink()
-                except Exception:
-                    pass
+                except Exception as rollback_error:
+                    rollback_errors.append(f"{dst.name}: {type(rollback_error).__name__}: {rollback_error}")
             try:
                 if version_existed and version_backup.is_file():
                     restore = version_dst.with_name(version_dst.name + ".restore_tmp")
@@ -151,22 +152,28 @@ def main():
                     replace_with_retry(restore, version_dst)
                 elif version_dst.exists():
                     version_dst.unlink()
-            except Exception:
-                pass
+            except Exception as rollback_error:
+                rollback_errors.append(f"{version_dst.name}: {type(rollback_error).__name__}: {rollback_error}")
             for name in expected:
                 for suffix in (".update_tmp", ".restore_tmp"):
                     leftover = root / (name + suffix)
                     try:
                         if leftover.exists():
                             leftover.unlink()
-                    except OSError:
-                        pass
+                    except OSError as cleanup_error:
+                        rollback_errors.append(f"{leftover.name} cleanup: {cleanup_error}")
             version_tmp = root / "installed_version.txt.update_tmp"
             try:
                 if version_tmp.exists():
                     version_tmp.unlink()
-            except OSError:
-                pass
+            except OSError as cleanup_error:
+                rollback_errors.append(f"{version_tmp.name} cleanup: {cleanup_error}")
+            if rollback_errors:
+                details = "; ".join(rollback_errors)[:2000]
+                raise RuntimeError(
+                    "更新失败且自动回滚未完整完成；原始文件备份保留在 "
+                    f"{backup}。请勿删除该备份目录。回滚失败项：{details}"
+                ) from update_error
             raise
 
         finally:
