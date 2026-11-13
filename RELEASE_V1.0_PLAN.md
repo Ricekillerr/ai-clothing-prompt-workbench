@@ -177,3 +177,10 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 ## Implementation log — 2026-11-13 (prompt revision comparison validation)
 - GitHub Actions run 43357955322 passed all 67 regression tests, Python compilation, frontend JavaScript syntax, all 8 incremental-update file SHA-256 checks, Windows PowerShell parser validation, and release source/channel gate.
 - Prompt revision comparison is now part of the staging candidate. The comparison view is read-only; the separate restore action remains explicit and preserves the pre-restore state.
+
+
+## Implementation log — 2026-11-13 (retrieval feedback analytics)
+- Added a local SQLite feedback ledger for smart-search results. Users can mark a returned case as helpful or not relevant; each record stores the query, case ID, displayed retrieval score, feedback type, and timestamp.
+- Added retention bound of 5,000 feedback records, validation against existing case IDs, and an aggregate analytics endpoint with total/helpful/not-relevant counts and top feedback cases.
+- Settings now provides a local-only retrieval feedback summary. Feedback is intentionally observational and does not automatically change ranking weights; any future tuning requires a labelled evaluation set and regression tests.
+- Added storage and frontend/API integration tests. Runtime manifest hashes have been refreshed; the full pipeline is being rechecked.
