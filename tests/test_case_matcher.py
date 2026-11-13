@@ -48,6 +48,20 @@ class CaseMatcherTests(unittest.TestCase):
         result = score_case_attributes(case, "藏青色马甲")
         self.assertGreaterEqual(result["score"], 0.8)
 
+    def test_individual_outfit_item_attributes_are_searchable_from_full_outfit_case(self):
+        case = dict(self.case, category="整套搭配", subcategory="冬季穿搭",
+                    outfit_items=[
+                        {"category": "上装", "subcategory": "无袖马甲",
+                         "name": "黑色立领马甲", "material": "尼龙",
+                         "color": "黑色", "details": ["双拉头拉链"]},
+                        {"category": "下装", "subcategory": "微喇裤",
+                         "name": "深灰灯芯绒裤", "material": "灯芯绒",
+                         "color": "深灰", "details": ["微喇"]},
+                    ])
+        result = rank_case_matches([case], "深灰灯芯绒微喇裤", threshold=0.8)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["case"]["id"], "case-1")
+
     def test_attribute_query_returns_verified_case_over_threshold(self):
         result=rank_case_matches([self.case],"黑色立领无袖马甲 柔软哑光面料 双拉头拉链"); self.assertEqual(len(result),1); self.assertGreaterEqual(result[0]["score"],0.8)
     def test_unverified_cases_are_excluded_by_default(self):
