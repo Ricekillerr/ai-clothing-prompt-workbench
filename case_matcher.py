@@ -61,11 +61,11 @@ def rank_matches(items: list[dict], limit: int = 100) -> list[dict]:
 
 _MATCH_WEIGHTS = {"category": 0.25, "material": 0.20, "color": 0.15, "details": 0.20, "context": 0.20}
 _MATCH_TERMS = {
- "category": {"上装","下装","鞋履","配饰","整套搭配","马甲","背心","夹克","羽绒服","外套","衬衫","卫衣","裤子","长裤","短裤","运动鞋","gilet","vest","jacket","coat","shirt","pants","shoes"},
- "material": {"面料","材质","羊毛","羊绒","腈纶","聚酯","棉","皮革","真皮","灯芯绒","尼龙","羽绒","针织","牛仔","丝绸","哑光","磨砂","光泽","反光","柔软","挺括","corduroy","leather","wool","cotton","nylon","polyester","matte"},
- "color": {"黑色","白色","灰色","深灰","浅灰","棕色","咖啡色","蓝色","藏青","绿色","红色","米色","卡其","black","white","grey","gray","brown","blue","navy","green","red","beige"},
- "details": {"立领","高领","圆领","拉链","双拉头","单拉头","口袋","袖口","下摆","绗缝","拼接","皮革边","无袖","微喇","宽松","修身","走线","抽绳","帽子","连帽","领口","纽扣","zipper","collar","pocket","hood","sleeveless","hem","stitch"},
- "context": {"换装","人物锁定","动作锁定","镜头锁定","近景","中景","远景","街道","湖边","车内","室内","户外","runninghub","wan","h3","minimax","视频","图片","参考图","场景"}
+ "category": {"上装","下装","鞋履","配饰","整套搭配","马甲","背心","夹克","羽绒服","外套","衬衫","卫衣","裤子","长裤","短裤","直筒裤","阔腿裤","微喇裤","短款","长款","oversized","relaxed","slim","wide-leg","flare","运动鞋","gilet","vest","jacket","coat","shirt","pants","shoes"},
+ "material": {"面料","材质","羊毛","羊绒","腈纶","聚酯","涤纶","棉","皮革","真皮","灯芯绒","尼龙","锦纶","羽绒","针织","牛仔","丝绸","真丝","亚麻","哑光","磨砂","光泽","反光","柔软","挺括","corduroy","leather","wool","cotton","nylon","polyester","matte"},
+ "color": {"黑色","白色","灰色","深灰","浅灰","棕色","咖啡色","蓝色","藏青","绿色","红色","米色","米白","卡其","black","white","grey","gray","brown","blue","navy","green","red","beige"},
+ "details": {"立领","高领","圆领","直筒","阔腿","微喇","拉链","双拉头","单拉头","口袋","袖口","下摆","绗缝","拼接","皮革边","无袖","微喇","宽松","修身","走线","抽绳","帽子","连帽","领口","纽扣","zipper","collar","pocket","hood","sleeveless","hem","stitch"},
+ "context": {"换装","人物锁定","动作锁定","镜头锁定","近景","中景","远景","街道","湖边","车内","室内","户外","runninghub","wan","seedance","h3","minimax","视频","图片","参考图","场景"}
 }
 def _match_text(value):
     if value is None: return ""
