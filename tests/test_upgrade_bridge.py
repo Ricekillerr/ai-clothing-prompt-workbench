@@ -80,6 +80,12 @@ class V065IntegrationTests(unittest.TestCase):
         self.assertIn("recordCaseFeedback", html)
         self.assertIn("recordGenerationOutcome", html)
         self.assertIn("data-generation-outcome", html)
+        outcome_start = html.index("async function recordGenerationOutcome")
+        outcome_end = html.index("async function recordCaseFeedback", outcome_start)
+        outcome_ui = html[outcome_start:outcome_end]
+        self.assertIn("已核实生成结果保存成功", outcome_ui)
+        self.assertIn("生成结果已保存，但列表刷新失败", outcome_ui)
+        self.assertIn("last_generation_at===previousAt", outcome_ui)
         self.assertIn("本次生成成功", html)
         self.assertIn("/api/cases/outcome", self.app)
         self.assertIn("record_generation_outcome", (self.root / "storage.py").read_text(encoding="utf-8"))
