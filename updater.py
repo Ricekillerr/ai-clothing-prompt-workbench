@@ -38,16 +38,16 @@ def write_log(root, message):
                     re.escape(token), label, safe_message, flags=re.IGNORECASE
                 )
         safe_message = re.sub(
-            r"(?i)(authorization\\s*:\\s*bearer\\s+)[^\\s]+",
-            r"\\1[REDACTED]",
+            r"(?i)(authorization\s*:\s*bearer\s+)[^\s]+",
+            r"\1[REDACTED]",
             safe_message,
         )
         safe_message = re.sub(
-            r"(?i)(api[_-]?key\\s*[:=]\\s*)[^\\s,;]+",
-            r"\\1[REDACTED]",
+            r"(?i)(api[_-]?key\s*[:=]\s*)[^\s,;]+",
+            r"\1[REDACTED]",
             safe_message,
         )
-        safe_message = re.sub(r"\\bsk-[A-Za-z0-9_-]{16,}\\b", "[REDACTED]", safe_message)
+        safe_message = re.sub(r"\bsk-[A-Za-z0-9_-]{16,}\b", "[REDACTED]", safe_message)
         line = time.strftime("[%Y-%m-%d %H:%M:%S] ") + safe_message[-32768:] + "\n"
         encoded_size = len(line.encode("utf-8"))
         if log.exists() and log.stat().st_size + encoded_size > LOG_MAX_BYTES:

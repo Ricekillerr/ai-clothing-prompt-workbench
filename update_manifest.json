@@ -14,7 +14,7 @@
   ],
   "sha256": {
     "ai_prompt_workbench.py": "eb0c2923612e394f5ce336db30b920a2bfea50cbc004f7c2bdcfd6978ac7046b",
-    "updater.py": "97b3a2809bb03d67266075d2e9759aa30382dd020847b847d2ce9ec78bfb6dfc",
+    "updater.py": "7adaf88da25c09e8544f0489f6737d3c91b98126e8119fd317a86e8c7504a885",
     "启动AI服装提示词工作台.bat": "a64c3ba2bba22c3758857cb138b5eb71d624763be555a25c0694853c96066f02",
     "index.html": "fc58e4274096415f2e90e107824675d1d85af1717158e5f2e6e68b206b679a3b",
     "storage.py": "ef50cd574dee3dd061d873a44a5c6897969a3878b42fa8d941ba7d7c5d9fa539",
