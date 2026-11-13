@@ -230,6 +230,8 @@ class Handler(BaseHTTPRequestHandler):
                     "include_conflicts": include_conflicts,
                     "message": "冲突案例仅供人工复核" if include_conflicts else "",
                 })
+        elif path == "/api/analytics/retrieval":
+            self.send_json(200, STORAGE.get_retrieval_analytics())
         elif path == "/api/scan/auto": self.send_json(200, {"enabled": auto_scan_is_enabled(), "interval_seconds": AUTO_SCAN_INTERVAL_SECONDS})
         elif path == "/api/scan/sources": self.send_json(200, {"sources": STORAGE.list_scan_sources()})
         elif path == "/api/scan/pending": self.send_json(200, {"items": STORAGE.list_pending_ingest()})
@@ -286,6 +288,12 @@ class Handler(BaseHTTPRequestHandler):
                 items = scan_folder(Path(source["folder_path"]), bool(source["recursive"]), previous=previous)
                 summary = STORAGE.save_scan_results(source_id, items)
                 self.send_json(200, {"ok": True, "summary": summary})
+            elif self.path == "/api/cases/feedback":
+                feedback_id = STORAGE.record_retrieval_feedback(
+                    str(d.get("query", "")), str(d.get("case_id", "")),
+                    d.get("score", 0), str(d.get("feedback", "")),
+                )
+                self.send_json(200, {"ok": True, "feedback_id": feedback_id})
             elif self.path == "/api/ai/analyze":
                 prompt_path = str(d.get("prompt_path", "")).strip()
                 raw_paths = d.get("asset_paths")
