@@ -43,7 +43,8 @@ class V052IntegrationTests(unittest.TestCase):
         self.assertIn("from collector import scan_folder, sha256_file", self.app)
         for route in ("/api/scan/sources", "/api/scan/pending", "/api/scan/matches",
                       "/api/scan/source", "/api/scan/run", "/api/ai/analyze",
-                      "/api/ai/approve", "/api/ai/reject", "/api/cases/search"):
+                      "/api/ai/approve", "/api/ai/reject", "/api/cases/search",
+                      "/api/backup/full"):
             self.assertIn(route, self.app)
 
     def test_frontend_contains_scanner_review_and_ai_controls(self):
@@ -57,6 +58,9 @@ class V052IntegrationTests(unittest.TestCase):
         self.assertIn("renderMatchConflicts", html)
         self.assertIn("include_conflicts", self.app)
         self.assertIn("threshold_raw", self.app)
+        self.assertIn("downloadFullBackup", html)
+        self.assertIn("完整 ZIP 备份", html)
+        self.assertIn("SHA-256", html)
         self.assertIn("findComposeConflicts", html)
         self.assertIn("composeWarnings", html)
         self.assertIn("发现组合冲突，已阻止生成", html)
