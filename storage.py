@@ -85,6 +85,11 @@ class Storage:
                     self._active_by_thread.pop(owner, None)
                 condition.notify_all()
 
+    def is_exclusive_operation_active(self) -> bool:
+        """Expose restore state to lifecycle services that must remain responsive."""
+        with self._operation_condition:
+            return self._restoring
+
     @contextmanager
     def exclusive_operation(self):
         """Block new operations and wait for in-flight work before replacing local state."""

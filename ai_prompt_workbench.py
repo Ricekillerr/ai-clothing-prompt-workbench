@@ -106,6 +106,10 @@ def heartbeat_watchdog(server):
         with CLIENT_HEARTBEAT_LOCK:
             last = LAST_CLIENT_HEARTBEAT
             close_requested = CLOSE_REQUESTED_AT
+        # A long exclusive restore must not be interrupted just because its
+        # browser heartbeat is waiting for the database operation gate.
+        if STORAGE.is_exclusive_operation_active():
+            continue
         should_close = bool(
             (last and now - last > CLIENT_HEARTBEAT_TIMEOUT_SECONDS)
             or (close_requested and now - close_requested > 2 and last < close_requested)
@@ -412,6 +416,7 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_bytes(404, b"not found", "text/plain")
         else: self.send_bytes(404, b"not found", "text/plain")
     def do_POST(self):
+        global LAST_CLIENT_HEARTBEAT, CLOSE_REQUESTED_AT
         if not self._validate_local_request(require_json=self.path != "/api/backup/restore"):
             return
         try:
@@ -441,6 +446,19 @@ class Handler(BaseHTTPRequestHandler):
                 return
             raw_body = self.rfile.read(n)
             d = json.loads(raw_body.decode("utf-8") or "{}")
+            # Lifecycle messages must remain responsive while restore blocks
+            # normal data operations; the watchdog defers shutdown until restore ends.
+            if self.path == "/api/client/heartbeat":
+                with CLIENT_HEARTBEAT_LOCK:
+                    LAST_CLIENT_HEARTBEAT = time.monotonic()
+                    CLOSE_REQUESTED_AT = 0.0
+                self.send_json(200, {"ok": True})
+                return
+            if self.path == "/api/client/close":
+                with CLIENT_HEARTBEAT_LOCK:
+                    CLOSE_REQUESTED_AT = time.monotonic()
+                self.send_json(200, {"ok": True})
+                return
             with STORAGE.operation():
                 if self.path == "/api/settings/auto-update":
                     enabled = d.get("enabled")
@@ -463,17 +481,7 @@ class Handler(BaseHTTPRequestHandler):
                     if enabled:
                         AUTO_SCAN_WAKE.set()
                     self.send_json(200, {"ok": True, "enabled": enabled, "interval_seconds": AUTO_SCAN_INTERVAL_SECONDS})
-                elif self.path == "/api/client/heartbeat":
-                    global LAST_CLIENT_HEARTBEAT, CLOSE_REQUESTED_AT
-                    with CLIENT_HEARTBEAT_LOCK:
-                        LAST_CLIENT_HEARTBEAT = time.monotonic()
-                        CLOSE_REQUESTED_AT = 0.0
-                    self.send_json(200, {"ok": True})
-                elif self.path == "/api/client/close":
-                    with CLIENT_HEARTBEAT_LOCK:
-                        CLOSE_REQUESTED_AT = time.monotonic()
-                    self.send_json(200, {"ok": True})
-                elif self.path == "/api/scan/source":
+remove nested heartbeat routes                elif self.path == "/api/scan/source":
                     folder = str(d.get("folder", "")).strip()
                     if not folder: raise ValueError("请提供需要扫描的文件夹路径")
                     source_id = STORAGE.register_scan_source(folder, bool(d.get("recursive", True)))

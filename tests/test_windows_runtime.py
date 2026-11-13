@@ -244,6 +244,80 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
         thread.start()
         return server, thread, f"http://127.0.0.1:{server.server_address[1]}"
 
+    def test_heartbeat_endpoint_remains_responsive_during_exclusive_restore(self):
+        server, thread, base = self._start_server()
+        finished = threading.Event()
+        errors = []
+
+        def send_heartbeat():
+            try:
+                request = Request(
+                    base + "/api/client/heartbeat",
+                    data=b"{}",
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urlopen(request, timeout=5) as response:
+                    self.assertTrue(json.loads(response.read().decode("utf-8"))["ok"])
+            except Exception as exc:
+                errors.append(exc)
+            finally:
+                finished.set()
+
+        try:
+            with self.app.STORAGE.exclusive_operation():
+                worker = threading.Thread(target=send_heartbeat, daemon=True)
+                worker.start()
+                self.assertTrue(
+                    finished.wait(2),
+                    "heartbeat must not wait behind the exclusive restore gate",
+                )
+            worker.join(timeout=5)
+            self.assertEqual(errors, [])
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_heartbeat_watchdog_defers_shutdown_until_exclusive_restore_finishes(self):
+        stop_event = self.app.AUTO_SCAN_STOP
+        was_stopped = stop_event.is_set()
+        previous_last = self.app.LAST_CLIENT_HEARTBEAT
+        previous_close = self.app.CLOSE_REQUESTED_AT
+        stop_event.clear()
+        self.app.LAST_CLIENT_HEARTBEAT = time.monotonic() - 30
+        self.app.CLOSE_REQUESTED_AT = 0.0
+        shutdown_called = threading.Event()
+
+        class FakeServer:
+            def shutdown(self):
+                shutdown_called.set()
+
+        worker = threading.Thread(
+            target=self.app.heartbeat_watchdog,
+            args=(FakeServer(),),
+            daemon=True,
+        )
+        try:
+            with self.app.STORAGE.exclusive_operation():
+                worker.start()
+                time.sleep(1.25)
+                self.assertFalse(
+                    shutdown_called.is_set(),
+                    "watchdog must not stop the process during exclusive restore",
+                )
+            self.assertTrue(
+                shutdown_called.wait(2.5),
+                "watchdog should resume normal idle shutdown after restore completes",
+            )
+        finally:
+            stop_event.set()
+            worker.join(timeout=3)
+            self.app.LAST_CLIENT_HEARTBEAT = previous_last
+            self.app.CLOSE_REQUESTED_AT = previous_close
+            if not was_stopped:
+                stop_event.clear()
+
     def test_media_endpoint_never_serves_html_as_same_origin_content(self):
         server, thread, base = self._start_server()
         try:
