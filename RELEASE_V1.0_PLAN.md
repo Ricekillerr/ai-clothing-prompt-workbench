@@ -189,3 +189,10 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 ## Implementation log — 2026-11-13 (retrieval feedback analytics validated)
 - GitHub Actions run 43358221656 passed all 69 regression tests, Python compilation, frontend JavaScript syntax, all 8 update-file SHA-256 checks, Windows PowerShell parser validation, and release source/channel gate.
 - The feedback ledger is local-only, bounded to 5,000 records, validates the referenced case, and does not alter retrieval ranking automatically.
+
+
+## Implementation log — 2026-11-13 (request reliability and diagnostics)
+- Browser data saves now serialize through a promise queue so overlapping edits cannot complete out of order and overwrite a newer snapshot. Local data load/save requests have bounded timeouts; generic API calls use a 30-second default and AI analysis gets a longer operation-specific timeout.
+- Timeout errors are surfaced to the UI with guidance not to blindly repeat an operation before checking current state. This matters when the server may have committed a write but the response was delayed.
+- Added local API error diagnostics that record route and exception class/code only. Request bodies, prompts, URLs, and credential-bearing exception strings are intentionally excluded from the log.
+- Added integration guards for save serialization, timeout handling, and diagnostic redaction. Manifest hashes have been refreshed and the full pipeline is being rechecked.
