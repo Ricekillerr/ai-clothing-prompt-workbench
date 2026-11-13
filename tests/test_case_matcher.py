@@ -131,4 +131,39 @@ class CaseMatcherTests(unittest.TestCase):
         self.assertEqual(len(results), 1)
         self.assertTrue(results[0]["conflicts"])
 
+    def test_curated_verified_case_retrieval_benchmark(self):
+        cases = [
+            {"id": "vest", "name": "黑色立领无袖马甲", "status": "已验证成功",
+             "category": "上装", "subcategory": "无袖马甲", "material": "尼龙",
+             "color": "黑色", "silhouette": "直筒", "fit": "宽松",
+             "details": ["立领", "双拉头拉链"], "tags": ["马甲"]},
+            {"id": "trousers", "name": "深灰灯芯绒微喇裤", "status": "已验证成功",
+             "category": "下装", "subcategory": "微喇裤", "material": "灯芯绒",
+             "color": "深灰", "silhouette": "微喇", "fit": "宽松",
+             "details": ["长裤", "隐藏抽绳"], "tags": ["裤子"]},
+            {"id": "coat", "name": "藏青羊毛连帽外套", "status": "已验证成功",
+             "category": "上装", "subcategory": "外套", "material": "羊毛",
+             "color": "蓝色", "silhouette": "长款", "fit": "宽松",
+             "details": ["连帽", "拉链"], "tags": ["外套"]},
+            {"id": "jacket", "name": "棕色皮革短款夹克", "status": "已验证成功",
+             "category": "上装", "subcategory": "夹克", "material": "皮革",
+             "color": "棕色", "silhouette": "短款", "fit": "标准",
+             "details": ["立领", "拉链"], "tags": ["夹克"]},
+        ]
+        labelled_queries = [
+            ("黑色尼龙立领无袖马甲 双拉头", "vest"),
+            ("深灰灯芯绒微喇裤", "trousers"),
+            ("藏青羊毛连帽外套", "coat"),
+            ("棕色皮革短款夹克", "jacket"),
+        ]
+        for query, expected_id in labelled_queries:
+            with self.subTest(query=query):
+                results = rank_case_matches(cases, query, threshold=0.8)
+                self.assertTrue(results, query)
+                self.assertEqual(results[0]["case"]["id"], expected_id)
+                self.assertGreaterEqual(results[0]["match_percent"], 80)
+        self.assertEqual(
+            rank_case_matches(cases, "红色羊绒羽绒服", threshold=0.8), []
+        )
+
 if __name__=="__main__": unittest.main(verbosity=2)
