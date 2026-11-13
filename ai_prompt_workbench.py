@@ -202,6 +202,11 @@ class Handler(BaseHTTPRequestHandler):
             params = parse_qs(urlsplit(self.path).query)
             asset_id = str((params.get("asset_id") or [""])[0]).strip()
             self.send_json(200, {"revisions": STORAGE.list_asset_revisions(asset_id)})
+        elif path == "/api/assets/revision":
+            params = parse_qs(urlsplit(self.path).query)
+            asset_id = str((params.get("asset_id") or [""])[0]).strip()
+            revision_id = str((params.get("revision_id") or [""])[0]).strip()
+            self.send_json(200, STORAGE.get_asset_revision(asset_id, revision_id))
         elif path == "/api/cases/search":
             params = parse_qs(urlsplit(self.path).query)
             query = str((params.get("q") or [""])[0]).strip()
