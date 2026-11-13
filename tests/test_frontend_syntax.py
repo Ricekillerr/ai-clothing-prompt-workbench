@@ -46,7 +46,8 @@ class FrontendSyntaxTests(unittest.TestCase):
 
     def test_composed_prompt_preserves_whitespace_and_checks_category_scope(self):
         html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
-        self.assertIn('function saveDraft(){let body=$("output").value;', html)
+        self.assertIn("function saveDraft(){", html)
+        self.assertIn("const composition=compositionForDraft(body,lastCompositionSnapshot)", html)
         self.assertIn('if(!body.trim())return toast("先生成组合草稿")', html)
         self.assertIn('适用品类不匹配：', html)
 
