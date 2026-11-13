@@ -342,3 +342,8 @@ This branch is an isolated stabilization lane. It is not the production update c
 - When enabled, startup and six-hour update checks automatically invoke the verified update pipeline if a newer version is available. The updater still creates a pre-update full backup, validates staged files against the manifest, shuts down/restarts the app, and uses transactional rollback.
 - The Settings page shows whether automatic installation is authorized and lets the user disable it. Manual update confirmation remains the default when authorization is off.
 - This implements the intended no-recurring-download workflow without silently installing updates before the user explicitly enables it.
+
+
+## Implementation log — 2026-11-13 (automatic update authorization validated)
+- GitHub Actions run 43362937490 passed all 87 regression tests, all 8 update-manifest SHA-256 checks, PowerShell parser validation, the release source/channel gate, and all four Windows Server 2025 runtime smoke tests.
+- The automatic update feature is opt-in and persists locally. Once enabled, the app automatically downloads/applies a newer candidate from the configured update channel after manifest verification and pre-update backup; it restarts itself. With the setting off, updates remain manual.
