@@ -210,3 +210,9 @@
 - Node 从 index.html 提取并执行实际 restoreAssetRevision()；模拟服务端成功与失败响应。
 - 成功时验证 asset_id/revision_id、数据归一化、主列表刷新、详情重开、历史重载和成功提示；失败时验证现有本地数据保持不变且展示服务端错误。
 - CI run 43408579766：149 项主回归（148 通过、1 项环境跳过），Windows 专项 22 项全部通过，三个 jobs 全部成功。
+
+
+## 回收站恢复 UI 行为回归 — 2026-11-13
+- Node 从 index.html 提取并执行实际 restoreDeletedAsset()；模拟成功和过期快照错误响应。
+- 成功时验证 expected_absent=true、精确 revision_id、资产数据刷新、回收站缓存失效、统计刷新、回收站重载；失败时验证按钮重新启用、文字复位并显示服务端错误。
+- CI run 43408829441：150 项主回归（149 通过、1 项环境跳过），Windows 专项 22 项全部通过，三个 jobs 全部成功。
