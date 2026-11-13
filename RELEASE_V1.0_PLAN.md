@@ -136,3 +136,9 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 - The case editor now supports manual maintenance of structured outfit items and explicit pairwise relationships, using one garment per line with category, name, color, material, silhouette, fit, and details. Item count and relationship endpoints are bounded; editing preserves existing AI evidence metadata for retained entries.
 - Added a browser-local perceptual-hash image shortlist in smart search. The query image is processed in the browser and is not uploaded. It compares against up to 500 images attached to verified-success cases and displays nearest visual-structure candidates with a clear limitation notice: this is a coarse near-duplicate/visual-structure aid, not semantic same-garment recognition; different viewpoints and backgrounds can reduce accuracy.
 - Added integration guards for manual outfit editing and local-only visual search. Frontend JavaScript syntax was checked by CI; final manifest hash and complete test run are in progress after the last UI update.
+
+
+## Implementation log — 2026-11-13 (manual outfit editing and visual shortlist validation)
+- Manual editing of outfit items/relationships and the browser-local visual shortlist passed the complete GitHub Actions pipeline. Run 43357194030 passed all 67 regression tests, frontend syntax validation, all 8 update-file SHA-256 checks, Windows PowerShell parser validation, and release source/channel gate.
+- The image shortlist remains intentionally scoped to perceptual-hash similarity, not semantic recognition. It does not upload the query image, and results must not be represented as an 80% same-product probability.
+- No Windows desktop acceptance or release promotion is claimed.
