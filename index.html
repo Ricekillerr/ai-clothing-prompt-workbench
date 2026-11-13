@@ -456,7 +456,7 @@ function compositionForDraft(body,snapshot,createdAt=new Date().toISOString()){
 }
 function composeNow(){
  const b=db.cases.find(x=>x.id===$("base").value);if(!b)return toast("请先选择基础案例");
- const ids=[...document.querySelectorAll('#content input[type=checkbox]:checked')].map(x=>x.value),mods=ids.map(id=>db.modules.find(x=>x.id===id)).filter(Boolean);
+ const ids=[...document.querySelectorAll('.compose .pane:first-child input[type=checkbox]:checked')].map(x=>x.value),mods=ids.map(id=>db.modules.find(x=>x.id===id)).filter(Boolean);
  const warnings=$("composeWarnings"),conflicts=findComposeConflicts(b,mods);
  if(conflicts.length){lastCompositionSnapshot=null;$("output").value="";warnings.style.color="#b45309";warnings.textContent="发现组合冲突，已阻止生成：\n"+conflicts.map(x=>"• "+x).join("\n")+"\n请取消冲突模块或修正模块内容后重试。";toast("发现提示词模块冲突，已阻止组合");return}
  warnings.style.color="var(--muted)";warnings.textContent="预检通过：未发现明确的模型或互斥约束冲突。请仍核对组合结果。";

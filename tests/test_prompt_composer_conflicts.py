@@ -38,6 +38,34 @@ if (manual.source_snapshot_available !== false || manual.preflight !== "not_gene
         result = subprocess.run(["node", "-e", script], capture_output=True, text=True, check=False)
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
+    def test_composer_reads_only_selected_module_checkboxes_not_output_options(self):
+        root = Path(__file__).resolve().parents[1]
+        html = (root / "index.html").read_text(encoding="utf-8")
+        compose = html.split("function composeNow(){", 1)[1].split("function saveDraft(){", 1)[0]
+        self.assertIn(".compose .pane:first-child input[type=checkbox]:checked", compose)
+        self.assertNotIn("#content input[type=checkbox]:checked", compose)
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("Node.js is not installed in this environment")
+        script = r"""
+const selected = [
+  {value: "module-1", checked: true, parent: "left"},
+  {value: "on", checked: true, parent: "right"}
+];
+const document = {
+  querySelectorAll(selector) {
+    if (selector !== ".compose .pane:first-child input[type=checkbox]:checked") {
+      throw new Error("Unexpected checkbox scope: " + selector);
+    }
+    return selected.filter(x => x.checked && x.parent === "left");
+  }
+};
+const ids = [...document.querySelectorAll(".compose .pane:first-child input[type=checkbox]:checked")].map(x => x.value);
+if (ids.length !== 1 || ids[0] !== "module-1") throw new Error("Composer must only include selected module checkboxes.");
+"""
+        result = subprocess.run([node, "-e", script], capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
     def test_cross_module_type_conflicts_are_detected_but_distinct_garment_scopes_are_isolated(self):
         root = Path(__file__).resolve().parents[1]
         html = (root / "index.html").read_text(encoding="utf-8")
