@@ -105,3 +105,12 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 - Added structured-field and synonym regression tests. Initial tests exposed missing field indexing and partial alias coverage; corrected the matcher to include fit/silhouette in detail attributes and classify double-needle stitching phrases. No failing test was waived or deleted.
 - GitHub Actions run 43355300227 completed successfully: all 61 regression tests, Python compilation, frontend JavaScript syntax, runtime manifest SHA-256 checks, Windows PowerShell parser validation, and release source/channel gate passed.
 - Candidate remains on the isolated stabilization branch; no production release, main-branch merge, or Windows GUI acceptance is claimed.
+
+
+## Implementation log — 2026-11-13 (per-image role classification and human review)
+- AI analysis now requests one ordered role classification for every image input: overall, front, back, detail, fabric, label, scene, other, or unknown. Videos are explicitly excluded from image-role indexing because this version does not extract video frames.
+- Added deterministic normalization: missing, malformed, duplicate, out-of-range, or unsupported role labels cannot shift image order or silently become trusted classifications; they fall back to unknown or retain the first valid index entry for human review.
+- AI review queue displays the proposed role labels before import. Confirmed cases preserve per-image role, Chinese label, observation, and source path alongside the existing copied references and SHA-256 provenance. Case details display the saved classifications and observations.
+- The workflow remains human-confirmed: AI role labels are suggestions, not automatic truth. No case is marked as verified-successful by this classification step.
+- Added tests for ordered role-to-image mapping, invalid/missing/duplicate role fallback, and role metadata persistence through approved import. GitHub Actions run 43355844148 passed all 64 regression tests, Python compilation, frontend syntax, runtime manifest hashes, Windows PowerShell parser validation, and release source/channel gate.
+- Candidate remains isolated on `release/v0.6.5-stabilization`; Windows GUI/runtime acceptance remains outstanding.
