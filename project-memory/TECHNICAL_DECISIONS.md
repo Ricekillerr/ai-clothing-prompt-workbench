@@ -181,3 +181,9 @@
 - GitHub Actions run 43406916601：145 项主回归（144 通过、1 项 Linux 环境跳过），Windows 专项 22 项全部通过，三个 jobs 全部成功。
 - 本轮覆盖案例/模块 CRUD 与历史恢复、完整 ZIP 备份下载/HTTP 上传恢复、历史文件夹扫描/人工审核/mock AI 分析/人工批准/参考图复制与来源溯源。
 - 更新了质量门禁文档与任务队列；用户真实 Windows 目录、真实模型服务、杀毒软件和网络环境仍未验收。
+
+
+## 组合器模块选择边界 — 2026-11-13
+- 问题：composeNow() 原先从整个组合器内容区读取所有 checked checkbox；右侧结构化说明、双语输出、模型提醒开关也会被收集为值 "on"。正常 UUID 模块不会匹配该值，但若旧数据恰有 id="on"，会把选项开关误当作模块。
+- 修复：选择器限定为 .compose .pane:first-child 内的 checked checkbox，仅左侧模块列表参与组合。
+- 回归：Node 测试验证选择范围不包含右侧选项；146 项主回归、22 项 Windows 专项全部通过。index.html 的 SHA-256 已同步 update_manifest.json。
