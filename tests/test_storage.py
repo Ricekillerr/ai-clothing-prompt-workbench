@@ -302,6 +302,20 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(restored["name"], "Recover me")
         self.assertEqual(store.load_data()["cases"][0]["id"], "deleted-case")
 
+    def test_full_backup_names_do_not_collide_when_created_in_same_second(self):
+        store = Storage(self.home)
+        store.save_data({"cases": [{"id": "backup-case", "name": "Backup"}],
+                         "modules": []})
+        first = store.create_full_backup(app_version="0.6.5")
+        second = store.create_full_backup(app_version="0.6.5")
+        self.assertNotEqual(first.name, second.name)
+        self.assertTrue(first.is_file())
+        self.assertTrue(second.is_file())
+        with zipfile.ZipFile(first) as archive:
+            self.assertIsNone(archive.testzip())
+        with zipfile.ZipFile(second) as archive:
+            self.assertIsNone(archive.testzip())
+
     def test_full_backup_restore_replaces_database_json_and_references(self):
         store = Storage(self.home)
         store.save_data({"cases": [{"id": "before", "name": "Before", "body": "old prompt"}],
