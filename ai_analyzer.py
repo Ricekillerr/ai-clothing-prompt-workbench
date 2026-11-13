@@ -6,6 +6,7 @@ API credentials are supplied per request and are never written to disk.
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import mimetypes
 from pathlib import Path
@@ -38,12 +39,22 @@ class _NoRedirectHandler(HTTPRedirectHandler):
         raise ValueError("AI 服务端点返回重定向，已阻止转发 API Key")
 
 
-def _read_text(path: Path) -> str:
+def _read_text(path: Path, expected_sha256: str | None = None) -> str:
     with path.open("rb") as source:
         raw = source.read(MAX_TEXT_BYTES + 1)
     if len(raw) > MAX_TEXT_BYTES:
         raise ValueError("提示词文件超过 1MB，暂不发送分析")
+    if expected_sha256 and hashlib.sha256(raw).hexdigest() != str(expected_sha256).lower():
+        raise ValueError("提示词文件在分析时发生变化，请重新扫描再分析")
     return raw.decode("utf-8-sig", errors="replace")
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _read_api_response(response) -> dict:
@@ -154,9 +165,13 @@ def normalize_outfit_items(raw_items, raw_relations=None) -> tuple[list[dict], l
 
 def analyze_assets(prompt_path: str, asset_paths: list[str], api_key: str,
                   endpoint: str = "https://api.openai.com/v1",
-                  model: str = "gpt-4o-mini", timeout: int = 120) -> dict:
-    prompt_file = Path(prompt_path).resolve()
-    assets = [Path(value).resolve() for value in asset_paths]
+                  model: str = "gpt-4o-mini", timeout: int = 120,
+                  expected_prompt_sha256: str | None = None,
+                  expected_asset_sha256s: list[str] | None = None) -> dict:
+    prompt_file = Path(prompt_path).expanduser().resolve(strict=True)
+    assets = [Path(value).expanduser().resolve(strict=True) for value in asset_paths]
+    if expected_asset_sha256s is not None and len(expected_asset_sha256s) != len(assets):
+        raise ValueError("关联素材校验清单与素材数量不一致")
     if not prompt_file.is_file():
         raise ValueError("提示词文件不存在")
     if not 1 <= len(assets) <= 8:
@@ -169,7 +184,7 @@ def analyze_assets(prompt_path: str, asset_paths: list[str], api_key: str,
         raise ValueError("请填写 API Key；密钥仅在本次请求中使用，不会保存")
     if prompt_file.suffix.lower() not in {".txt", ".md", ".json"}:
         raise ValueError("提示词文件仅支持 TXT、MD、JSON")
-    text = _read_text(prompt_file)
+    text = _read_text(prompt_file, expected_prompt_sha256)
     if not text.strip():
         raise ValueError("提示词文件内容为空")
 
@@ -202,6 +217,10 @@ def analyze_assets(prompt_path: str, asset_paths: list[str], api_key: str,
     total_image_bytes = 0
     for index, asset_file in enumerate(assets, start=1):
         ext = asset_file.suffix.lower()
+        expected_hash = (
+            str(expected_asset_sha256s[index - 1]).lower()
+            if expected_asset_sha256s is not None else ""
+        )
         if ext in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}:
             size = asset_file.stat().st_size
             if size > MAX_IMAGE_BYTES:
@@ -213,11 +232,15 @@ def analyze_assets(prompt_path: str, asset_paths: list[str], api_key: str,
                 raw = source.read(MAX_IMAGE_BYTES + 1)
             if len(raw) > MAX_IMAGE_BYTES:
                 raise ValueError(f"第 {index} 张图片超过 8MB，暂不发送分析")
+            if expected_hash and hashlib.sha256(raw).hexdigest() != expected_hash:
+                raise ValueError(f"第 {index} 张图片在分析时发生变化，请重新扫描再分析")
             mime = mimetypes.guess_type(asset_file.name)[0] or "image/png"
             data_url = "data:" + mime + ";base64," + base64.b64encode(raw).decode("ascii")
             user_content.append({"type": "text", "text": f"关联图片 {index}：{asset_file.name}"})
             user_content.append({"type": "image_url", "image_url": {"url": data_url, "detail": "high"}})
         elif ext in {".mp4", ".mov", ".m4v", ".webm", ".avi"}:
+            if expected_hash and _sha256_file(asset_file) != expected_hash:
+                raise ValueError("关联视频文件在分析时发生变化，请重新扫描再分析")
             user_content.append({
                 "type": "text",
                 "text": f"关联文件 {index} 是视频：{asset_file.name}。当前版本不会抽帧，不能判断视频画面内容。"

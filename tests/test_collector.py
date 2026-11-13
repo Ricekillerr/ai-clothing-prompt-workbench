@@ -40,6 +40,23 @@ class CollectorTests(unittest.TestCase):
             self.assertEqual(len(delta), 1)
             self.assertNotEqual(delta[0]["sha256"], first[0]["sha256"])
 
+    def test_skips_symlinked_files_and_external_directory_aliases(self):
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside:
+            root = Path(tmp)
+            external = Path(outside)
+            (external / "secret.png").write_bytes(b"outside")
+            (external / "nested").mkdir()
+            (external / "nested" / "hidden.txt").write_text("outside", encoding="utf-8")
+            try:
+                (root / "linked.png").symlink_to(external / "secret.png")
+                (root / "linked_dir").symlink_to(external / "nested", target_is_directory=True)
+            except OSError:
+                self.skipTest("当前系统未授予创建符号链接的权限")
+            (root / "safe.txt").write_text("inside", encoding="utf-8")
+            results = scan_folder(root)
+            self.assertEqual([item["relative_path"] for item in results], ["safe.txt"])
+            self.assertTrue(all(Path(item["path"]).is_relative_to(root.resolve()) for item in results))
+
     def test_recursive_false_only_scans_top_level(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

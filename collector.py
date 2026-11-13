@@ -14,6 +14,14 @@ SUPPORTED_EXTENSIONS = IMAGE_EXTENSIONS | VIDEO_EXTENSIONS | TEXT_EXTENSIONS
 CHUNK_SIZE = 1024 * 1024
 
 
+def _is_junction(path: Path) -> bool:
+    checker = getattr(path, "is_junction", None)
+    try:
+        return bool(checker()) if callable(checker) else False
+    except OSError:
+        return True
+
+
 def classify(path: Path) -> str:
     ext = path.suffix.lower()
     if ext in IMAGE_EXTENSIONS:
@@ -46,29 +54,46 @@ def scan_folder(folder: Path, recursive: bool = True,
     found = []
     for candidate in iterator:
         try:
-            if candidate.is_symlink() or not candidate.is_file():
-                continue
-            if any(part.startswith(".") for part in candidate.relative_to(root).parts):
+            relative = candidate.relative_to(root)
+            if any(part.startswith(".") for part in relative.parts):
                 continue
             if candidate.suffix.lower() not in allowed:
                 continue
-            stat = candidate.stat()
+            # Never traverse a symlink or Windows junction hidden in the selected tree.
+            parent = root
+            linked_parent = False
+            for part in relative.parts[:-1]:
+                parent = parent / part
+                if parent.is_symlink() or _is_junction(parent):
+                    linked_parent = True
+                    break
+            if linked_parent or candidate.is_symlink() or _is_junction(candidate):
+                continue
+            if not candidate.is_file():
+                continue
+            canonical_path = candidate.resolve(strict=True)
+            try:
+                canonical_path.relative_to(root)
+            except ValueError:
+                # A junction/reparse point resolved outside the selected source folder.
+                continue
+            stat = canonical_path.stat()
             if stat.st_size <= 0:
                 continue
-            canonical = str(candidate.resolve())
+            canonical = str(canonical_path)
             old = (previous or {}).get(canonical)
             unchanged = bool(old and old.get("size") == stat.st_size
                              and old.get("modified_ns") == stat.st_mtime_ns
                              and old.get("sha256"))
             found.append({
                 "path": canonical,
-                "relative_path": candidate.relative_to(root).as_posix(),
+                "relative_path": relative.as_posix(),
                 "name": candidate.name,
                 "extension": candidate.suffix.lower(),
                 "media_type": classify(candidate),
                 "size": stat.st_size,
                 "modified_ns": stat.st_mtime_ns,
-                "sha256": old["sha256"] if unchanged else sha256_file(candidate),
+                "sha256": old["sha256"] if unchanged else sha256_file(canonical_path),
             })
         except (OSError, ValueError):
             # Files changing during a scan are retried on the next scan.

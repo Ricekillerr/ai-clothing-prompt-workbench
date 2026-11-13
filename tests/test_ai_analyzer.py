@@ -4,7 +4,7 @@ from io import BytesIO
 from urllib.request import Request
 from pathlib import Path
 
-from ai_analyzer import (_NoRedirectHandler, MAX_RESPONSE_BYTES, _read_api_response, _read_text, _safe_endpoint, analyze_pair, normalize_asset_roles, normalize_outfit_items)
+from ai_analyzer import (_NoRedirectHandler, MAX_RESPONSE_BYTES, _read_api_response, _read_text, _safe_endpoint, analyze_pair, analyze_assets, normalize_asset_roles, normalize_outfit_items)
 
 
 class AIAnalyzerTests(unittest.TestCase):
@@ -116,6 +116,35 @@ class AIAnalyzerTests(unittest.TestCase):
         ])
         self.assertEqual(len(items), 12)
         self.assertEqual(relations, [])
+
+    def test_analysis_rechecks_the_exact_scanned_prompt_and_image_hashes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prompt = Path(tmp) / "prompt.txt"
+            image = Path(tmp) / "image.png"
+            prompt.write_text("original prompt", encoding="utf-8")
+            image.write_bytes(b"original image")
+            with self.assertRaisesRegex(ValueError, "提示词文件在分析时发生变化"):
+                analyze_assets(
+                    str(prompt), [str(image)], "test-key",
+                    expected_prompt_sha256="0" * 64,
+                )
+            with self.assertRaisesRegex(ValueError, "图片在分析时发生变化"):
+                analyze_assets(
+                    str(prompt), [str(image)], "test-key",
+                    expected_asset_sha256s=["0" * 64],
+                )
+
+    def test_analysis_rejects_hash_manifest_with_wrong_asset_count(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prompt = Path(tmp) / "prompt.txt"
+            image = Path(tmp) / "image.png"
+            prompt.write_text("prompt", encoding="utf-8")
+            image.write_bytes(b"image")
+            with self.assertRaisesRegex(ValueError, "数量不一致"):
+                analyze_assets(
+                    str(prompt), [str(image)], "test-key",
+                    expected_asset_sha256s=[],
+                )
 
     def test_non_prompt_file_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:

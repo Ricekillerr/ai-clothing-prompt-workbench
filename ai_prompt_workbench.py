@@ -111,6 +111,49 @@ def load_data():
 def save_data(d):
     STORAGE.save_data(d)
 
+
+def _is_link_or_junction(path):
+    if path.is_symlink():
+        return True
+    checker = getattr(path, "is_junction", None)
+    try:
+        return bool(checker()) if callable(checker) else False
+    except OSError:
+        return True
+
+
+def _validated_ingest_file_path(record):
+    source = next(
+        (item for item in STORAGE.list_scan_sources() if item["id"] == record.get("source_id")),
+        None,
+    )
+    if source is None:
+        raise ValueError("采集文件对应的扫描来源不存在")
+    source_path = Path(source["folder_path"])
+    if _is_link_or_junction(source_path):
+        raise ValueError("扫描来源已变为符号链接或目录联接，拒绝分析")
+    root = source_path.resolve(strict=True)
+    if os.path.normcase(os.path.normpath(str(root))) != os.path.normcase(
+        os.path.normpath(str(source["folder_path"]))
+    ):
+        raise ValueError("扫描来源路径在登记后发生变化，拒绝分析")
+    stored_path = Path(record["path"])
+    if _is_link_or_junction(stored_path):
+        raise ValueError("采集文件已变为符号链接或目录联接，拒绝分析")
+    resolved = stored_path.resolve(strict=True)
+    if os.path.normcase(os.path.normpath(str(resolved))) != os.path.normcase(
+        os.path.normpath(str(record["path"]))
+    ):
+        raise ValueError("采集文件路径在登记后发生变化，拒绝分析")
+    try:
+        resolved.relative_to(root)
+    except ValueError as exc:
+        raise ValueError("采集文件已超出原扫描目录，拒绝分析") from exc
+    if not resolved.is_file():
+        raise ValueError("采集文件不存在或不再是普通文件")
+    return resolved
+
+
 def version_tuple(v):
     vals = []
     for part in str(v).strip().lstrip("vV").split("."):
@@ -413,24 +456,26 @@ class Handler(BaseHTTPRequestHandler):
                 prompt_record = STORAGE.get_ingest_record(prompt_path)
                 if not prompt_record or prompt_record["media_type"] != "text":
                     raise ValueError("提示词文件必须来自已扫描的本地文件夹")
-                if sha256_file(Path(prompt_path)) != prompt_record["sha256"]:
-                    raise ValueError("提示词文件在扫描后发生变化，请重新扫描再分析")
+                prompt_file = _validated_ingest_file_path(prompt_record)
                 asset_records = []
+                asset_files = []
                 for asset_path in asset_paths:
                     record = STORAGE.get_ingest_record(asset_path)
                     if not record or record["media_type"] not in {"image", "video"}:
                         raise ValueError("所有关联素材都必须来自已扫描的本地文件夹")
-                    if sha256_file(Path(asset_path)) != record["sha256"]:
-                        raise ValueError("至少一个关联素材在扫描后发生变化，请重新扫描再分析")
+                    resolved_asset = _validated_ingest_file_path(record)
                     asset_records.append(record)
+                    asset_files.append(resolved_asset)
                 result = analyze_assets(
-                    prompt_path, asset_paths, str(d.get("api_key", "")),
+                    str(prompt_file), [str(path) for path in asset_files], str(d.get("api_key", "")),
                     str(d.get("endpoint", "https://api.openai.com/v1")),
                     str(d.get("model", "gpt-4o-mini")),
+                    expected_prompt_sha256=prompt_record["sha256"],
+                    expected_asset_sha256s=[record["sha256"] for record in asset_records],
                 )
                 result["asset_sha256s"] = [record["sha256"] for record in asset_records]
                 analysis_id = STORAGE.save_ai_analysis(
-                    prompt_path, asset_paths[0], prompt_record["sha256"], asset_records[0]["sha256"],
+                    str(prompt_file), str(asset_files[0]), prompt_record["sha256"], asset_records[0]["sha256"],
                     str(result.get("model", "")), result,
                 )
                 self.send_json(200, {"ok": True, "analysis_id": analysis_id, "result": result})

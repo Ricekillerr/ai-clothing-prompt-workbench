@@ -5,6 +5,7 @@ import os
 import json
 import sqlite3
 import tempfile
+import threading
 import zipfile
 import unittest
 from unittest import mock
@@ -167,6 +168,26 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(second["unchanged"], 1)
         self.assertEqual(store.list_pending_ingest(source_id), [], "已审核且内容未变化的文件不应重新进入待审核队列")
 
+    def test_scan_results_reject_paths_outside_the_registered_source(self):
+        store = Storage(self.home)
+        source_dir = self.home / "history"
+        source_dir.mkdir()
+        source_id = store.register_scan_source(str(source_dir))
+        outside = self.home / "outside.png"
+        item = {
+            "path": str(outside),
+            "relative_path": "outside.png",
+            "name": "outside.png",
+            "extension": ".png",
+            "media_type": "image",
+            "size": 5,
+            "modified_ns": 1,
+            "sha256": "a" * 64,
+        }
+        with self.assertRaisesRegex(StorageError, "之外"):
+            store.save_scan_results(source_id, [item])
+        self.assertEqual(store.list_pending_ingest(source_id), [])
+
     def test_changed_ingest_content_returns_to_pending(self):
         store = Storage(self.home)
         source_dir = self.home / "history"
@@ -316,6 +337,63 @@ class StorageTests(unittest.TestCase):
             self.assertIsNone(archive.testzip())
         with zipfile.ZipFile(second) as archive:
             self.assertIsNone(archive.testzip())
+
+    def test_full_backup_does_not_follow_reference_symlinks_outside_root(self):
+        store = Storage(self.home)
+        references = self.home / "references"
+        references.mkdir(exist_ok=True)
+        outside = self.home / "outside-secret.txt"
+        outside.write_text("must not be copied", encoding="utf-8")
+        try:
+            (references / "linked-secret.txt").symlink_to(outside)
+        except OSError:
+            self.skipTest("当前系统未授予创建符号链接的权限")
+        (references / "safe.txt").write_text("safe", encoding="utf-8")
+        backup = store.create_full_backup(references, app_version="0.6.5")
+        with zipfile.ZipFile(backup) as archive:
+            self.assertIn("references/safe.txt", archive.namelist())
+            self.assertNotIn("references/linked-secret.txt", archive.namelist())
+            self.assertNotIn("outside-secret.txt", archive.namelist())
+
+    def test_restore_waits_for_active_database_session(self):
+        store = Storage(self.home)
+        store.save_data({"cases": [{"id": "restore-lock", "name": "Before"}], "modules": []})
+        backup = store.create_full_backup(self.home / "references", app_version="0.6.5")
+        session_entered = threading.Event()
+        release_session = threading.Event()
+        restore_started = threading.Event()
+        restore_finished = threading.Event()
+        errors = []
+
+        def hold_session():
+            try:
+                with store._session():
+                    session_entered.set()
+                    release_session.wait(5)
+            except Exception as exc:
+                errors.append(exc)
+
+        def restore():
+            restore_started.set()
+            try:
+                store.restore_full_backup(backup)
+            except Exception as exc:
+                errors.append(exc)
+            finally:
+                restore_finished.set()
+
+        holder = threading.Thread(target=hold_session, daemon=True)
+        holder.start()
+        self.assertTrue(session_entered.wait(5), "数据库会话未能启动")
+        restorer = threading.Thread(target=restore, daemon=True)
+        restorer.start()
+        self.assertTrue(restore_started.wait(5))
+        self.assertFalse(restore_finished.wait(0.15), "恢复不应越过仍在使用的数据库会话")
+        release_session.set()
+        holder.join(5)
+        restorer.join(10)
+        self.assertTrue(restore_finished.is_set(), "数据库会话释放后恢复应完成")
+        self.assertEqual(errors, [])
 
     def test_full_backup_restore_replaces_database_json_and_references(self):
         store = Storage(self.home)

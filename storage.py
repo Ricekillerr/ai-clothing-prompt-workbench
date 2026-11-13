@@ -13,6 +13,7 @@ import shutil
 import sqlite3
 import stat
 import tempfile
+import threading
 import zipfile
 from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
@@ -21,12 +22,23 @@ from typing import Any
 SCHEMA_VERSION = 1
 
 
+def _is_link_or_junction(path: Path) -> bool:
+    if path.is_symlink():
+        return True
+    checker = getattr(path, "is_junction", None)
+    try:
+        return bool(checker()) if callable(checker) else False
+    except OSError:
+        return True
+
+
 class StorageError(RuntimeError):
     pass
 
 
 class Storage:
     def __init__(self, home: Path, legacy_json: Path | None = None):
+        self._db_lock = threading.RLock()
         self.home = Path(home)
         self.home.mkdir(parents=True, exist_ok=True)
         self.db_path = self.home / "prompt_library.sqlite3"
@@ -43,15 +55,18 @@ class Storage:
 
     @contextmanager
     def _session(self):
-        con = self._connect()
-        try:
-            yield con
-            con.commit()
-        except Exception:
-            con.rollback()
-            raise
-        finally:
-            con.close()
+        # Restore swaps the database file and WAL sidecars; block every live session
+        # until the replacement and post-restore validation have completed.
+        with self._db_lock:
+            con = self._connect()
+            try:
+                yield con
+                con.commit()
+            except Exception:
+                con.rollback()
+                raise
+            finally:
+                con.close()
 
     def _initialize(self) -> None:
         existed = self.db_path.exists()
@@ -449,9 +464,16 @@ class Storage:
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         added = changed = unchanged = 0
         with self._session() as con:
-            source = con.execute("SELECT id FROM scan_sources WHERE id=? AND enabled=1", (source_id,)).fetchone()
+            source = con.execute(
+                "SELECT id,folder_path FROM scan_sources WHERE id=? AND enabled=1",
+                (source_id,),
+            ).fetchone()
             if not source:
                 raise StorageError("扫描来源不存在或已停用。")
+            try:
+                source_root = Path(source["folder_path"]).resolve(strict=True)
+            except OSError as exc:
+                raise StorageError("扫描来源文件夹已不存在，无法保存扫描结果。") from exc
             existing = {
                 row["path"]: row
                 for row in con.execute(
@@ -461,7 +483,14 @@ class Storage:
             }
             seen_paths = set()
             for item in items:
-                path = str(Path(item["path"]).resolve())
+                resolved_path = Path(item["path"]).resolve()
+                try:
+                    relative_path = resolved_path.relative_to(source_root).as_posix()
+                except ValueError as exc:
+                    raise StorageError("扫描结果包含来源文件夹之外的路径，已拒绝入库。") from exc
+                if relative_path != str(item.get("relative_path") or "").replace(chr(92), "/"):
+                    raise StorageError("扫描结果的相对路径与实际文件路径不一致，已拒绝入库。")
+                path = str(resolved_path)
                 seen_paths.add(path)
                 old = existing.get(path)
                 if old is None:
@@ -858,6 +887,10 @@ class Storage:
             )
 
     def backup(self, destination: Path | None = None) -> Path:
+        with self._db_lock:
+            return self._backup_locked(destination)
+
+    def _backup_locked(self, destination: Path | None = None) -> Path:
         target = Path(destination) if destination else self.home / "backups" / "prompt_library.sqlite3"
         target.parent.mkdir(parents=True, exist_ok=True)
         fd, temp_name = tempfile.mkstemp(prefix="db_backup_", suffix=".sqlite3", dir=target.parent)
@@ -896,6 +929,11 @@ class Storage:
 
     def create_full_backup(self, references_dir: Path | None = None,
                            app_version: str = "unknown") -> Path:
+        with self._db_lock:
+            return self._create_full_backup_locked(references_dir, app_version)
+
+    def _create_full_backup_locked(self, references_dir: Path | None = None,
+                                   app_version: str = "unknown") -> Path:
         """Create a verified ZIP backup of the SQLite database, JSON data and local references.
 
         The live database is copied through SQLite's backup API so WAL contents are
@@ -938,11 +976,21 @@ class Storage:
 
             if references_dir:
                 source = Path(references_dir)
+                if _is_link_or_junction(source):
+                    raise StorageError("参考图片目录是符号链接或 Windows 目录联接，拒绝创建不完整备份。")
                 if source.is_dir():
-                    for item in sorted(source.rglob("*")):
-                        if item.is_file() and not item.is_symlink():
-                            relative = item.relative_to(source).as_posix()
-                            payloads["references/" + relative] = item
+                    source_root = source.resolve(strict=True)
+                    for item in sorted(source_root.rglob("*")):
+                        try:
+                            if _is_link_or_junction(item) or not item.is_file():
+                                continue
+                            resolved_item = item.resolve(strict=True)
+                            relative = resolved_item.relative_to(source_root).as_posix()
+                            payloads["references/" + relative] = resolved_item
+                        except (OSError, ValueError):
+                            # Skip links/reparse points that escape the reference root
+                            # and files that disappear during a backup.
+                            continue
 
             def file_sha256(path: Path) -> str:
                 digest = hashlib.sha256()
@@ -989,6 +1037,10 @@ class Storage:
         return target
 
     def restore_full_backup(self, archive_path: Path) -> dict:
+        with self._db_lock:
+            return self._restore_full_backup_locked(archive_path)
+
+    def _restore_full_backup_locked(self, archive_path: Path) -> dict:
         """Verify a full backup completely, then atomically replace local data and references."""
         archive_path = Path(archive_path).resolve()
         if not archive_path.is_file():
