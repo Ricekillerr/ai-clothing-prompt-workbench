@@ -490,6 +490,33 @@ class StorageTests(unittest.TestCase):
         with self.assertRaisesRegex(StorageError, "不安全的文件路径"):
             store.restore_full_backup(malicious)
 
+    def test_generation_outcome_updates_case_status_and_analytics(self):
+        store = Storage(self.home)
+        store.save_data({"cases": [{"id": "outcome-case", "name": "Outcome",
+                                    "body": "prompt", "status": "待验证"}],
+                         "modules": []})
+        success = store.record_generation_outcome("outcome-case", "success", "生成稳定，服装结构正确")
+        self.assertEqual(success["status"], "已验证成功")
+        self.assertEqual(store.load_data()["cases"][0]["status"], "已验证成功")
+        failed = store.record_generation_outcome("outcome-case", "failed", "拉链位置穿帮")
+        self.assertEqual(failed["status"], "失败案例")
+        case = store.load_data()["cases"][0]
+        self.assertEqual(case["last_generation_outcome"], "failed")
+        self.assertEqual(case["last_generation_note"], "拉链位置穿帮")
+        analytics = store.get_retrieval_analytics()
+        self.assertEqual(analytics["generation_success"], 1)
+        self.assertEqual(analytics["generation_failed"], 1)
+        self.assertEqual(analytics["generation_feedback_total"], 2)
+
+    def test_generation_outcome_rejects_unknown_case_or_outcome(self):
+        store = Storage(self.home)
+        with self.assertRaisesRegex(StorageError, "找不到对应的案例"):
+            store.record_generation_outcome("missing", "success")
+        store.save_data({"cases": [{"id": "outcome-case", "name": "Outcome", "body": "prompt"}],
+                         "modules": []})
+        with self.assertRaisesRegex(StorageError, "只支持成功或失败"):
+            store.record_generation_outcome("outcome-case", "maybe")
+
     def test_retrieval_feedback_is_local_bounded_and_aggregated(self):
         store = Storage(self.home)
         store.save_data({"cases": [{"id": "feedback-case", "name": "Feedback", "body": "prompt"}],
