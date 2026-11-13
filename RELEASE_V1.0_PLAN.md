@@ -30,3 +30,13 @@ This branch is an isolated stabilization lane. It is not the production update c
 
 ## Current status
 The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item static quality check in the available non-Windows environment. Windows native acceptance remains outstanding. The branch must not be treated as a production release until the gates above are met.
+
+
+## Implementation log — 2026-11-13
+- Added a complete local ZIP backup containing a consistent SQLite snapshot (via SQLite backup API), a JSON export, and all regular files under the local references directory.
+- Added a backup manifest with SHA-256 hashes for every payload file; the archive is reopened and every member is integrity-checked before it is published.
+- Added a streaming hash verification path so large reference collections do not need to be loaded into memory as a single byte array.
+- Added `GET /api/backup/full` and a Settings action to download the complete ZIP backup; the existing JSON-only export remains available.
+- The update-apply route now creates a verified full backup before staging the program update. If backup creation fails, update staging is not started.
+- Added automated coverage for archive members, hashes, SQLite integrity, reference preservation, API/UI wiring, and pre-update snapshot ordering.
+- GitHub Actions run 43344908636 completed Python compilation, frontend JavaScript syntax, manifest hash validation, all repository regression tests, and Windows PowerShell parser validation successfully. The separate release source/channel gate remains blocked because the branch runtime still declares APP_VERSION 0.5.2 and GITHUB_BRANCH main; no production release or main-branch change was made.
