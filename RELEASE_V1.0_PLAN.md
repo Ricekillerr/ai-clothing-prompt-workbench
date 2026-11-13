@@ -155,3 +155,8 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 - The case editor now exposes the imported reference-image roles and lets the user correct role type, authority priority, role label, governed attributes, and observation text. Original source-path provenance is retained for each existing image role.
 - Role indexes are bounded to the eight-image maximum and, where known, checked against the actual attached image count. Invalid indexes are discarded instead of attaching authority metadata to the wrong file.
 - Added integration guards for the editor controls and parser. The last CI attempt reached the expected manifest-hash gate after JavaScript syntax validation; the refreshed hash is being revalidated.
+
+
+## Implementation log — 2026-11-13 (manual reference authority controls verified)
+- Manual reference-role editing, role-index bounds, and the primary/secondary/supporting priority display passed GitHub Actions run 43357598746: 67 regression tests, Python compilation, frontend JavaScript syntax, 8-file update manifest SHA-256 validation, Windows PowerShell parser validation, and release source/channel gate.
+- Reference authority is now both machine-suggested and user-correctable; source paths remain attached to the same image index when editing existing records.
