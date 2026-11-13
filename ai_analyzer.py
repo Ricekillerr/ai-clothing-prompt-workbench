@@ -36,12 +36,19 @@ def _read_text(path: Path) -> str:
     return raw.decode("utf-8-sig", errors="replace")
 
 
-def analyze_pair(prompt_path: str, asset_path: str, api_key: str,
-                 endpoint: str = "https://api.openai.com/v1",
-                 model: str = "gpt-4o-mini", timeout: int = 90) -> dict:
-    prompt_file, asset_file = Path(prompt_path).resolve(), Path(asset_path).resolve()
-    if not prompt_file.is_file() or not asset_file.is_file():
-        raise ValueError("待分析文件不存在")
+def analyze_assets(prompt_path: str, asset_paths: list[str], api_key: str,
+                  endpoint: str = "https://api.openai.com/v1",
+                  model: str = "gpt-4o-mini", timeout: int = 120) -> dict:
+    prompt_file = Path(prompt_path).resolve()
+    assets = [Path(value).resolve() for value in asset_paths]
+    if not prompt_file.is_file():
+        raise ValueError("提示词文件不存在")
+    if not 1 <= len(assets) <= 8:
+        raise ValueError("每次必须选择 1–8 张关联素材")
+    if len({str(path) for path in assets}) != len(assets):
+        raise ValueError("关联素材不能重复")
+    if any(not path.is_file() for path in assets):
+        raise ValueError("至少一个关联素材文件不存在")
     if not api_key.strip():
         raise ValueError("请填写 API Key；密钥仅在本次请求中使用，不会保存")
     if prompt_file.suffix.lower() not in {".txt", ".md", ".json"}:
@@ -49,30 +56,47 @@ def analyze_pair(prompt_path: str, asset_path: str, api_key: str,
     text = _read_text(prompt_file)
     if not text.strip():
         raise ValueError("提示词文件内容为空")
+
     instructions = (
-        "你是 AI 视频生成案例整理助手。根据提供的提示词和关联素材，"
+        "你是 AI 视频生成案例整理助手。根据一份原始提示词和同一套服装/场景的多张关联素材，"
+        "综合识别信息；不同角度互相补充，不要把同一件衣服误拆成多个案例。"
         "输出严格 JSON，不要 Markdown。字段：title（简短标题）、sku（提示词明确出现的服装款号；没有则空字符串）、"
         "category（服装/人物/场景/其他）、subcategory（具体服装品类）、material（面料材质）、color（颜色）、"
         "silhouette（版型轮廓）、fit（宽松/修身等版型）、details（结构与工艺细节字符串数组）、"
         "scene（生成场景）、constraints（生成约束字符串数组）、tags（字符串数组）、"
         "prompt_summary（中文摘要）、prompt_text（原提示词，尽量逐字保留）、"
-        "asset_observations（素材可见特征；无法读取时明确写无法判断）、"
+        "asset_observations（综合素材可见特征；无法读取时明确写无法判断）、"
         "risk_notes（不确定性或潜在误判，字符串数组）、confidence（0到1）。"
-        "属性只记录提示词或图片明确支持的信息；无法判断的字段留空，不要猜测。"
+        "属性只记录提示词或图片明确支持的信息；图片之间存在冲突时写入 risk_notes，不要自行猜测。"
     )
-    user_content = [{"type": "text", "text": "待整理提示词：\n" + text[:50000]}]
-    ext = asset_file.suffix.lower()
-    if ext in {".png", ".jpg", ".jpeg", ".webp", ".gif"}:
-        raw = asset_file.read_bytes()
-        if len(raw) > MAX_IMAGE_BYTES:
-            raise ValueError("图片超过 8MB，暂不发送分析")
-        mime = mimetypes.guess_type(asset_file.name)[0] or "image/png"
-        data_url = "data:" + mime + ";base64," + base64.b64encode(raw).decode("ascii")
-        user_content.append({"type": "image_url", "image_url": {"url": data_url, "detail": "high"}})
-    elif ext in {".mp4", ".mov", ".m4v", ".webm", ".avi"}:
-        user_content.append({"type": "text", "text": "关联文件是视频：" + asset_file.name + "。当前版本不会抽帧，不能判断视频画面内容。"})
-    else:
-        raise ValueError("关联素材暂只支持图片或视频")
+    user_content = [{
+        "type": "text",
+        "text": "待整理提示词：\\n" + text[:50000]
+               + f"\\n\\n本次关联素材共 {len(assets)} 个。请综合所有图片的正反面、细节和整体信息。"
+    }]
+    total_image_bytes = 0
+    for index, asset_file in enumerate(assets, start=1):
+        ext = asset_file.suffix.lower()
+        if ext in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}:
+            size = asset_file.stat().st_size
+            if size > MAX_IMAGE_BYTES:
+                raise ValueError(f"第 {index} 张图片超过 8MB，暂不发送分析")
+            total_image_bytes += size
+            if total_image_bytes > 32 * 1024 * 1024:
+                raise ValueError("本次图片总量超过 32MB，请减少图片数量或压缩图片")
+            raw = asset_file.read_bytes()
+            mime = mimetypes.guess_type(asset_file.name)[0] or "image/png"
+            data_url = "data:" + mime + ";base64," + base64.b64encode(raw).decode("ascii")
+            user_content.append({"type": "text", "text": f"关联图片 {index}：{asset_file.name}"})
+            user_content.append({"type": "image_url", "image_url": {"url": data_url, "detail": "high"}})
+        elif ext in {".mp4", ".mov", ".m4v", ".webm", ".avi"}:
+            user_content.append({
+                "type": "text",
+                "text": f"关联文件 {index} 是视频：{asset_file.name}。当前版本不会抽帧，不能判断视频画面内容。"
+            })
+        else:
+            raise ValueError(f"不支持的关联素材类型：{asset_file.suffix}")
+
     payload = {
         "model": model.strip(),
         "temperature": 0.1,
@@ -87,7 +111,7 @@ def analyze_pair(prompt_path: str, asset_path: str, api_key: str,
         data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
         headers={"Authorization": "Bearer " + api_key.strip(),
                  "Content-Type": "application/json",
-                 "User-Agent": "Prompt-Atelier/0.5"},
+                 "User-Agent": "Prompt-Atelier/0.6"},
         method="POST",
     )
     with urlopen(request, timeout=timeout) as response:
@@ -96,24 +120,24 @@ def analyze_pair(prompt_path: str, asset_path: str, api_key: str,
     parsed = json.loads(content)
     if not isinstance(parsed, dict):
         raise ValueError("AI 返回结果不是有效 JSON 对象")
-    parsed.setdefault("title", prompt_file.stem)
-    parsed.setdefault("category", "其他")
-    parsed.setdefault("sku", "")
-    parsed.setdefault("subcategory", "")
-    parsed.setdefault("material", "")
-    parsed.setdefault("color", "")
-    parsed.setdefault("silhouette", "")
-    parsed.setdefault("fit", "")
-    parsed.setdefault("details", [])
-    parsed.setdefault("scene", "")
-    parsed.setdefault("constraints", [])
-    parsed.setdefault("tags", [])
-    parsed.setdefault("prompt_summary", "")
-    parsed.setdefault("prompt_text", text)
-    parsed.setdefault("asset_observations", "未提供")
-    parsed.setdefault("risk_notes", [])
-    parsed.setdefault("confidence", 0.0)
+    defaults = {
+        "title": prompt_file.stem, "category": "其他", "sku": "", "subcategory": "",
+        "material": "", "color": "", "silhouette": "", "fit": "", "details": [],
+        "scene": "", "constraints": [], "tags": [], "prompt_summary": "",
+        "prompt_text": text, "asset_observations": "未提供", "risk_notes": [],
+        "confidence": 0.0,
+    }
+    for key, value in defaults.items():
+        parsed.setdefault(key, value)
     parsed["model"] = model.strip()
-    parsed["asset_path"] = str(asset_file)
     parsed["prompt_path"] = str(prompt_file)
+    parsed["asset_paths"] = [str(path) for path in assets]
+    parsed["asset_path"] = str(assets[0])
     return parsed
+
+
+def analyze_pair(prompt_path: str, asset_path: str, api_key: str,
+                 endpoint: str = "https://api.openai.com/v1",
+                 model: str = "gpt-4o-mini", timeout: int = 90) -> dict:
+    """Backward-compatible one-asset wrapper."""
+    return analyze_assets(prompt_path, [asset_path], api_key, endpoint, model, timeout)
