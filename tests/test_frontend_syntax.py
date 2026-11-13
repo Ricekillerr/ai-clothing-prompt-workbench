@@ -58,6 +58,8 @@ class FrontendSyntaxTests(unittest.TestCase):
         self.assertLess(restore.index("await save()"), restore.index('fetch("/api/backup/restore"'))
         self.assertLess(backup.index("await save()"), backup.index('fetch("/api/backup/full"'))
         self.assertLess(update.index("await save()"), update.index('fetch("/api/update/apply"'))
+        self.assertLess(update.index("updateRequestSent=true"), update.index('fetch("/api/update/apply"'))
+        self.assertIn("更新已取消：待保存数据未能确认写入", update)
 
     def test_inline_javascript_parses_when_node_is_available(self):
         node = shutil.which("node")

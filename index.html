@@ -648,9 +648,10 @@ async function applyUpdate(automatic=false){
   const status = document.getElementById("updateStatus");
   if(status) status.textContent = "正在创建完整备份、下载并校验更新文件…";
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10*60*1000);
-  let responseReceived=false;
+  let responseReceived=false,updateRequestSent=false;
   try{
     await save();
+    updateRequestSent=true;
     const r = await fetch("/api/update/apply",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}",signal:controller.signal});
     responseReceived=true;
     const d = await r.json();
@@ -658,10 +659,13 @@ async function applyUpdate(automatic=false){
     if(status) status.textContent = d.message || "更新已开始，工作台即将重启。";
     if(!automatic)alert(d.message || "更新已开始，工作台即将重启。");
   }catch(e){
+    if(!updateRequestSent&&automatic)autoUpdateInProgress=false;
     if(responseReceived&&automatic)autoUpdateInProgress=false;
-    const message=responseReceived
-      ? "更新未能启动："+e.message
-      : "更新请求已发出，但连接中断，无法确认安装是否启动。请等待 1–2 分钟；若工作台未自动重启，再手动检查版本。请勿连续重复启动更新。";
+    const message=!updateRequestSent
+      ? "更新已取消：待保存数据未能确认写入，因此没有启动更新。"+e.message
+      : responseReceived
+        ? "更新未能启动："+e.message
+        : "更新请求已发出，但连接中断，无法确认安装是否启动。请等待 1–2 分钟；若工作台未自动重启，再手动检查版本。请勿连续重复启动更新。";
     if(status)status.textContent=message;
     if(!automatic)alert(message);
   }finally{clearTimeout(timer)}
