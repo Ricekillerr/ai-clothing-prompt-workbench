@@ -30,6 +30,24 @@ class CaseMatcherTests(unittest.TestCase):
             self.assertEqual(result["score"], 1.0, field)
             self.assertIn("款号精确匹配", result["reasons"])
 
+    def test_structured_garment_fields_contribute_to_attribute_matching(self):
+        case = dict(self.case, silhouette="宽松", fit="宽松", fabric="尼龙",
+                    texture="哑光", craftsmanship="双针走线",
+                    constraints="锁定人物动作")
+        result = rank_case_matches([case], "宽松尼龙哑光双针走线", threshold=0.8)
+        self.assertEqual(len(result), 1)
+        self.assertGreaterEqual(result[0]["score"], 0.8)
+
+    def test_material_synonyms_match_canonical_values(self):
+        case = dict(self.case, material="尼龙")
+        result = score_case_attributes(case, "锦纶马甲")
+        self.assertGreaterEqual(result["score"], 0.8)
+
+    def test_color_synonyms_match_canonical_values(self):
+        case = dict(self.case, color="蓝色")
+        result = score_case_attributes(case, "藏青色马甲")
+        self.assertGreaterEqual(result["score"], 0.8)
+
     def test_attribute_query_returns_verified_case_over_threshold(self):
         result=rank_case_matches([self.case],"黑色立领无袖马甲 柔软哑光面料 双拉头拉链"); self.assertEqual(len(result),1); self.assertGreaterEqual(result[0]["score"],0.8)
     def test_unverified_cases_are_excluded_by_default(self):
