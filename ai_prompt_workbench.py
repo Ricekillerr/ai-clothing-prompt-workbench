@@ -329,6 +329,12 @@ class Handler(BaseHTTPRequestHandler):
                     d.get("score", 0), str(d.get("feedback", "")),
                 )
                 self.send_json(200, {"ok": True, "feedback_id": feedback_id})
+            elif self.path == "/api/cases/outcome":
+                result = STORAGE.record_generation_outcome(
+                    str(d.get("case_id", "")), str(d.get("outcome", "")),
+                    str(d.get("notes", "")),
+                )
+                self.send_json(200, {"ok": True, **result})
             elif self.path == "/api/ai/analyze":
                 prompt_path = str(d.get("prompt_path", "")).strip()
                 raw_paths = d.get("asset_paths")
