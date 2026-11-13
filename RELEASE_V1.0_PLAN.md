@@ -74,3 +74,11 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 - Batch tag and delete operations restore the prior in-memory module list if persistence fails; deletions continue to use the storage layer's per-asset revision retention.
 - Added integration guards for module selection, bulk tagging, and deletion. Runtime manifest SHA-256 was refreshed after the UI changes.
 - GitHub Actions run 43352556214: frontend JavaScript syntax, release manifest hash validation, 56 regression tests, Windows PowerShell parser, and source/channel gate are passing or completing on the isolated staging branch. No production files were changed.
+
+
+## Implementation log — 2026-11-13 (SKU retrieval and transactional single-asset actions)
+- Added a dedicated optional product SKU/style-number field to the case editor and persisted it with the case.
+- Added SKU/style-number/product-code fields to the visual library's local keyword search, case-card metadata, and smart-search result metadata. This closes the prior gap where the matcher supported exact SKU lookup but the normal editor did not expose a field to populate it.
+- Single-case and single-module edits now roll back the in-memory list if saving fails; single-asset deletion is awaited and similarly restores the prior list on persistence failure.
+- Added integration assertions for SKU capture/indexing and transactional save/delete behavior.
+- GitHub Actions run 43352920143 completed successfully: frontend JavaScript syntax, all release manifest SHA-256 values, 56 regression tests, Windows PowerShell parser validation, and release source/channel gate passed. The branch remains isolated; Windows GUI/runtime acceptance is still pending.
