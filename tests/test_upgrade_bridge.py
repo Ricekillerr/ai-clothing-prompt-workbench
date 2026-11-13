@@ -46,12 +46,15 @@ class V065IntegrationTests(unittest.TestCase):
         self.assertIn("AUTO_SCAN_INTERVAL_SECONDS = 60", self.app)
         self.assertIn("def auto_scan_loop", self.app)
         self.assertIn("def heartbeat_watchdog", self.app)
+        self.assertIn("list_asset_revisions", self.app)
+        self.assertIn("restore_asset_revision", self.app)
         self.assertIn("from collector import scan_folder, sha256_file", self.app)
         for route in ("/api/scan/sources", "/api/scan/pending", "/api/scan/matches",
                       "/api/scan/source", "/api/scan/run", "/api/ai/analyze",
                       "/api/ai/approve", "/api/ai/reject", "/api/cases/search",
                       "/api/backup/full", "/api/scan/auto",
-                      "/api/client/heartbeat", "/api/client/close"):
+                      "/api/client/heartbeat", "/api/client/close",
+                      "/api/assets/revisions", "/api/assets/revisions/restore"):
             self.assertIn(route, self.app)
 
     def test_frontend_contains_scanner_review_and_ai_controls(self):
@@ -66,6 +69,8 @@ class V065IntegrationTests(unittest.TestCase):
         self.assertIn("include_conflicts", self.app)
         self.assertIn("threshold_raw", self.app)
         self.assertIn("downloadFullBackup", html)
+        self.assertIn("showAssetHistory", html)
+        self.assertIn("restoreAssetRevision", html)
         self.assertIn("autoScanToggle", html)
         self.assertIn("refreshAutoScanState", html)
         self.assertIn("asset_paths:selected", html)
