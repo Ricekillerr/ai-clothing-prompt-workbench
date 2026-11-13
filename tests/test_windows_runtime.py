@@ -246,6 +246,32 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
                 self.assertIn("references/smoke-reference.png", names)
                 self.assertIn("backup_manifest.json", names)
                 self.assertTrue(archive.testzip() is None)
+
+            changed_payload = {
+                "cases": [{"id": "after-restore", "name": "After restore", "body": "temporary"}],
+                "modules": [],
+            }
+            changed_request = Request(
+                base + "/api/data",
+                data=json.dumps(changed_payload, ensure_ascii=False).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(changed_request, timeout=10) as response:
+                self.assertTrue(json.loads(response.read().decode("utf-8"))["ok"])
+            (self.images / "after-restore.png").write_bytes(b"temporary-reference")
+            restore_request = Request(
+                base + "/api/backup/restore",
+                data=archive_bytes,
+                headers={"Content-Type": "application/zip"},
+                method="POST",
+            )
+            with urlopen(restore_request, timeout=30) as response:
+                restored_result = json.loads(response.read().decode("utf-8"))
+            self.assertTrue(restored_result["ok"])
+            self.assertEqual(restored_result["cases"], 1)
+            self.assertTrue((self.home / "backups" / restored_result["safety_backup"]).is_file())
+            self.assertFalse((self.images / "after-restore.png").exists())
         finally:
             server.shutdown()
             server.server_close()
