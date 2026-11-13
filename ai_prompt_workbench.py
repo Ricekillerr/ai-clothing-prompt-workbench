@@ -262,7 +262,6 @@ class Handler(BaseHTTPRequestHandler):
             n = int(self.headers.get("Content-Length", "0"))
             max_request = 500 * 1024 * 1024 if self.path == "/api/backup/restore" else 25 * 1024 * 1024
             if n <= 0 or n > max_request: raise ValueError("请求内容为空或超过大小限制")
-            raw_body = self.rfile.read(n)
             if self.path == "/api/backup/restore":
                 if "application/zip" not in self.headers.get("Content-Type", "").lower():
                     raise ValueError("恢复文件必须是 ZIP 格式")
@@ -270,14 +269,21 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     with tempfile.NamedTemporaryFile(prefix="restore_upload_", suffix=".zip",
                                                      dir=str(HOME), delete=False) as temp_file:
-                        temp_file.write(raw_body)
                         temp_path = Path(temp_file.name)
+                        remaining = n
+                        while remaining:
+                            chunk = self.rfile.read(min(1024 * 1024, remaining))
+                            if not chunk:
+                                raise ValueError("恢复文件上传未完成")
+                            temp_file.write(chunk)
+                            remaining -= len(chunk)
                     result = STORAGE.restore_full_backup(temp_path)
                     self.send_json(200, result)
                 finally:
                     if temp_path and temp_path.exists():
                         temp_path.unlink()
                 return
+            raw_body = self.rfile.read(n)
             d = json.loads(raw_body.decode("utf-8") or "{}")
             if self.path == "/api/data":
                 if not isinstance(d, dict): raise ValueError("数据格式不正确")
