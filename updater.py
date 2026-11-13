@@ -15,6 +15,7 @@ from pathlib import Path
 ALLOWED = {
     "ai_prompt_workbench.py", "index.html", "启动AI服装提示词工作台.bat",
     "updater.py", "使用说明_AI服装提示词资产工作台_V0.4.3.txt",
+    "使用说明_Prompt_Atelier_V1.0_候选版.txt",
     "storage.py", "collector.py", "case_matcher.py", "ai_analyzer.py"
 }
 
