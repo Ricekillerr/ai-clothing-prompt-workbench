@@ -274,6 +274,46 @@ run().catch(error=>{console.error(error);process.exit(1);});
         result = subprocess.run([node, "-e", script], capture_output=True, text=True, check=False)
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
+    def test_revision_restore_ui_refreshes_data_and_reports_failure(self):
+        html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
+        restore = html.split("async function restoreAssetRevision(revisionId){", 1)[1].split("function closeDetail()", 1)[0]
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("Node.js is not installed in this environment")
+        script = r"""
+let db={cases:[{id:"case-1",body:"current"}],modules:[]};
+let chosen="case-1",kind="case",toastMessage="",renderCalls=0,detailCalls=0,historyCalls=0,requestBody=null;
+function confirm(){return true;}
+function normalizeAssetData(data){return data;}
+function render(){renderCalls++;}
+function openDetail(id,k){if(id!=="case-1"||k!=="case")throw new Error("Wrong detail target");detailCalls++;}
+function showAssetHistory(){historyCalls++;}
+function toast(message){toastMessage=message;}
+let fetchShouldFail=false;
+async function fetch(url,options){
+ if(url!=="/api/assets/revisions/restore"||options.method!=="POST")throw new Error("Unexpected restore request");
+ requestBody=JSON.parse(options.body);
+ if(fetchShouldFail)return {ok:false,json:async()=>({error:"simulated restore failure"})};
+ return {ok:true,json:async()=>({ok:true,data:{cases:[{id:"case-1",body:"restored old prompt"}],modules:[]}})};
+}
+"""
+        script += "async function restoreAssetRevision(revisionId){" + restore + "\n"
+        script += r"""
+(async()=>{
+ await restoreAssetRevision("revision-1");
+ if(requestBody.asset_id!=="case-1"||requestBody.revision_id!=="revision-1")throw new Error("Restore request must identify the selected asset and revision.");
+ if(db.cases[0].body!=="restored old prompt"||renderCalls!==1||detailCalls!==1||historyCalls!==1)throw new Error("Successful restore must refresh data, gallery, detail and history.");
+ if(!toastMessage.includes("已恢复"))throw new Error("Successful restore must notify the user.");
+ db={cases:[{id:"case-1",body:"keep current"}],modules:[]};
+ fetchShouldFail=true;toastMessage="";
+ await restoreAssetRevision("revision-2");
+ if(db.cases[0].body!=="keep current")throw new Error("Failed restore must not replace local data.");
+ if(!toastMessage.includes("simulated restore failure"))throw new Error("Failed restore must report the server error.");
+})().catch(error=>{console.error(error);process.exit(1);});
+"""
+        result = subprocess.run([node, "-e", script], capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
     def test_inline_javascript_parses_when_node_is_available(self):
         node = shutil.which("node")
         if not node:
