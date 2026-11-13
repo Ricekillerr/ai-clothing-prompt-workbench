@@ -107,3 +107,11 @@
 - 在候选文本中将单品名称/子类别纳入单品级颜色、材质和细节匹配；不把整段提示词正文当作硬冲突证据。
 - 回归用例使用“深灰灯芯绒微喇裤”查询，要求匹配父级整套穿搭的下装单品并达到 80% 门槛，且颜色/材质解释可见。
 - 修复提交 954d456；必须等更新后的 manifest SHA-256 和完整 CI 全部通过后才可标记完成。
+
+
+## 单品级检索回归验证完成 — 2026-11-13
+- 变更：`case_matcher.py` 的单品属性候选文本，在材质、颜色和细节维度纳入每件 outfit item 自己的 name/subcategory；避免专用结构字段未填写时，已写入名称的明确属性被忽略。
+- 测试：`test_full_outfit_item_breakdown_allows_matching_a_specific_garment` 使用“深灰灯芯绒微喇裤”查询，确认完整穿搭中的裤子可达到 80% 门槛，且材质与颜色出现在匹配理由中。
+- 更新清单：同步 `case_matcher.py` SHA-256；CI 验证 9 个更新文件。
+- CI：run 43398618615 全部三个 jobs 成功；主回归 133 项（132 通过、1 项 Linux 环境跳过），Windows 专项 19 项通过，release source/channel gate 通过。
+- 结论：修复通过代码侧 CI；真实用户案例库仍需在最终实机验收时验证 precision/recall，不把合成 fixture 当成真实库准确率。

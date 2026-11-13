@@ -437,3 +437,7 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Application/updater logs now rotate at 1 MiB with three backups; application logs omit exception bodies and user paths, while updater logs redact install/home paths and bearer/API-key patterns.
 - Latest CI run 43388913191 passed 121 repository regression tests (120 passed, 1 Linux-only environment skip), 18 Windows Server 2025 runtime tests, all nine manifest hashes, and all release source/channel checks.
 - User's own Windows desktop, real data backup/restore, antivirus/network and real-model/visual-retrieval acceptance remain outstanding.
+
+
+## Retrieval regression correction — 2026-11-13
+A CI regression showed that an outfit item with a populated display name but blank dedicated color/material/detail fields could score below the 80% threshold despite containing the requested garment. The matcher now uses each outfit item's own name/subcategory as item-scoped evidence for those attributes. The regression test requires a successful “深灰灯芯绒微喇裤” match and explicit material/color match reasons. Manifest SHA-256 was synchronized. CI run 43398618615 passed all three jobs: 133 main regression tests (132 passed, 1 Linux environment skip), 19 Windows runtime tests, nine update-file hash checks and the release source/channel gate. Real-library precision/recall evaluation remains open.

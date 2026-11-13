@@ -9,7 +9,7 @@
 **状态：** V1.0 候选开发；不是正式发布。
 
 ## 最新 CI
-最新单品检索修复（提交 954d456）正在进行完整 CI；上一轮检索回归测试暴露整套穿搭中单品名称没有参与颜色/材质属性匹配，修复后以完整回归确认，尚未宣称通过。
+[GitHub Actions run 43398618615](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43398618615)：三个 job 全部成功。主回归 133 项（132 通过、1 项因 Linux 环境跳过），Windows 专项 19 项全部通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
 [GitHub Actions run 43388913191](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43388913191)：三个 job 全部成功。
 - 主回归：121 项运行，120 项通过，1 项因 Linux runner 不具备 Windows 环境而跳过。
 - Windows Server 2025 专项：18 项通过。
@@ -39,7 +39,7 @@
 - **本地 API 与媒体：** 增加 Fetch Metadata 跨站请求限制；媒体接口仅提供 PNG/JPG/JPEG/WEBP/GIF/BMP 六类图片，拒绝 HTML、符号链接和目录联接，并添加 nosniff。
 - **前端安全与一致性：** 导入案例时间字段插入 HTML 前转义；更新设置文案与每 15 分钟检查及明确授权后安装的真实行为一致。
 - **日志：** 应用和更新器日志按大小轮转、保留 3 份；应用日志不记录异常原文或用户目录，更新器日志脱敏安装目录、用户目录、Bearer/API Key 模式。
-- **回归证据：** 上述修复均加入相应测试；最新 CI run 43388913191 全部三个 job 通过。
+- **回归证据：** 单品级检索修复新增覆盖案例；最新 CI run 43398618615 三个 job 全部通过：主回归 133 项（132 通过、1 项环境跳过），Windows 专项 19 项通过，9 个更新文件哈希与 release gate 通过。
 
 ## 已知限制
 - 浏览器感知哈希检索只是粗略近重复/视觉结构候选，不是语义服装识别。
