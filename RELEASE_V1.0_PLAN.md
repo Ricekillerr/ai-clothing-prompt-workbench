@@ -213,3 +213,8 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Cases and reusable modules now support an optional separate English prompt body while preserving the original primary-language text. The editor can maintain both versions, the detail view switches between them, and the English version has its own copy action.
 - The prompt composer can optionally append saved English versions for the base case and selected modules. Missing English text is omitted rather than machine-translated or fabricated; this iteration provides bilingual storage/reuse, not automatic translation.
 - Added integration guards for bilingual editor fields, detail tabs, copy action, and composer output. Full runtime hash and regression validation are pending.
+
+
+## Implementation log — 2026-11-13 (bilingual prompt validation)
+- GitHub Actions run 43358645528 passed all 69 regression tests, Python compilation, frontend JavaScript syntax, all 8 incremental-update SHA-256 checks, Windows PowerShell parser validation, and release source/channel gate.
+- The case editor, detail view, copy action, and composer now support separately stored English prompt bodies. No automatic translation is claimed; absent English versions are omitted.
