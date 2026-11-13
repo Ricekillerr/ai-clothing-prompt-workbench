@@ -40,6 +40,11 @@ function save(){
  saveQueue=task;
  return task;
 }
+function saveFailureMessage(action,outcome,error){
+ if(outcome==="server")return action+"响应超时，已重新读取服务器当前数据，请核对";
+ if(outcome==="unknown")return action+"响应超时，无法确认保存结果，请刷新工作台核对";
+ return action+"失败，原数据已恢复："+error.message;
+}
 async function reconcileSaveFailure(error,rollback){
  if(error?.uncertain){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
@@ -171,9 +176,9 @@ function bindBulkAssetControls(visibleCases){
  document.querySelectorAll(".caseSelect").forEach(box=>box.addEventListener("change",()=>{if(box.checked)selectedCaseIds.add(box.dataset.caseid);else selectedCaseIds.delete(box.dataset.caseid);updateBulkCount()}));
  $("selectVisibleBtn").onclick=()=>{visibleIds.forEach(id=>selectedCaseIds.add(id));gallery()};
  $("clearSelectionBtn").onclick=()=>{selectedCaseIds.clear();gallery()};
- $("applyBulkStatusBtn").onclick=async()=>{const status=$("bulkStatus").value;if(!status)return toast("请先选择目标状态");const targets=db.cases.filter(x=>selectedCaseIds.has(x.id));if(!targets.length)return toast("请先选择案例");const previous=JSON.parse(JSON.stringify(db.cases));targets.forEach(x=>{x.status=status;x.updated_at=new Date().toISOString()});try{await save();gallery();toast("已更新 "+targets.length+" 条案例状态")}catch(e){db.cases=previous;toast("批量修改失败，原数据已恢复："+e.message)}};
- $("applyBulkTagBtn").onclick=async()=>{const tag=$("bulkTagInput").value.trim(),targets=db.cases.filter(x=>selectedCaseIds.has(x.id));if(!tag)return toast("请先填写标签");if(!targets.length)return toast("请先选择案例");const previous=JSON.parse(JSON.stringify(db.cases));targets.forEach(x=>{x.tags=Array.isArray(x.tags)?x.tags:[];if(!x.tags.includes(tag))x.tags.push(tag);x.updated_at=new Date().toISOString()});try{await save();gallery();toast("已为 "+targets.length+" 条案例添加标签")}catch(e){db.cases=previous;toast("批量添加标签失败，原数据已恢复："+e.message)}};
- $("deleteBulkBtn").onclick=async()=>{const targets=db.cases.filter(x=>selectedCaseIds.has(x.id));if(!targets.length)return toast("请先选择案例");if(!confirm("确定删除选中的 "+targets.length+" 条案例？删除前会由本地版本历史保留可恢复记录。"))return;const removed=new Set(targets.map(x=>x.id)),previous=db.cases;db.cases=db.cases.filter(x=>!removed.has(x.id));try{await save();removed.forEach(id=>selectedCaseIds.delete(id));gallery();toast("已删除 "+targets.length+" 条案例")}catch(e){db.cases=previous;toast("批量删除失败，原数据已恢复："+e.message)}};
+ $("applyBulkStatusBtn").onclick=async()=>{const status=$("bulkStatus").value;if(!status)return toast("请先选择目标状态");const targets=db.cases.filter(x=>selectedCaseIds.has(x.id));if(!targets.length)return toast("请先选择案例");const previous=JSON.parse(JSON.stringify(db.cases));targets.forEach(x=>{x.status=status;x.updated_at=new Date().toISOString()});try{await save();gallery();toast("已更新 "+targets.length+" 条案例状态")}catch(e){const outcome=await reconcileSaveFailure(e,()=>db.cases=previous);if(outcome==="server")gallery();toast(saveFailureMessage("批量修改",outcome,e))}};
+ $("applyBulkTagBtn").onclick=async()=>{const tag=$("bulkTagInput").value.trim(),targets=db.cases.filter(x=>selectedCaseIds.has(x.id));if(!tag)return toast("请先填写标签");if(!targets.length)return toast("请先选择案例");const previous=JSON.parse(JSON.stringify(db.cases));targets.forEach(x=>{x.tags=Array.isArray(x.tags)?x.tags:[];if(!x.tags.includes(tag))x.tags.push(tag);x.updated_at=new Date().toISOString()});try{await save();gallery();toast("已为 "+targets.length+" 条案例添加标签")}catch(e){const outcome=await reconcileSaveFailure(e,()=>db.cases=previous);if(outcome==="server")gallery();toast(saveFailureMessage("批量添加标签",outcome,e))}};
+ $("deleteBulkBtn").onclick=async()=>{const targets=db.cases.filter(x=>selectedCaseIds.has(x.id));if(!targets.length)return toast("请先选择案例");if(!confirm("确定删除选中的 "+targets.length+" 条案例？删除前会由本地版本历史保留可恢复记录。"))return;const removed=new Set(targets.map(x=>x.id)),previous=db.cases;db.cases=db.cases.filter(x=>!removed.has(x.id));try{await save();removed.forEach(id=>selectedCaseIds.delete(id));gallery();toast("已删除 "+targets.length+" 条案例")}catch(e){const outcome=await reconcileSaveFailure(e,()=>db.cases=previous);if(outcome==="server")gallery();toast(saveFailureMessage("批量删除",outcome,e))}};
  updateBulkCount();
 }
 function bindBulkModuleControls(visibleModules){
@@ -182,8 +187,8 @@ function bindBulkModuleControls(visibleModules){
  const count=$('moduleBulkCount');if(count)count.textContent='已选 '+selectedModuleIds.size+' 个';
  $('moduleSelectVisibleBtn').onclick=()=>{ids.forEach(id=>selectedModuleIds.add(id));render()};
  $('moduleClearSelectionBtn').onclick=()=>{selectedModuleIds.clear();render()};
- $('moduleApplyBulkTagBtn').onclick=async()=>{const tag=$('moduleBulkTagInput').value.trim(),targets=db.modules.filter(x=>selectedModuleIds.has(x.id));if(!tag)return toast('请先填写标签');if(!targets.length)return toast('请先选择模块');const previous=JSON.parse(JSON.stringify(db.modules));targets.forEach(x=>{x.tags=Array.isArray(x.tags)?x.tags:[];if(!x.tags.includes(tag))x.tags.push(tag);x.updated_at=new Date().toISOString()});try{await save();render();toast('已为 '+targets.length+' 个模块添加标签')}catch(e){db.modules=previous;toast('批量添加失败，原数据已恢复：'+e.message)}};
- $('moduleDeleteBulkBtn').onclick=async()=>{const targets=db.modules.filter(x=>selectedModuleIds.has(x.id));if(!targets.length)return toast('请先选择模块');if(!confirm('确定删除选中的 '+targets.length+' 个模块？删除前会由本地版本历史保留可恢复记录。'))return;const previous=db.modules,removed=new Set(targets.map(x=>x.id));db.modules=db.modules.filter(x=>!removed.has(x.id));try{await save();removed.forEach(id=>selectedModuleIds.delete(id));render();toast('已删除 '+targets.length+' 个模块')}catch(e){db.modules=previous;toast('批量删除失败，原数据已恢复：'+e.message)}};
+ $('moduleApplyBulkTagBtn').onclick=async()=>{const tag=$('moduleBulkTagInput').value.trim(),targets=db.modules.filter(x=>selectedModuleIds.has(x.id));if(!tag)return toast('请先填写标签');if(!targets.length)return toast('请先选择模块');const previous=JSON.parse(JSON.stringify(db.modules));targets.forEach(x=>{x.tags=Array.isArray(x.tags)?x.tags:[];if(!x.tags.includes(tag))x.tags.push(tag);x.updated_at=new Date().toISOString()});try{await save();render();toast('已为 '+targets.length+' 个模块添加标签')}catch(e){const outcome=await reconcileSaveFailure(e,()=>db.modules=previous);if(outcome==="server")render();toast(saveFailureMessage("批量添加模块标签",outcome,e))}};
+ $('moduleDeleteBulkBtn').onclick=async()=>{const targets=db.modules.filter(x=>selectedModuleIds.has(x.id));if(!targets.length)return toast('请先选择模块');if(!confirm('确定删除选中的 '+targets.length+' 个模块？删除前会由本地版本历史保留可恢复记录。'))return;const previous=db.modules,removed=new Set(targets.map(x=>x.id));db.modules=db.modules.filter(x=>!removed.has(x.id));try{await save();removed.forEach(id=>selectedModuleIds.delete(id));render();toast('已删除 '+targets.length+' 个模块')}catch(e){const outcome=await reconcileSaveFailure(e,()=>db.modules=previous);if(outcome==="server")render();toast(saveFailureMessage("批量删除模块",outcome,e))}};
 }
 function modules(){setTitle("提示词模块","把面料、版型、场景与约束拆成独立积木");let q=$("search").value.toLowerCase(),a=db.modules.filter(x=>!q||[x.name,x.module_type,x.material,x.body,x.body_en,(x.tags||[]).join(" ")].join(" ").toLowerCase().includes(q));$("content").innerHTML=`<div class="section"><div><h2>可复用模块</h2><p>${a.length} 个模块 · 可跨品类调用</p></div><button class="btn primary" onclick="openEditor('module')">＋ 新增模块</button></div><div class="vault" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0"><strong style="font-size:12px">模块批量管理</strong><span id="moduleBulkCount" style="font-size:12px;color:var(--muted)">已选 0 个</span><button class="btn" id="moduleSelectVisibleBtn" type="button">全选当前结果</button><button class="btn" id="moduleClearSelectionBtn" type="button">清空选择</button><input id="moduleBulkTagInput" placeholder="添加统一标签" style="max-width:160px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text)"><button class="btn" id="moduleApplyBulkTagBtn" type="button">添加标签</button><button class="btn" id="moduleDeleteBulkBtn" type="button">删除所选</button></div><div class="modulegrid">${a.map(x=>`<div class="module" style="position:relative" data-open-module="${esc(x.id)}"><label onclick="event.stopPropagation()" style="position:absolute;top:9px;right:9px;z-index:2;padding:4px 6px;border-radius:7px;background:var(--panel);display:flex;gap:5px;align-items:center;font-size:10px"><input type="checkbox" class="moduleSelect" data-moduleid="${esc(x.id)}" ${selectedModuleIds.has(x.id)?"checked":""}>选择</label><div class="kind">${esc(x.module_type||"未分类")} · ${esc(x.category_scope||"通用")}</div><h3>${esc(x.name)}</h3><p>${esc(x.body)}</p><div class="modulefoot"><span>${esc(x.model||"通用")}</span><span>${(x.tags||[]).length} 个标签　↗</span></div></div>`).join("")||`<div class="empty"><b>还没有可复用模块</b>把成功案例中验证过的材质、版型或约束拆分到这里。</div>`}</div>`;document.querySelectorAll(".module[data-open-module]").forEach(card=>card.addEventListener("click",()=>openDetail(card.dataset.openModule,"module")));bindBulkModuleControls(a)}
 function vault(){setTitle("Prompt Vault","完整提示词保险库 · 原始版本独立保留");let q=$("search").value.toLowerCase(),a=db.cases.filter(x=>!q||[x.name,x.body,x.body_en,x.material,(x.tags||[]).join(" ")].join(" ").toLowerCase().includes(q));$("content").innerHTML=`<div class="section"><div><h2>完整提示词</h2><p>可搜索、查看与快速复制</p></div><button class="btn" onclick="openEditor('case')">＋ 保存提示词</button></div><div class="vaultgrid">${a.map(x=>`<div class="vault"><div class="kind">${esc(x.category||"未分类")} · ${esc(x.model||"通用")}</div><h3>${esc(x.name)}</h3><p>${esc(x.body)}</p><button class="btn" data-copy-body="${esc(x.body||"")}">复制</button> <button class="btn" data-open-case="${esc(x.id)}">查看</button></div>`).join("")||`<div class="empty"><b>Prompt Vault 还是空的</b>添加成功案例后，完整提示词会自动收录。</div>`}</div>`;
@@ -288,14 +293,14 @@ async function saveEditor(){
  if(!x.name||!x.body)return toast("名称和正文不能为空");
  x.id=old.id||crypto.randomUUID();x.created_at=old.created_at||new Date().toISOString();x.updated_at=new Date().toISOString();
  let i=list.findIndex(z=>z.id===x.id);if(i<0)list.unshift(x);else list[i]=x;
- try{await save();closeEditor();render();toast("资产已保存")}catch(e){if(editKind==="case")db.cases=previous;else db.modules=previous;toast("保存失败，原数据已恢复："+e.message)}
+ try{await save();closeEditor();render();toast("资产已保存")}catch(e){const outcome=await reconcileSaveFailure(e,()=>{if(editKind==="case")db.cases=previous;else db.modules=previous});if(outcome==="server"){closeEditor();render()}toast(saveFailureMessage("保存资产",outcome,e))}
 }
 async function deleteCurrent(){
  if(!confirm("确定删除这条记录？"))return;
  const list=kind==="case"?db.cases:db.modules,previous=JSON.parse(JSON.stringify(list)),index=list.findIndex(x=>x.id===chosen);
  if(index<0)return toast("未找到要删除的资产");
  list.splice(index,1);
- try{await save();closeDetail();render();toast("已删除；可从版本历史恢复")}catch(e){if(kind==="case")db.cases=previous;else db.modules=previous;toast("删除失败，原数据已恢复："+e.message)}
+ try{await save();closeDetail();render();toast("已删除；可从版本历史恢复")}catch(e){const outcome=await reconcileSaveFailure(e,()=>{if(kind==="case")db.cases=previous;else db.modules=previous});if(outcome==="server"){closeDetail();render()}toast(saveFailureMessage("删除资产",outcome,e))}
 }
 function findComposeConflicts(base,mods){
  const issues=[],specific=x=>String(x||"").trim().toLowerCase(),generic=new Set(["","通用","全部","不限","all","any","runninghub","平台","platform"]);
@@ -397,7 +402,7 @@ function importJSON(f){
     }
    }
    await save();render();toast("导入完成："+added+" 条新增，"+skipped+" 条重复或无效记录已跳过");
-  }catch(error){db=previous;alert("导入失败，原数据已恢复："+error.message)}
+  }catch(error){const outcome=await reconcileSaveFailure(error,()=>db=previous);if(outcome==="server")render();alert(saveFailureMessage("导入",outcome,error))}
  };
  reader.readAsText(f);
 }
