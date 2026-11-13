@@ -39,6 +39,12 @@ class StorageError(RuntimeError):
 class Storage:
     def __init__(self, home: Path, legacy_json: Path | None = None):
         self._db_lock = threading.RLock()
+        self._operation_condition = threading.Condition(threading.RLock())
+        self._active_operations = 0
+        self._active_by_thread = {}
+        self._restoring = False
+        self._maintenance_owner = None
+        self._maintenance_depth = 0
         self.home = Path(home)
         self.home.mkdir(parents=True, exist_ok=True)
         self.db_path = self.home / "prompt_library.sqlite3"
@@ -54,19 +60,80 @@ class Storage:
         return con
 
     @contextmanager
+    def operation(self):
+        """Lease a normal operation; multiple leases may overlap, restore may not."""
+        owner = threading.get_ident()
+        condition = self._operation_condition
+        with condition:
+            while (
+                self._restoring
+                and self._maintenance_owner != owner
+                and self._active_by_thread.get(owner, 0) == 0
+            ):
+                condition.wait()
+            self._active_operations += 1
+            self._active_by_thread[owner] = self._active_by_thread.get(owner, 0) + 1
+        try:
+            yield
+        finally:
+            with condition:
+                self._active_operations -= 1
+                remaining = self._active_by_thread.get(owner, 0) - 1
+                if remaining > 0:
+                    self._active_by_thread[owner] = remaining
+                else:
+                    self._active_by_thread.pop(owner, None)
+                condition.notify_all()
+
+    @contextmanager
+    def exclusive_operation(self):
+        """Block new operations and wait for in-flight work before replacing local state."""
+        owner = threading.get_ident()
+        condition = self._operation_condition
+        with condition:
+            if self._restoring and self._maintenance_owner == owner:
+                self._maintenance_depth += 1
+            else:
+                while self._restoring:
+                    condition.wait()
+                self._restoring = True
+                self._maintenance_owner = owner
+                self._maintenance_depth = 1
+                try:
+                    # Existing operations may finish nested storage calls while
+                    # this exclusive operation waits for their outer lease to end.
+                    while self._active_operations > self._active_by_thread.get(owner, 0):
+                        condition.wait()
+                except BaseException:
+                    self._restoring = False
+                    self._maintenance_owner = None
+                    self._maintenance_depth = 0
+                    condition.notify_all()
+                    raise
+        try:
+            yield
+        finally:
+            with condition:
+                self._maintenance_depth -= 1
+                if self._maintenance_depth <= 0:
+                    self._restoring = False
+                    self._maintenance_owner = None
+                    self._maintenance_depth = 0
+                    condition.notify_all()
+
+    @contextmanager
     def _session(self):
-        # Restore swaps the database file and WAL sidecars; block every live session
-        # until the replacement and post-restore validation have completed.
-        with self._db_lock:
-            con = self._connect()
-            try:
-                yield con
-                con.commit()
-            except Exception:
-                con.rollback()
-                raise
-            finally:
-                con.close()
+        with self.operation():
+            with self._db_lock:
+                con = self._connect()
+                try:
+                    yield con
+                    con.commit()
+                except Exception:
+                    con.rollback()
+                    raise
+                finally:
+                    con.close()
 
     def _initialize(self) -> None:
         existed = self.db_path.exists()
@@ -887,8 +954,9 @@ class Storage:
             )
 
     def backup(self, destination: Path | None = None) -> Path:
-        with self._db_lock:
-            return self._backup_locked(destination)
+        with self.operation():
+            with self._db_lock:
+                return self._backup_locked(destination)
 
     def _backup_locked(self, destination: Path | None = None) -> Path:
         target = Path(destination) if destination else self.home / "backups" / "prompt_library.sqlite3"
@@ -929,8 +997,9 @@ class Storage:
 
     def create_full_backup(self, references_dir: Path | None = None,
                            app_version: str = "unknown") -> Path:
-        with self._db_lock:
-            return self._create_full_backup_locked(references_dir, app_version)
+        with self.operation():
+            with self._db_lock:
+                return self._create_full_backup_locked(references_dir, app_version)
 
     def _create_full_backup_locked(self, references_dir: Path | None = None,
                                    app_version: str = "unknown") -> Path:
@@ -1037,8 +1106,9 @@ class Storage:
         return target
 
     def restore_full_backup(self, archive_path: Path) -> dict:
-        with self._db_lock:
-            return self._restore_full_backup_locked(archive_path)
+        with self.exclusive_operation():
+            with self._db_lock:
+                return self._restore_full_backup_locked(archive_path)
 
     def _restore_full_backup_locked(self, archive_path: Path) -> dict:
         """Verify a full backup completely, then atomically replace local data and references."""

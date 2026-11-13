@@ -355,21 +355,26 @@ class StorageTests(unittest.TestCase):
             self.assertNotIn("references/linked-secret.txt", archive.namelist())
             self.assertNotIn("outside-secret.txt", archive.namelist())
 
-    def test_restore_waits_for_active_database_session(self):
+    def test_restore_waits_for_active_operation_and_allows_nested_storage_calls(self):
         store = Storage(self.home)
         store.save_data({"cases": [{"id": "restore-lock", "name": "Before"}], "modules": []})
         backup = store.create_full_backup(self.home / "references", app_version="0.6.5")
-        session_entered = threading.Event()
-        release_session = threading.Event()
+        operation_entered = threading.Event()
+        allow_nested_call = threading.Event()
+        nested_call_finished = threading.Event()
+        release_operation = threading.Event()
         restore_started = threading.Event()
         restore_finished = threading.Event()
         errors = []
 
-        def hold_session():
+        def hold_operation():
             try:
-                with store._session():
-                    session_entered.set()
-                    release_session.wait(5)
+                with store.operation():
+                    operation_entered.set()
+                    allow_nested_call.wait(5)
+                    store.get_setting("nested-during-restore", "ok")
+                    nested_call_finished.set()
+                    release_operation.wait(5)
             except Exception as exc:
                 errors.append(exc)
 
@@ -382,17 +387,22 @@ class StorageTests(unittest.TestCase):
             finally:
                 restore_finished.set()
 
-        holder = threading.Thread(target=hold_session, daemon=True)
+        holder = threading.Thread(target=hold_operation, daemon=True)
         holder.start()
-        self.assertTrue(session_entered.wait(5), "数据库会话未能启动")
+        self.assertTrue(operation_entered.wait(5), "长操作未能启动")
         restorer = threading.Thread(target=restore, daemon=True)
         restorer.start()
         self.assertTrue(restore_started.wait(5))
-        self.assertFalse(restore_finished.wait(0.15), "恢复不应越过仍在使用的数据库会话")
-        release_session.set()
+        self.assertFalse(restore_finished.wait(0.15), "恢复不应越过仍在执行的长操作")
+        allow_nested_call.set()
+        self.assertTrue(
+            nested_call_finished.wait(5),
+            "恢复等待期间，已开始的操作必须能够完成自己的嵌套数据库调用",
+        )
+        release_operation.set()
         holder.join(5)
         restorer.join(10)
-        self.assertTrue(restore_finished.is_set(), "数据库会话释放后恢复应完成")
+        self.assertTrue(restore_finished.is_set(), "长操作释放后恢复应完成")
         self.assertEqual(errors, [])
 
     def test_full_backup_restore_replaces_database_json_and_references(self):

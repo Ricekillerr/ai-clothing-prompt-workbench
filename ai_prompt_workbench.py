@@ -81,12 +81,13 @@ def auto_scan_loop():
             if AUTO_SCAN_STOP.is_set() or not auto_scan_is_enabled():
                 break
             try:
-                folder = Path(source["folder_path"])
-                if not folder.is_dir():
-                    continue
-                previous = STORAGE.get_scan_snapshot(source["id"])
-                items = scan_folder(folder, bool(source["recursive"]), previous=previous)
-                STORAGE.save_scan_results(source["id"], items)
+                with STORAGE.operation():
+                    folder = Path(source["folder_path"])
+                    if not folder.is_dir():
+                        continue
+                    previous = STORAGE.get_scan_snapshot(source["id"])
+                    items = scan_folder(folder, bool(source["recursive"]), previous=previous)
+                    STORAGE.save_scan_results(source["id"], items)
             except Exception as exc:
                 log_background_error(f"自动扫描失败 [{source.get('folder_path', '')}]：{exc}")
 
@@ -353,9 +354,10 @@ class Handler(BaseHTTPRequestHandler):
             try: self.send_json(200, check_remote_update())
             except Exception as e: self.send_json(200, {"ok": False, "current_version": APP_VERSION, "error": str(e)})
         elif path.startswith("/media/"):
-            name = Path(path[len("/media/"):]).name; f = IMAGES / name
-            if f.is_file(): self.send_bytes(200, f.read_bytes(), mimetypes.guess_type(str(f))[0] or "application/octet-stream")
-            else: self.send_bytes(404, b"not found", "text/plain")
+            with STORAGE.operation():
+                name = Path(path[len("/media/"):]).name; f = IMAGES / name
+                if f.is_file(): self.send_bytes(200, f.read_bytes(), mimetypes.guess_type(str(f))[0] or "application/octet-stream")
+                else: self.send_bytes(404, b"not found", "text/plain")
         else: self.send_bytes(404, b"not found", "text/plain")
     def do_POST(self):
         if not self._validate_local_request(require_json=self.path != "/api/backup/restore"):
@@ -387,147 +389,148 @@ class Handler(BaseHTTPRequestHandler):
                 return
             raw_body = self.rfile.read(n)
             d = json.loads(raw_body.decode("utf-8") or "{}")
-            if self.path == "/api/settings/auto-update":
-                enabled = d.get("enabled")
-                if not isinstance(enabled, bool):
-                    raise ValueError("自动更新设置必须是布尔值")
-                STORAGE.set_setting("auto_update_enabled", "1" if enabled else "0")
-                self.send_json(200, {"ok": True, "enabled": enabled})
-            elif self.path == "/api/data":
-                if not isinstance(d, dict): raise ValueError("数据格式不正确")
-                d.setdefault("cases", []); d.setdefault("modules", []); save_data(d)
-                self.send_json(200, {"ok": True})
-            elif self.path == "/api/assets/revisions/restore":
-                asset_id = str(d.get("asset_id", "")).strip()
-                revision_id = str(d.get("revision_id", "")).strip()
-                restored = STORAGE.restore_asset_revision(asset_id, revision_id)
-                self.send_json(200, {"ok": True, "asset": restored, "data": load_data()})
-            elif self.path == "/api/scan/auto":
-                enabled = bool(d.get("enabled", False))
-                STORAGE.set_setting("auto_scan_enabled", "1" if enabled else "0")
-                if enabled:
-                    AUTO_SCAN_WAKE.set()
-                self.send_json(200, {"ok": True, "enabled": enabled, "interval_seconds": AUTO_SCAN_INTERVAL_SECONDS})
-            elif self.path == "/api/client/heartbeat":
-                global LAST_CLIENT_HEARTBEAT, CLOSE_REQUESTED_AT
-                with CLIENT_HEARTBEAT_LOCK:
-                    LAST_CLIENT_HEARTBEAT = time.monotonic()
-                    CLOSE_REQUESTED_AT = 0.0
-                self.send_json(200, {"ok": True})
-            elif self.path == "/api/client/close":
-                with CLIENT_HEARTBEAT_LOCK:
-                    CLOSE_REQUESTED_AT = time.monotonic()
-                self.send_json(200, {"ok": True})
-            elif self.path == "/api/scan/source":
-                folder = str(d.get("folder", "")).strip()
-                if not folder: raise ValueError("请提供需要扫描的文件夹路径")
-                source_id = STORAGE.register_scan_source(folder, bool(d.get("recursive", True)))
-                self.send_json(200, {"ok": True, "source_id": source_id})
-            elif self.path == "/api/scan/run":
-                source_id = str(d.get("source_id", "")).strip()
-                source = next((x for x in STORAGE.list_scan_sources() if x["id"] == source_id), None)
-                if not source: raise ValueError("扫描来源不存在")
-                previous = STORAGE.get_scan_snapshot(source_id)
-                items = scan_folder(Path(source["folder_path"]), bool(source["recursive"]), previous=previous)
-                summary = STORAGE.save_scan_results(source_id, items)
-                self.send_json(200, {"ok": True, "summary": summary})
-            elif self.path == "/api/cases/feedback":
-                feedback_id = STORAGE.record_retrieval_feedback(
-                    str(d.get("query", "")), str(d.get("case_id", "")),
-                    d.get("score", 0), str(d.get("feedback", "")),
-                )
-                self.send_json(200, {"ok": True, "feedback_id": feedback_id})
-            elif self.path == "/api/cases/outcome":
-                result = STORAGE.record_generation_outcome(
-                    str(d.get("case_id", "")), str(d.get("outcome", "")),
-                    str(d.get("notes", "")),
-                )
-                self.send_json(200, {"ok": True, **result})
-            elif self.path == "/api/ai/analyze":
-                prompt_path = str(d.get("prompt_path", "")).strip()
-                raw_paths = d.get("asset_paths")
-                if raw_paths is None:
-                    raw_paths = [d.get("asset_path", "")]
-                if not isinstance(raw_paths, list) or not 1 <= len(raw_paths) <= 8:
-                    raise ValueError("每次必须选择 1–8 张关联素材")
-                asset_paths = [str(value).strip() for value in raw_paths]
-                if any(not value for value in asset_paths) or len(set(asset_paths)) != len(asset_paths):
-                    raise ValueError("关联素材路径为空或重复")
-                prompt_record = STORAGE.get_ingest_record(prompt_path)
-                if not prompt_record or prompt_record["media_type"] != "text":
-                    raise ValueError("提示词文件必须来自已扫描的本地文件夹")
-                prompt_file = _validated_ingest_file_path(prompt_record)
-                asset_records = []
-                asset_files = []
-                for asset_path in asset_paths:
-                    record = STORAGE.get_ingest_record(asset_path)
-                    if not record or record["media_type"] not in {"image", "video"}:
-                        raise ValueError("所有关联素材都必须来自已扫描的本地文件夹")
-                    resolved_asset = _validated_ingest_file_path(record)
-                    asset_records.append(record)
-                    asset_files.append(resolved_asset)
-                result = analyze_assets(
-                    str(prompt_file), [str(path) for path in asset_files], str(d.get("api_key", "")),
-                    str(d.get("endpoint", "https://api.openai.com/v1")),
-                    str(d.get("model", "gpt-4o-mini")),
-                    expected_prompt_sha256=prompt_record["sha256"],
-                    expected_asset_sha256s=[record["sha256"] for record in asset_records],
-                )
-                result["asset_sha256s"] = [record["sha256"] for record in asset_records]
-                analysis_id = STORAGE.save_ai_analysis(
-                    str(prompt_file), str(asset_files[0]), prompt_record["sha256"], asset_records[0]["sha256"],
-                    str(result.get("model", "")), result,
-                )
-                self.send_json(200, {"ok": True, "analysis_id": analysis_id, "result": result})
-            elif self.path == "/api/ai/approve":
-                asset_id = STORAGE.approve_ai_analysis(str(d.get("analysis_id", "")))
-                self.send_json(200, {"ok": True, "asset_id": asset_id, "data": load_data()})
-            elif self.path == "/api/ai/reject":
-                STORAGE.reject_ai_analysis(str(d.get("analysis_id", "")))
-                self.send_json(200, {"ok": True})
-            elif self.path == "/api/scan/review":
-                file_path = str(d.get("path", "")).strip()
-                status = str(d.get("status", "")).strip()
-                if not file_path: raise ValueError("缺少待审核文件路径")
-                STORAGE.set_ingest_status(file_path, status)
-                self.send_json(200, {"ok": True})
-            elif self.path == "/api/image":
-                ext = Path(d.get("name", "image.png")).suffix.lower()
-                if ext not in (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"): ext = ".png"
-                content = base64.b64decode(d.get("data", "").split(",", 1)[-1], validate=True)
-                if not content: raise ValueError("图片内容为空")
-                if len(content) > 15 * 1024 * 1024: raise ValueError("图片不能超过15MB")
-                name = uuid.uuid4().hex[:16] + ext; (IMAGES / name).write_bytes(content)
-                self.send_json(200, {"path": name})
-            elif self.path == "/api/update/auto":
-                enabled = bool(d.get("enabled", False))
-                STORAGE.set_setting("auto_update_enabled", "1" if enabled else "0")
-                self.send_json(200, {"ok": True, "enabled": enabled})
-            elif self.path == "/api/update/auto/skip":
-                version = str(d.get("version", "")).strip()[:40]
-                STORAGE.set_setting("auto_update_skipped_version", version)
-                self.send_json(200, {"ok": True, "skipped_version": version})
-            elif self.path == "/api/update/apply":
-                # Preserve a verified snapshot of the user's database and local
-                # reference images before any program update is staged or applied.
-                pre_update_backup = STORAGE.create_full_backup(IMAGES, app_version=APP_VERSION)
-                stage, latest = stage_update()
-                # Bootstrap from the verified staged updater. Older installs may not
-                # contain updater.py or the launcher yet; both are included in the
-                # manifest and installed by the updater transaction.
-                updater = stage / "updater.py"
-                launcher = ROOT / "启动AI服装提示词工作台.bat"
-                if not updater.is_file():
-                    shutil.rmtree(stage, ignore_errors=True)
-                    raise ValueError("更新包缺少经过校验的 updater.py，已安全取消更新")
-                flags = 0
-                if sys.platform == "win32": flags = getattr(subprocess, "DETACHED_PROCESS", 8) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 512)
-                subprocess.Popen([sys.executable, str(updater), str(stage), str(ROOT), str(launcher)], cwd=str(ROOT),
-                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                    creationflags=flags, close_fds=(sys.platform != "win32"))
-                self.send_json(200, {"ok": True, "message": f"已下载并校验 V{latest}；更新前完整备份已保存为 {pre_update_backup.name}。工作台即将关闭并自动更新。"})
-                threading.Timer(1.0, lambda: threading.Thread(target=self.server.shutdown, daemon=True).start()).start()
-            else: self.send_json(404, {"ok": False, "error": "接口不存在"})
+            with STORAGE.operation():
+                if self.path == "/api/settings/auto-update":
+                    enabled = d.get("enabled")
+                    if not isinstance(enabled, bool):
+                        raise ValueError("自动更新设置必须是布尔值")
+                    STORAGE.set_setting("auto_update_enabled", "1" if enabled else "0")
+                    self.send_json(200, {"ok": True, "enabled": enabled})
+                elif self.path == "/api/data":
+                    if not isinstance(d, dict): raise ValueError("数据格式不正确")
+                    d.setdefault("cases", []); d.setdefault("modules", []); save_data(d)
+                    self.send_json(200, {"ok": True})
+                elif self.path == "/api/assets/revisions/restore":
+                    asset_id = str(d.get("asset_id", "")).strip()
+                    revision_id = str(d.get("revision_id", "")).strip()
+                    restored = STORAGE.restore_asset_revision(asset_id, revision_id)
+                    self.send_json(200, {"ok": True, "asset": restored, "data": load_data()})
+                elif self.path == "/api/scan/auto":
+                    enabled = bool(d.get("enabled", False))
+                    STORAGE.set_setting("auto_scan_enabled", "1" if enabled else "0")
+                    if enabled:
+                        AUTO_SCAN_WAKE.set()
+                    self.send_json(200, {"ok": True, "enabled": enabled, "interval_seconds": AUTO_SCAN_INTERVAL_SECONDS})
+                elif self.path == "/api/client/heartbeat":
+                    global LAST_CLIENT_HEARTBEAT, CLOSE_REQUESTED_AT
+                    with CLIENT_HEARTBEAT_LOCK:
+                        LAST_CLIENT_HEARTBEAT = time.monotonic()
+                        CLOSE_REQUESTED_AT = 0.0
+                    self.send_json(200, {"ok": True})
+                elif self.path == "/api/client/close":
+                    with CLIENT_HEARTBEAT_LOCK:
+                        CLOSE_REQUESTED_AT = time.monotonic()
+                    self.send_json(200, {"ok": True})
+                elif self.path == "/api/scan/source":
+                    folder = str(d.get("folder", "")).strip()
+                    if not folder: raise ValueError("请提供需要扫描的文件夹路径")
+                    source_id = STORAGE.register_scan_source(folder, bool(d.get("recursive", True)))
+                    self.send_json(200, {"ok": True, "source_id": source_id})
+                elif self.path == "/api/scan/run":
+                    source_id = str(d.get("source_id", "")).strip()
+                    source = next((x for x in STORAGE.list_scan_sources() if x["id"] == source_id), None)
+                    if not source: raise ValueError("扫描来源不存在")
+                    previous = STORAGE.get_scan_snapshot(source_id)
+                    items = scan_folder(Path(source["folder_path"]), bool(source["recursive"]), previous=previous)
+                    summary = STORAGE.save_scan_results(source_id, items)
+                    self.send_json(200, {"ok": True, "summary": summary})
+                elif self.path == "/api/cases/feedback":
+                    feedback_id = STORAGE.record_retrieval_feedback(
+                        str(d.get("query", "")), str(d.get("case_id", "")),
+                        d.get("score", 0), str(d.get("feedback", "")),
+                    )
+                    self.send_json(200, {"ok": True, "feedback_id": feedback_id})
+                elif self.path == "/api/cases/outcome":
+                    result = STORAGE.record_generation_outcome(
+                        str(d.get("case_id", "")), str(d.get("outcome", "")),
+                        str(d.get("notes", "")),
+                    )
+                    self.send_json(200, {"ok": True, **result})
+                elif self.path == "/api/ai/analyze":
+                    prompt_path = str(d.get("prompt_path", "")).strip()
+                    raw_paths = d.get("asset_paths")
+                    if raw_paths is None:
+                        raw_paths = [d.get("asset_path", "")]
+                    if not isinstance(raw_paths, list) or not 1 <= len(raw_paths) <= 8:
+                        raise ValueError("每次必须选择 1–8 张关联素材")
+                    asset_paths = [str(value).strip() for value in raw_paths]
+                    if any(not value for value in asset_paths) or len(set(asset_paths)) != len(asset_paths):
+                        raise ValueError("关联素材路径为空或重复")
+                    prompt_record = STORAGE.get_ingest_record(prompt_path)
+                    if not prompt_record or prompt_record["media_type"] != "text":
+                        raise ValueError("提示词文件必须来自已扫描的本地文件夹")
+                    prompt_file = _validated_ingest_file_path(prompt_record)
+                    asset_records = []
+                    asset_files = []
+                    for asset_path in asset_paths:
+                        record = STORAGE.get_ingest_record(asset_path)
+                        if not record or record["media_type"] not in {"image", "video"}:
+                            raise ValueError("所有关联素材都必须来自已扫描的本地文件夹")
+                        resolved_asset = _validated_ingest_file_path(record)
+                        asset_records.append(record)
+                        asset_files.append(resolved_asset)
+                    result = analyze_assets(
+                        str(prompt_file), [str(path) for path in asset_files], str(d.get("api_key", "")),
+                        str(d.get("endpoint", "https://api.openai.com/v1")),
+                        str(d.get("model", "gpt-4o-mini")),
+                        expected_prompt_sha256=prompt_record["sha256"],
+                        expected_asset_sha256s=[record["sha256"] for record in asset_records],
+                    )
+                    result["asset_sha256s"] = [record["sha256"] for record in asset_records]
+                    analysis_id = STORAGE.save_ai_analysis(
+                        str(prompt_file), str(asset_files[0]), prompt_record["sha256"], asset_records[0]["sha256"],
+                        str(result.get("model", "")), result,
+                    )
+                    self.send_json(200, {"ok": True, "analysis_id": analysis_id, "result": result})
+                elif self.path == "/api/ai/approve":
+                    asset_id = STORAGE.approve_ai_analysis(str(d.get("analysis_id", "")))
+                    self.send_json(200, {"ok": True, "asset_id": asset_id, "data": load_data()})
+                elif self.path == "/api/ai/reject":
+                    STORAGE.reject_ai_analysis(str(d.get("analysis_id", "")))
+                    self.send_json(200, {"ok": True})
+                elif self.path == "/api/scan/review":
+                    file_path = str(d.get("path", "")).strip()
+                    status = str(d.get("status", "")).strip()
+                    if not file_path: raise ValueError("缺少待审核文件路径")
+                    STORAGE.set_ingest_status(file_path, status)
+                    self.send_json(200, {"ok": True})
+                elif self.path == "/api/image":
+                    ext = Path(d.get("name", "image.png")).suffix.lower()
+                    if ext not in (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"): ext = ".png"
+                    content = base64.b64decode(d.get("data", "").split(",", 1)[-1], validate=True)
+                    if not content: raise ValueError("图片内容为空")
+                    if len(content) > 15 * 1024 * 1024: raise ValueError("图片不能超过15MB")
+                    name = uuid.uuid4().hex[:16] + ext; (IMAGES / name).write_bytes(content)
+                    self.send_json(200, {"path": name})
+                elif self.path == "/api/update/auto":
+                    enabled = bool(d.get("enabled", False))
+                    STORAGE.set_setting("auto_update_enabled", "1" if enabled else "0")
+                    self.send_json(200, {"ok": True, "enabled": enabled})
+                elif self.path == "/api/update/auto/skip":
+                    version = str(d.get("version", "")).strip()[:40]
+                    STORAGE.set_setting("auto_update_skipped_version", version)
+                    self.send_json(200, {"ok": True, "skipped_version": version})
+                elif self.path == "/api/update/apply":
+                    # Preserve a verified snapshot of the user's database and local
+                    # reference images before any program update is staged or applied.
+                    pre_update_backup = STORAGE.create_full_backup(IMAGES, app_version=APP_VERSION)
+                    stage, latest = stage_update()
+                    # Bootstrap from the verified staged updater. Older installs may not
+                    # contain updater.py or the launcher yet; both are included in the
+                    # manifest and installed by the updater transaction.
+                    updater = stage / "updater.py"
+                    launcher = ROOT / "启动AI服装提示词工作台.bat"
+                    if not updater.is_file():
+                        shutil.rmtree(stage, ignore_errors=True)
+                        raise ValueError("更新包缺少经过校验的 updater.py，已安全取消更新")
+                    flags = 0
+                    if sys.platform == "win32": flags = getattr(subprocess, "DETACHED_PROCESS", 8) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 512)
+                    subprocess.Popen([sys.executable, str(updater), str(stage), str(ROOT), str(launcher)], cwd=str(ROOT),
+                        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                        creationflags=flags, close_fds=(sys.platform != "win32"))
+                    self.send_json(200, {"ok": True, "message": f"已下载并校验 V{latest}；更新前完整备份已保存为 {pre_update_backup.name}。工作台即将关闭并自动更新。"})
+                    threading.Timer(1.0, lambda: threading.Thread(target=self.server.shutdown, daemon=True).start()).start()
+                else: self.send_json(404, {"ok": False, "error": "接口不存在"})
         except Exception as e:
             log_api_error(self.path, e)
             self.send_json(400, {"ok": False, "error": str(e)})
