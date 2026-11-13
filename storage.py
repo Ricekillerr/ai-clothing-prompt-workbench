@@ -576,6 +576,17 @@ class Storage:
                 "body": prompt_text,
                 "notes": "AI 历史案例采集；已人工确认。摘要：" + str(result.get("prompt_summary") or ""),
                 "image": image_names[0] if image_names else "", "images": image_names,
+                "image_roles": [
+                    {
+                        "asset_index": int(role.get("asset_index", 0)),
+                        "role": str(role.get("role") or "unknown")[:20],
+                        "role_label": str(role.get("role_label") or "待人工确认")[:40],
+                        "observation": str(role.get("observation") or "")[:500],
+                        "source_path": str(role.get("asset_path") or "")[:1000],
+                    }
+                    for role in (result.get("asset_roles") or [])
+                    if isinstance(role, dict)
+                ][:8],
                 "provenance": {
                     "type": "ai_history_import",
                     "analysis_id": analysis_id,
