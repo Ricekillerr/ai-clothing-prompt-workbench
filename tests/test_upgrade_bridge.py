@@ -63,7 +63,7 @@ class V065IntegrationTests(unittest.TestCase):
                      "AI审核结果", "确认并入库", "智能案例检索", "匹配度达到 80%", "async function scanApi"):
             self.assertIn(text, html)
         self.assertIn("renderMatchAttributeDetails", html)
-        self.assertIn("setInterval(()=>checkUpdate(false),6*60*60*1000)", html)
+        self.assertIn("setInterval(()=>checkUpdate(false),15*60*1000)", html)
         self.assertIn("autoUpdateInProgress", html)
         self.assertIn("AUTO_UPDATE_IDLE_MS=15*60*1000", html)
         self.assertIn("AUTO_UPDATE_COUNTDOWN_SECONDS=60", html)
