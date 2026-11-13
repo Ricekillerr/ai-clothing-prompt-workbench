@@ -1,8 +1,10 @@
 import tempfile
 import unittest
+from io import BytesIO
+from urllib.request import Request
 from pathlib import Path
 
-from ai_analyzer import _safe_endpoint, analyze_pair, normalize_asset_roles, normalize_outfit_items
+from ai_analyzer import (_NoRedirectHandler, MAX_RESPONSE_BYTES, _read_api_response, _read_text, _safe_endpoint, analyze_pair, normalize_asset_roles, normalize_outfit_items)
 
 
 class AIAnalyzerTests(unittest.TestCase):
@@ -15,6 +17,26 @@ class AIAnalyzerTests(unittest.TestCase):
                          "http://127.0.0.1:8080/v1/chat/completions")
         with self.assertRaisesRegex(ValueError, "HTTPS"):
             _safe_endpoint("http://api.example.com/v1")
+
+    def test_api_key_is_not_forwarded_to_redirect_targets(self):
+        handler = _NoRedirectHandler()
+        request = Request("https://trusted.example/v1/chat/completions")
+        with self.assertRaisesRegex(ValueError, "阻止转发 API Key"):
+            handler.redirect_request(
+                request, None, 302, "Found", {}, "https://untrusted.example/steal"
+            )
+
+    def test_ai_response_size_is_bounded(self):
+        self.assertEqual(_read_api_response(BytesIO(b'{"ok":true}')), {"ok": True})
+        with self.assertRaisesRegex(ValueError, "超过 4MB"):
+            _read_api_response(BytesIO(b"x" * (MAX_RESPONSE_BYTES + 1)))
+
+    def test_prompt_file_size_is_checked_before_full_read(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prompt = Path(tmp) / "oversized.txt"
+            prompt.write_bytes(b"x" * (1024 * 1024 + 1))
+            with self.assertRaisesRegex(ValueError, "超过 1MB"):
+                _read_text(prompt)
 
     def test_endpoint_rejects_embedded_credentials(self):
         with self.assertRaises(ValueError):
