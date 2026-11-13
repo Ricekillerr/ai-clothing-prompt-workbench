@@ -301,6 +301,27 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(restored["name"], "Recover me")
         self.assertEqual(store.load_data()["cases"][0]["id"], "deleted-case")
 
+    def test_retrieval_feedback_is_local_bounded_and_aggregated(self):
+        store = Storage(self.home)
+        store.save_data({"cases": [{"id": "feedback-case", "name": "Feedback", "body": "prompt"}],
+                         "modules": []})
+        store.record_retrieval_feedback("黑色尼龙马甲", "feedback-case", 0.92, "useful")
+        store.record_retrieval_feedback("红色皮革裤子", "feedback-case", 0.35, "not_relevant")
+        analytics = store.get_retrieval_analytics()
+        self.assertEqual(analytics["total_feedback"], 2)
+        self.assertEqual(analytics["useful"], 1)
+        self.assertEqual(analytics["not_relevant"], 1)
+        self.assertEqual(analytics["top_cases"][0]["case_id"], "feedback-case")
+
+    def test_retrieval_feedback_rejects_unknown_case_and_invalid_kind(self):
+        store = Storage(self.home)
+        with self.assertRaisesRegex(Exception, "找不到对应的案例"):
+            store.record_retrieval_feedback("query", "missing-case", 0.5, "useful")
+        store.save_data({"cases": [{"id": "feedback-case", "name": "Feedback", "body": "prompt"}],
+                         "modules": []})
+        with self.assertRaisesRegex(Exception, "反馈类型"):
+            store.record_retrieval_feedback("query", "feedback-case", 0.5, "auto_upgrade")
+
     def test_local_settings_persist_in_sqlite_metadata(self):
         store = Storage(self.home)
         self.assertEqual(store.get_setting("auto_scan_enabled", "0"), "0")
