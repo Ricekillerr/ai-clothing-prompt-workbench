@@ -240,3 +240,9 @@ This branch is an isolated stabilization lane. It is not the production update c
 ## Implementation log — 2026-11-13 (AI endpoint transport security)
 - AI analysis now rejects plain HTTP endpoints for non-loopback hosts, requiring HTTPS before sending the API Key. Plain HTTP remains available for localhost/127.0.0.1/::1 development services.
 - Added tests for allowed loopback HTTP and rejected remote HTTP endpoints. This reduces the risk of transmitting provider credentials in cleartext on a network; the updated analyzer hash and full test suite are being revalidated.
+
+
+## Implementation log — 2026-11-13 (Windows-native CI smoke coverage)
+- Expanded the Windows runner job beyond PowerShell syntax parsing: it now executes dedicated Windows runtime tests for the local HTTP server, version/data APIs, full ZIP backup, process restart/data persistence, verified updater installation, and injected mid-transaction failure rollback.
+- The updater now removes leftover `.update_tmp` and `.restore_tmp` files after a failed transaction rollback; the Windows regression test asserts cleanup as well as restoration of the original program files.
+- These are automated Windows-runner checks, not a substitute for testing on the user's own Windows installation. CI execution and any failures will be inspected before treating this gate as passed.
