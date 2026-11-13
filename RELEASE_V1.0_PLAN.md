@@ -265,3 +265,10 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Added a Windows-only integration test that launches the real `.bat` file through `cmd.exe`, starts the actual application server on port 8765, verifies `/api/version`, sends a heartbeat, requests client close, and confirms the launcher process exits cleanly.
 - The first run proved the server started and responded but exposed a Windows console-code-page decoding issue in the test harness; the harness now reads raw bytes and decodes safely. The rerun passed.
 - GitHub Actions run 43359752504 passed 75 cross-platform regression tests (one Windows-only test skipped on Linux), plus four Windows Server 2025 runtime tests, all 8 update-file hashes, PowerShell parsing, and release source/channel gate. The four Windows tests include actual BAT launch/close, local backup/restart preservation, updater success, and updater rollback.
+
+
+## Implementation log — 2026-11-13 (DOM injection and import integrity hardening)
+- Security review found that a few library cards and copy buttons interpolated imported asset IDs or prompt text directly into inline JavaScript handlers. Replaced these with escaped data attributes and event listeners so imported content remains data, not executable code.
+- Prompt vault and composer IDs now use escaped attribute values; case/module cards open through DOM listeners; prompt copy buttons read from escaped data attributes.
+- JSON import now deduplicates IDs across the entire incoming batch (not only against pre-existing records), skips malformed entries, and restores the pre-import dataset if saving fails. English prompt text is included in case/module library search.
+- Added integration regression guards for DOM-safe ID rendering and import rollback. Runtime hash refresh and full CI rerun are pending.
