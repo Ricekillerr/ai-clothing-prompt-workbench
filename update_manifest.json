@@ -1,6 +1,6 @@
 {
   "version": "0.6.5",
-  "notes": "Prompt Atelier V0.6.5 candidate: verified full ZIP backup and pre-update snapshot; persistent 60-second folder auto-monitoring while the workbench is open; browser heartbeat lifecycle shutdown; integrated analysis for 1–8 images with hash-verified source provenance; conservative structured material conflict detection.",
+  "notes": "Prompt Atelier V0.6.5 candidate: verified full ZIP backup and pre-update snapshot; persistent 60-second folder auto-monitoring while the workbench is open; browser heartbeat lifecycle shutdown; integrated analysis for 1–8 images with hash-verified source provenance; conservative structured material conflict detection. Approved AI history imports now preserve original prompt/media paths, source SHA-256 hashes, model, analysis ID and import time; case detail view exposes this provenance.",
   "files": [
     "ai_prompt_workbench.py",
     "index.html",
@@ -10,11 +10,11 @@
     "ai_analyzer.py"
   ],
   "sha256": {
-    "ai_prompt_workbench.py": "437b21d51bad875dc3f5bc89630ada65886cda1e2a70dc22f9d8c5a9f9ce04b1",
+    "ai_prompt_workbench.py": "35a9535cb5f90f26c14315be30dd39389b6fa7133a1e121ed103a5b96c4faabe",
     "updater.py": "1cbdf1d55d07c4c3aa232c79b885b5ffb4ae681818b002178ba28d38fcee092b",
     "启动AI服装提示词工作台.bat": "a64c3ba2bba22c3758857cb138b5eb71d624763be555a25c0694853c96066f02",
-    "index.html": "3257f32af899728735c245051f98ac33f8b0c3ba7709f263d70beb91838ebe11",
-    "storage.py": "f6054b445cfc5a9dbd1629b23c8560006eba24f10391adb54505774284ad0936",
+    "index.html": "9d454938c9d68f3d981cabedf17326cba2de4972c9e0222775e382902cb9ac31",
+    "storage.py": "84fa0873502a1f2d69057b445836cc9aec07ab25260ade5c0042865ace2eab4a",
     "ai_analyzer.py": "2af05fcd427ecfff08556bca30e6b4a6b1ea9bdece344cf59a0a57eec8f69f67"
   }
 }
