@@ -31,7 +31,7 @@ This branch is an isolated stabilization lane. It is not the production update c
 ## Current status — refreshed 2026-11-13
 
 - Development remains isolated on `release/v0.6.5-stabilization`; `main` and the production update channel have not been changed.
-- Latest GitHub Actions run 43358645528 passed 69 regression tests, Python compilation, frontend JavaScript syntax, all 8 update-manifest SHA-256 checks, Windows PowerShell parser validation, and release source/channel gate.
+- Latest GitHub Actions run 43359461774 passed 74 regression tests, Python compilation, frontend JavaScript syntax, all 8 update-manifest SHA-256 checks, Windows Server 2025 runtime smoke tests, PowerShell parser validation, and release source/channel gate.
 - Implemented in this candidate: local full backup and pre-update snapshot; source provenance; folder auto-scan and human-reviewed AI ingestion; structured outfit decomposition and garment-level retrieval; reference-image role/priority metadata with manual correction; local perceptual-hash image shortlist; reference-aware prompt composition; bilingual prompt storage/output; revision comparison/restore; retrieval feedback analytics; serialized saves, request timeouts and privacy-safe diagnostics.
 - Important limitations still tracked: browser perceptual hashing is a coarse visual shortlist, not semantic same-garment recognition; English versions are stored/reused but not automatically translated; reference numbering must be manually mapped to the original prompt's @image identifiers.
 - Remaining V1.0 work: complete model-specific guidance and evaluation, broader visual retrieval validation, security/functional audit, clean-install and in-place-update verification, and native Windows launch/close/restart/backup/update/rollback/data-preservation acceptance.
@@ -252,3 +252,10 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Windows Server 2025 CI run 43359383841 executed all three new runtime smoke tests successfully: local API + full backup + restart/data preservation; verified update installation/backup; injected mid-transaction failure with original files restored and no leftover temp files.
 - The updater's rollback cleanup is now covered on Windows. The same run's cross-platform validation stopped only at the expected stale updater SHA-256 manifest gate; the updater hash has since been refreshed and the complete pipeline is being rerun.
 - These tests provide automated Windows runner evidence, but user-machine acceptance remains a separate final gate.
+
+
+## Implementation log — 2026-11-13 (Windows runner and rollback gate passed)
+- GitHub Actions run 43359461774 passed 74 regression tests and all release validation jobs.
+- The Windows Server 2025 job passed all three runtime tests: local API/full backup/restart data preservation; verified update install and backup retention; and injected mid-update failure with rollback, original-file restoration, and temporary-file cleanup.
+- The Ubuntu regression suite also passed the same three smoke tests, bringing the combined regression count to 74. All 8 runtime update files matched their SHA-256 manifest entries, and the release source/channel gate passed.
+- This materially improves automated Windows confidence, but it is not yet acceptance on the user's own desktop, Windows account, antivirus configuration, or existing data directory.
