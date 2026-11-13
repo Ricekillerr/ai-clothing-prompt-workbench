@@ -114,6 +114,18 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers(); self.wfile.write(data)
     def send_json(self, code, obj):
         self.send_bytes(code, json.dumps(obj, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
+
+    def send_file_download(self, path, download_name):
+        path = Path(path)
+        size = path.stat().st_size
+        self.send_response(200)
+        self.send_header("Content-Type", "application/zip")
+        self.send_header("Content-Disposition", f'attachment; filename="{download_name}"')
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(size))
+        self.end_headers()
+        with path.open("rb") as source:
+            shutil.copyfileobj(source, self.wfile, length=1024 * 1024)
     def do_GET(self):
         path = unquote(self.path.split("?", 1)[0])
         if path in ("/", "/index.html"):
@@ -122,6 +134,12 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/data":
             self.send_bytes(200, json.dumps(load_data(), ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
         elif path == "/api/version": self.send_json(200, {"version": APP_VERSION})
+        elif path == "/api/backup/full":
+            try:
+                archive = STORAGE.create_full_backup(IMAGES, app_version=APP_VERSION)
+                self.send_file_download(archive, archive.name)
+            except Exception as e:
+                self.send_json(500, {"ok": False, "error": f"完整备份创建失败：{e}"})
         elif path == "/api/cases/search":
             params = parse_qs(urlsplit(self.path).query)
             query = str((params.get("q") or [""])[0]).strip()
