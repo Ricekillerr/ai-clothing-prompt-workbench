@@ -207,6 +207,11 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/data":
             self.send_bytes(200, json.dumps(load_data(), ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
         elif path == "/api/version": self.send_json(200, {"version": APP_VERSION})
+        elif path == "/api/settings/auto-update":
+            self.send_json(200, {
+                "enabled": STORAGE.get_setting("auto_update_enabled", "1") == "1",
+                "idle_minutes": 15,
+            })
         elif path == "/api/backup/full":
             try:
                 archive = STORAGE.create_full_backup(IMAGES, app_version=APP_VERSION)
@@ -290,7 +295,13 @@ class Handler(BaseHTTPRequestHandler):
                 return
             raw_body = self.rfile.read(n)
             d = json.loads(raw_body.decode("utf-8") or "{}")
-            if self.path == "/api/data":
+            if self.path == "/api/settings/auto-update":
+                enabled = d.get("enabled")
+                if not isinstance(enabled, bool):
+                    raise ValueError("自动更新设置必须是布尔值")
+                STORAGE.set_setting("auto_update_enabled", "1" if enabled else "0")
+                self.send_json(200, {"ok": True, "enabled": enabled})
+            elif self.path == "/api/data":
                 if not isinstance(d, dict): raise ValueError("数据格式不正确")
                 d.setdefault("cases", []); d.setdefault("modules", []); save_data(d)
                 self.send_json(200, {"ok": True})
