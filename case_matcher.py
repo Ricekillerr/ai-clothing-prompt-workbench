@@ -152,6 +152,21 @@ _EXCLUSIVE_MATERIALS = {
     "silk": ("真丝", "丝绸", "silk"),
     "linen": ("亚麻", "linen"),
 }
+_EXCLUSIVE_CATEGORIES = {
+    "upper": ("上装", "上衣", "上身", "马甲", "背心", "夹克", "羽绒服", "外套",
+              "衬衫", "卫衣", "T恤", "针织衫", "毛衣", "大衣", "西装",
+              "gilet", "vest", "jacket", "coat", "overcoat", "shirt",
+              "hoodie", "sweatshirt", "cardigan", "puffer jacket"),
+    "lower": ("下装", "裤子", "长裤", "短裤", "直筒裤", "阔腿裤", "微喇裤",
+              "牛仔裤", "运动裤", "裙子", "半身裙", "pants", "trousers",
+              "jeans", "shorts", "leggings", "skirt"),
+    "footwear": ("鞋履", "鞋子", "运动鞋", "皮鞋", "靴子", "凉鞋",
+                 "sneakers", "shoes", "boots", "sandals"),
+    "accessory": ("配饰", "腰带", "帽子", "围巾", "包", "戒指", "眼镜", "手表",
+                  "belt", "hat", "scarf", "bag", "ring", "glasses", "watch"),
+    "onepiece": ("连体装", "连体裤", "连衣裙", "dress", "jumpsuit", "romper"),
+    "full_outfit": ("整套搭配", "全套穿搭", "整套服装", "full outfit", "outfit"),
+}
 _MIXTURE_MARKERS = ("混纺", "混合", "拼接", "复合", "blend", "mixed", "mix")
 
 
@@ -180,12 +195,36 @@ def _exclusive_values(text, vocabulary):
 
 
 def find_case_conflicts(case, query):
-    """Flag only unambiguous contradictions in structured color/material fields.
+    """Flag unambiguous category, color and material contradictions.
 
-    Multi-color and mixed-material records are intentionally left for human review.
-    Free-form prompt body and tags are excluded to avoid scene/background false positives.
+    Category evidence comes from structured case fields and outfit-item breakdowns.
+    A full-outfit case remains eligible for an individual garment query because it
+    may contain that garment even when its breakdown is incomplete. Multi-color and
+    mixed-material records are intentionally left for human review. Prompt body and
+    tags are excluded from hard conflict checks to avoid scene/background false positives.
     """
     conflicts = []
+    requested_categories = _exclusive_values(query, _EXCLUSIVE_CATEGORIES)
+    outfit_items = case.get("outfit_items") if isinstance(case.get("outfit_items"), list) else []
+    stored_category_text = _match_text([
+        case.get("category"), case.get("subcategory"), case.get("name"),
+        [
+            {key: item.get(key) for key in ("category", "subcategory", "name")}
+            for item in outfit_items if isinstance(item, dict)
+        ],
+    ])
+    stored_categories = _exclusive_values(stored_category_text, _EXCLUSIVE_CATEGORIES)
+    # Do not guess the contents of an unstructured "full outfit" record.
+    if requested_categories and stored_categories and "full_outfit" not in stored_categories:
+        missing_categories = requested_categories - stored_categories
+        if missing_categories:
+            conflicts.append({
+                "attribute": "category",
+                "requested": sorted(requested_categories),
+                "case_value": sorted(stored_categories),
+                "reason": "查询要求与案例结构化品类冲突",
+            })
+
     requested_colors = _color_values(query)
     stored_colors = _color_values(_match_text([case.get("color"), case.get("color_details")]))
     if len(requested_colors) == 1 and len(stored_colors) == 1:

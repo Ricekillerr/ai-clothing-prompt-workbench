@@ -84,6 +84,34 @@ class CaseMatcherTests(unittest.TestCase):
         self.assertIn("reasons", results[0])
         self.assertIn("attribute_details", results[0])
         self.assertTrue(results[0]["attribute_details"])
+    def test_hard_category_conflict_excludes_wrong_garment_type(self):
+        case = dict(
+            self.case, name="黑色微喇裤", category="下装",
+            subcategory="微喇裤", details=["隐藏抽绳"],
+        )
+        conflicts = find_case_conflicts(case, "黑色立领无袖马甲")
+        self.assertTrue(any(item["attribute"] == "category" for item in conflicts))
+        self.assertEqual(
+            rank_case_matches([case], "黑色立领无袖马甲", threshold=0.1),
+            [],
+        )
+
+    def test_full_outfit_item_breakdown_allows_matching_a_specific_garment(self):
+        case = dict(
+            self.case, category="整套搭配", subcategory="冬季穿搭",
+            outfit_items=[
+                {"category": "上装", "subcategory": "无袖马甲", "name": "黑色马甲"},
+                {"category": "下装", "subcategory": "微喇裤", "name": "深灰灯芯绒裤"},
+            ],
+        )
+        self.assertEqual(find_case_conflicts(case, "深灰灯芯绒微喇裤"), [])
+        results = rank_case_matches([case], "深灰灯芯绒微喇裤", threshold=0.8)
+        self.assertEqual(len(results), 1)
+
+    def test_full_outfit_without_breakdown_is_not_assumed_to_miss_an_item(self):
+        case = dict(self.case, category="整套搭配", subcategory="冬季穿搭")
+        self.assertEqual(find_case_conflicts(case, "黑色立领无袖马甲"), [])
+
     def test_explicit_color_conflict_is_detected(self):
         conflicts = find_case_conflicts(self.case, "红色立领马甲")
         self.assertTrue(any(x["attribute"] == "color" for x in conflicts))
