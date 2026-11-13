@@ -31,10 +31,10 @@ This branch is an isolated stabilization lane. It is not the production update c
 ## Current status — refreshed 2026-11-13
 
 - Development remains isolated on `release/v0.6.5-stabilization`; `main` and the production update channel have not been changed.
-- Latest GitHub Actions run 43364132866 passed 89 regression tests, Python compilation, frontend JavaScript syntax, all 8 update-manifest SHA-256 checks, six Windows Server 2025 runtime acceptance tests, PowerShell parser validation, and release source/channel gate.
+- Latest GitHub Actions run 43364478452 passed 89 regression tests, Python compilation, frontend JavaScript syntax, all 9 update-manifest SHA-256 checks, six Windows Server 2025 runtime acceptance tests, PowerShell parser validation, and release source/channel gate.
 - Implemented in this candidate: local full backup and pre-update snapshot; source provenance; folder auto-scan and human-reviewed AI ingestion; structured outfit decomposition and garment-level retrieval; reference-image role/priority metadata with manual correction; local perceptual-hash image shortlist; reference-aware prompt composition; bilingual prompt storage/output; revision comparison/restore; retrieval feedback analytics; serialized saves, request timeouts and privacy-safe diagnostics.
 - Important limitations still tracked: browser perceptual hashing is a coarse visual shortlist, not semantic same-garment recognition; English versions are stored/reused but not automatically translated; reference numbering must be manually mapped to the original prompt's @image identifiers.
-- Remaining V1.0 work: complete model-specific guidance and evaluation, broader visual retrieval validation, security/functional audit, clean-install and in-place-update verification, and native Windows launch/close/restart/backup/update/rollback/data-preservation acceptance.
+- Remaining V1.0 work: evaluate model-specific guidance against real model runs, broaden visual retrieval validation, complete the final security/functional audit, and perform acceptance on the user's own Windows desktop (actual browser/UI behavior, existing data directory, antivirus and network environment). Automated clean-install, in-place-update, rollback and data-preservation gates have passed on Windows Server 2025 CI.
 - This candidate is not a production release. No Windows GUI acceptance is claimed, and no merge to `main` or public release should occur until every mandatory gate passes.
 
 
@@ -399,3 +399,9 @@ This branch is an isolated stabilization lane. It is not the production update c
 ## Implementation log — 2026-11-13 (truthful update-startup failure handling)
 - The update-start request now has a bounded 10-minute timeout to allow large local backups and downloads. If the HTTP response is lost after the server may have launched the updater, the UI reports that the installation state is unconfirmed and warns against duplicate launches instead of falsely reporting a definite failure.
 - The regression suite guards the ambiguous-response wording and timeout. GitHub Actions run 43364132866 passed 89 regression tests, all 8 update hashes, six Windows Server 2025 runtime tests, PowerShell syntax validation and release source/channel gate.
+
+
+## Implementation log — 2026-11-13 (V1.0 Chinese user manual)
+- Added a full Chinese V1.0 candidate user manual covering startup/local data, successful-case creation, reference-image authority, historical ingestion and AI privacy, smart retrieval thresholds and limitations, prompt composition, generation outcome feedback, version history, full backup/restore, automatic update authorization, troubleshooting and known limitations.
+- Added the manual to both the client and updater allowlists and to the nine-file SHA-256 update manifest, so it can be installed through the normal verified update path rather than requiring a separate manual download.
+- GitHub Actions run 43364478452 passed 89 regression tests, all 9 update-file SHA-256 checks, six Windows Server 2025 runtime acceptance tests, PowerShell parsing and release source/channel gate.
