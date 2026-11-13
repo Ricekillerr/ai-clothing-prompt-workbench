@@ -991,6 +991,9 @@ class Storage:
                         raise StorageError(f"备份中存在重复资产 ID：{asset_id}")
                     seen_ids.add(asset_id)
 
+            safety_backup = self.create_full_backup(
+                self.home / "references", app_version="pre-restore"
+            )
             old_db = rollback_dir / "old.sqlite3"
             self.backup(old_db)
             old_json = rollback_dir / "old_prompt_library.json"
@@ -1062,6 +1065,7 @@ class Storage:
                 "modules": len(restored_json["modules"]),
                 "references": sum(1 for path in references_dir.rglob("*") if path.is_file()),
                 "backup_created_at": manifest.get("created_at", ""),
+                "safety_backup": safety_backup.name,
             }
         finally:
             shutil.rmtree(stage_dir, ignore_errors=True)
