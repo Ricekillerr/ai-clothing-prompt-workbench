@@ -1007,6 +1007,24 @@ class Storage:
                         raise StorageError(f"备份中存在重复资产 ID：{asset_id}")
                     seen_ids.add(asset_id)
 
+            # The ZIP checksum only proves internal consistency, not that the
+            # JSON and SQLite payloads describe the same library. Verify both.
+            try:
+                verify_db = sqlite3.connect(str(staged_db))
+                rows = verify_db.execute(
+                    "SELECT kind,payload_json FROM assets ORDER BY updated_at DESC, rowid DESC"
+                ).fetchall()
+                verify_db.close()
+                database_payload = {"version": 3, "cases": [], "modules": []}
+                for kind, payload_json in rows:
+                    item = json.loads(payload_json)
+                    database_payload["cases" if kind == "case" else "modules"].append(item)
+            except Exception as exc:
+                raise StorageError("备份数据库资产内容无法完整读取") from exc
+            if (restored_json.get("cases") != database_payload["cases"]
+                    or restored_json.get("modules") != database_payload["modules"]):
+                raise StorageError("备份数据库与 JSON 内容不一致，拒绝恢复")
+
             safety_backup = self.create_full_backup(
                 self.home / "references", app_version="pre-restore"
             )
