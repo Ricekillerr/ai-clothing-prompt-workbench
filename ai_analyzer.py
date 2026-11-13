@@ -22,6 +22,8 @@ def _safe_endpoint(endpoint: str) -> str:
     parsed = urlparse(endpoint)
     if parsed.scheme not in {"https", "http"} or not parsed.netloc:
         raise ValueError("API 地址必须是有效的 HTTP(S) 地址")
+    if parsed.scheme == "http" and parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
+        raise ValueError("非本机 API 必须使用 HTTPS，避免 API Key 在网络中明文传输")
     if parsed.username or parsed.password:
         raise ValueError("API 地址中不能嵌入账号或密码")
     if not endpoint.endswith("/chat/completions"):
