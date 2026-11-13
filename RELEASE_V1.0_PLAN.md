@@ -298,3 +298,9 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Added regression cases for Windows path aliases, reserved names, trailing dot/space and case-insensitive collisions. Both new tests pass.
 - GitHub Actions run 43361584411 passed 81 regression tests, all 8 runtime SHA-256 checks, Windows Server 2025's four runtime tests (including actual BAT lifecycle, backup/restore persistence, and updater install/rollback), PowerShell syntax validation, and the release source/channel gate.
 - The branch remains a candidate. The user's own Windows installation and existing-data directory still require final acceptance before V1.0 release.
+
+
+## Implementation log — 2026-11-13 (full restore security and rollback verified)
+- ZIP restore now also rejects Windows-specific path hazards: alternate data streams (`:`), reserved device names (CON/PRN/AUX/NUL/COM1–9/LPT1–9), trailing dots/spaces, case-insensitive path collisions, symlink entries, backslashes, NULs, and files outside the expected database/JSON/references roots.
+- Added tests for Windows path aliases/reserved names, ZIP traversal, tampering, successful restore, and a deliberately injected failure during the database/JSON/reference swap to verify rollback keeps the pre-restore live dataset intact.
+- GitHub Actions run 43361584411 passed 81 regression tests, all 8 update manifest hashes, PowerShell parsing, release source/channel gate, and all four Windows Server 2025 runtime tests (actual BAT lifecycle, backup/restore/restart, updater success, updater rollback).
