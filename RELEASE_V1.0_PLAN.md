@@ -278,3 +278,10 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Hardened save timeout handling: a client-side timeout no longer falsely claims the original data was restored, because the local server may have committed the write before the response was lost.
 - Timed-out saves now wait for any queued writes, then reload the authoritative local server dataset. The UI distinguishes confirmed server state, confirmed rollback after ordinary errors, and unresolved state when reconciliation itself cannot complete.
 - Applied this behavior to single-asset edits/deletes, batch case/module operations, and JSON imports. Added integration guards for reconciliation and truthful timeout messaging.
+
+
+## Implementation log — 2026-11-13 (full backup restore)
+- Added verified full ZIP backup restore. Before changing live data, the restore path validates the backup format/version, exact manifest file list, safe relative paths, archive/file-count/uncompressed-size bounds, every file SHA-256, SQLite integrity/schema, and JSON asset structure/unique IDs.
+- Restore stages files under the local data directory, creates an automatic pre-restore full safety backup, then replaces the database, JSON export and reference images. If any swap or post-restore validation fails, it attempts to restore the previous database, JSON and references.
+- Added a streaming ZIP upload endpoint (500MB compressed cap; no full-archive buffering in RAM) and a settings-page restore flow with explicit confirmation and a 10-minute request timeout.
+- Added storage tests for successful round-trip restore, tampered archive rejection without live-data mutation, and ZIP path-traversal rejection. Windows smoke test now exercises backup, mutation, restore, automatic safety snapshot, restart and data persistence.
