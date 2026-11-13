@@ -63,6 +63,11 @@ class V065IntegrationTests(unittest.TestCase):
                      "AI审核结果", "确认并入库", "智能案例检索", "匹配度达到 80%", "async function scanApi"):
             self.assertIn(text, html)
         self.assertIn("renderMatchAttributeDetails", html)
+        self.assertIn("saveQueue", html)
+        self.assertIn("AbortController", html)
+        self.assertIn("请求超时", html)
+        self.assertIn("log_api_error", self.app)
+        self.assertIn("api_errors.log", self.app)
         self.assertIn("匹配有帮助", html)
         self.assertIn("不符合需求", html)
         self.assertIn("recordCaseFeedback", html)
