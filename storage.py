@@ -14,7 +14,7 @@ import sqlite3
 import tempfile
 import zipfile
 from contextlib import contextmanager
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 SCHEMA_VERSION = 1
@@ -888,3 +888,182 @@ class Storage:
                 if temp_archive.exists():
                     temp_archive.unlink()
         return target
+
+    def restore_full_backup(self, archive_path: Path) -> dict:
+        """Verify a full backup completely, then atomically replace local data and references."""
+        archive_path = Path(archive_path).resolve()
+        if not archive_path.is_file():
+            raise StorageError("完整备份文件不存在")
+        if archive_path.stat().st_size > 500 * 1024 * 1024:
+            raise StorageError("备份压缩包超过 500MB，拒绝恢复")
+
+        stage_dir = Path(tempfile.mkdtemp(prefix=".restore_stage_", dir=str(self.home)))
+        rollback_dir = Path(tempfile.mkdtemp(prefix=".restore_rollback_", dir=str(self.home)))
+        swapped_db = swapped_json = swapped_refs = False
+        try:
+            with zipfile.ZipFile(archive_path, "r") as archive:
+                infos = archive.infolist()
+                if len(infos) > 20000:
+                    raise StorageError("备份文件数量超过安全上限")
+                names = [info.filename for info in infos]
+                if len(names) != len(set(names)):
+                    raise StorageError("备份中存在重复文件路径")
+                if "backup_manifest.json" not in names:
+                    raise StorageError("缺少备份清单，无法确认备份来源")
+                manifest_info = archive.getinfo("backup_manifest.json")
+                if manifest_info.file_size > 5 * 1024 * 1024:
+                    raise StorageError("备份清单异常过大")
+                manifest = json.loads(archive.read("backup_manifest.json").decode("utf-8"))
+                if (manifest.get("format") != "PromptAtelierFullBackup"
+                        or manifest.get("format_version") != 1
+                        or not isinstance(manifest.get("files"), dict)):
+                    raise StorageError("备份格式或版本不受支持")
+                expected_files = manifest["files"]
+                actual_files = [name for name in names if name != "backup_manifest.json"]
+                if set(actual_files) != set(expected_files):
+                    raise StorageError("备份清单与压缩包文件列表不一致")
+                required = {
+                    "database/prompt_library.sqlite3",
+                    "data/prompt_library.json",
+                }
+                if not required.issubset(expected_files):
+                    raise StorageError("备份缺少数据库或 JSON 数据文件")
+
+                total_size = 0
+                for info in infos:
+                    if info.filename == "backup_manifest.json":
+                        continue
+                    name = info.filename
+                    relative = PurePosixPath(name)
+                    if (not name or "\\" in name or relative.is_absolute()
+                            or any(part in {"", ".", ".."} for part in relative.parts)
+                            or (relative.parts and ":" in relative.parts[0])
+                            or info.is_dir()):
+                        raise StorageError(f"备份包含不安全的文件路径：{name[:120]}")
+                    if info.file_size > 1024 * 1024 * 1024:
+                        raise StorageError(f"备份单个文件超过 1GB：{name[:120]}")
+                    total_size += info.file_size
+                    if total_size > 2 * 1024 * 1024 * 1024:
+                        raise StorageError("备份解压总量超过 2GB，拒绝恢复")
+                    expected_hash = str(expected_files.get(name) or "").lower()
+                    if len(expected_hash) != 64 or any(ch not in "0123456789abcdef" for ch in expected_hash):
+                        raise StorageError(f"备份清单中的 SHA-256 格式无效：{name[:120]}")
+
+                    target = stage_dir.joinpath(*relative.parts)
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    digest = hashlib.sha256()
+                    with archive.open(info, "r") as source, target.open("wb") as destination:
+                        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                            digest.update(chunk)
+                            destination.write(chunk)
+                    if digest.hexdigest() != expected_hash:
+                        raise StorageError(f"备份文件 SHA-256 校验失败：{name}")
+
+            staged_db = stage_dir / "database" / "prompt_library.sqlite3"
+            staged_json = stage_dir / "data" / "prompt_library.json"
+            try:
+                check = sqlite3.connect(str(staged_db))
+                integrity = check.execute("PRAGMA integrity_check").fetchone()[0]
+                tables = {row[0] for row in check.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                ).fetchall()}
+                check.close()
+            except sqlite3.DatabaseError as exc:
+                raise StorageError("备份数据库无法打开或已损坏") from exc
+            if integrity != "ok" or not {"assets", "metadata"}.issubset(tables):
+                raise StorageError("备份数据库完整性或结构检查未通过")
+
+            try:
+                restored_json = json.loads(staged_json.read_text(encoding="utf-8"))
+            except Exception as exc:
+                raise StorageError("备份 JSON 数据无法解析") from exc
+            if (not isinstance(restored_json, dict)
+                    or not isinstance(restored_json.get("cases"), list)
+                    or not isinstance(restored_json.get("modules"), list)):
+                raise StorageError("备份 JSON 数据结构不正确")
+            seen_ids = set()
+            for key in ("cases", "modules"):
+                for item in restored_json[key]:
+                    if not isinstance(item, dict) or not str(item.get("id") or "").strip():
+                        raise StorageError(f"备份 {key} 中存在无效资产记录")
+                    asset_id = str(item["id"]).strip()
+                    if asset_id in seen_ids:
+                        raise StorageError(f"备份中存在重复资产 ID：{asset_id}")
+                    seen_ids.add(asset_id)
+
+            old_db = rollback_dir / "old.sqlite3"
+            self.backup(old_db)
+            old_json = rollback_dir / "old_prompt_library.json"
+            if self.legacy_json.is_file():
+                shutil.copy2(self.legacy_json, old_json)
+            old_refs = rollback_dir / "old_references"
+            references_dir = self.home / "references"
+            staged_refs = stage_dir / "references"
+            if references_dir.is_dir():
+                os.replace(references_dir, old_refs)
+            try:
+                if references_dir.exists():
+                    shutil.rmtree(references_dir)
+                if staged_refs.is_dir():
+                    os.replace(staged_refs, references_dir)
+                else:
+                    references_dir.mkdir(parents=True, exist_ok=True)
+                swapped_refs = True
+
+                for suffix in ("-wal", "-shm"):
+                    sidecar = Path(str(self.db_path) + suffix)
+                    if sidecar.exists():
+                        sidecar.unlink()
+                os.replace(staged_db, self.db_path)
+                swapped_db = True
+                os.replace(staged_json, self.legacy_json)
+                swapped_json = True
+
+                verified = self.load_data()
+                if len(verified.get("cases", [])) != len(restored_json["cases"]):
+                    raise StorageError("恢复后案例数量与备份清单不一致")
+                if len(verified.get("modules", [])) != len(restored_json["modules"]):
+                    raise StorageError("恢复后模块数量与备份清单不一致")
+            except Exception as exc:
+                if swapped_db:
+                    try:
+                        for suffix in ("-wal", "-shm"):
+                            sidecar = Path(str(self.db_path) + suffix)
+                            if sidecar.exists():
+                                sidecar.unlink()
+                        if self.db_path.exists():
+                            self.db_path.unlink()
+                        os.replace(old_db, self.db_path)
+                    except Exception:
+                        pass
+                if swapped_json:
+                    try:
+                        if self.legacy_json.exists():
+                            self.legacy_json.unlink()
+                        if old_json.exists():
+                            os.replace(old_json, self.legacy_json)
+                    except Exception:
+                        pass
+                if swapped_refs:
+                    try:
+                        if references_dir.exists():
+                            shutil.rmtree(references_dir)
+                        if old_refs.exists():
+                            os.replace(old_refs, references_dir)
+                    except Exception:
+                        pass
+                if isinstance(exc, StorageError):
+                    raise
+                raise StorageError("恢复过程中发生错误，已尝试回滚原数据") from exc
+
+            return {
+                "ok": True,
+                "cases": len(restored_json["cases"]),
+                "modules": len(restored_json["modules"]),
+                "references": sum(1 for path in references_dir.rglob("*") if path.is_file()),
+                "backup_created_at": manifest.get("created_at", ""),
+            }
+        finally:
+            shutil.rmtree(stage_dir, ignore_errors=True)
+            shutil.rmtree(rollback_dir, ignore_errors=True)
+
