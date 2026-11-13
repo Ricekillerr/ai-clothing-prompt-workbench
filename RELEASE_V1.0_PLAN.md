@@ -31,7 +31,7 @@ This branch is an isolated stabilization lane. It is not the production update c
 ## Current status — refreshed 2026-11-13
 
 - Development remains isolated on `release/v0.6.5-stabilization`; `main` and the production update channel have not been changed.
-- Latest GitHub Actions run 43362277749 passed 87 regression tests, Python compilation, frontend JavaScript syntax, all 8 update-manifest SHA-256 checks, four Windows Server 2025 runtime smoke tests, PowerShell parser validation, and release source/channel gate.
+- Latest GitHub Actions run 43363203420 passed 87 regression tests, Python compilation, frontend JavaScript syntax, all 8 update-manifest SHA-256 checks, four Windows Server 2025 runtime smoke tests, PowerShell parser validation, and release source/channel gate.
 - Implemented in this candidate: local full backup and pre-update snapshot; source provenance; folder auto-scan and human-reviewed AI ingestion; structured outfit decomposition and garment-level retrieval; reference-image role/priority metadata with manual correction; local perceptual-hash image shortlist; reference-aware prompt composition; bilingual prompt storage/output; revision comparison/restore; retrieval feedback analytics; serialized saves, request timeouts and privacy-safe diagnostics.
 - Important limitations still tracked: browser perceptual hashing is a coarse visual shortlist, not semantic same-garment recognition; English versions are stored/reused but not automatically translated; reference numbering must be manually mapped to the original prompt's @image identifiers.
 - Remaining V1.0 work: complete model-specific guidance and evaluation, broader visual retrieval validation, security/functional audit, clean-install and in-place-update verification, and native Windows launch/close/restart/backup/update/rollback/data-preservation acceptance.
@@ -357,3 +357,10 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Automatic update checks now poll every 15 minutes and immediately on startup. When automatic installation is authorized and a new version is available, installation waits for 15 minutes of continuous inactivity, requires the workbench to be visible/focused, then displays a 60-second countdown.
 - Pointer, keyboard, touch, and visibility activity reset the idle timer. The user can cancel the pending install; the next new version will be handled under the authorization rule. The app still creates a full pre-update backup and verifies every staged file before replacement.
 - This avoids interrupting an active editing session while preserving the opt-in no-manual-download workflow.
+
+
+## Implementation log — 2026-11-13 (authorized idle-aware automatic updates)
+- Added a persistent local authorization switch for automatic program updates. It is opt-in and can be disabled at any time; without authorization the app only checks and reports new versions.
+- Authorized updates no longer close the workbench immediately during a periodic check. The app waits for 15 minutes of user inactivity, requires the window to remain visible and focused, then shows a 60-second countdown. Any pointer, keyboard, touch, or tab-visibility activity defers the installation; the user can also cancel the current version's automatic installation.
+- The workbench now checks for updates at startup and every 15 minutes while open. Every update still verifies downloaded file hashes and creates a full local pre-update backup before the updater replaces program files.
+- GitHub Actions run 43363203420 passed 87 regression tests, all 8 runtime SHA-256 checks, four Windows Server 2025 runtime tests, PowerShell parsing, and the release source/channel gate.
