@@ -545,6 +545,97 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
                 server.server_close()
                 thread.join(timeout=5)
 
+    def test_history_ingestion_review_and_ai_approval_http_round_trip(self):
+        original = self.app.STORAGE.load_data()
+        source_dir = self.home / ("history-api-" + __import__("uuid").uuid4().hex)
+        source_dir.mkdir(parents=True)
+        prompt_path = source_dir / "successful_prompt.txt"
+        image_path = source_dir / "jacket_front.png"
+        prompt_text = "以参考视频锁定人物与镜头，只替换深黑色夹克。\n保留原始动作和背景。"
+        prompt_path.write_text(prompt_text, encoding="utf-8")
+        image_path.write_bytes(b"mock-image-bytes-for-ingestion")
+        server, thread, base = self._start_server()
+
+        def request_json(path, payload=None):
+            body = None if payload is None else json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            request = Request(
+                base + path,
+                data=body,
+                headers={"Content-Type": "application/json"} if body is not None else {},
+                method="POST" if body is not None else "GET",
+            )
+            with urlopen(request, timeout=10) as response:
+                return json.loads(response.read().decode("utf-8"))
+
+        try:
+            source = request_json("/api/scan/source", {"folder": str(source_dir), "recursive": True})
+            scan = request_json("/api/scan/run", {"source_id": source["source_id"]})
+            self.assertEqual(scan["summary"]["added"], 2)
+            pending = request_json("/api/scan/pending")["items"]
+            by_name = {item["name"]: item for item in pending}
+            self.assertIn(prompt_path.name, by_name)
+            self.assertIn(image_path.name, by_name)
+
+            request_json("/api/scan/review", {"path": str(prompt_path), "status": "approved"})
+            pending_after_review = request_json("/api/scan/pending")["items"]
+            self.assertNotIn(str(prompt_path), {item["path"] for item in pending_after_review})
+
+            def fake_analysis(prompt_file, asset_files, api_key, endpoint, model,
+                              expected_prompt_sha256=None, expected_asset_sha256s=None):
+                self.assertEqual(Path(prompt_file).read_text(encoding="utf-8"), prompt_text)
+                self.assertEqual(len(asset_files), 1)
+                return {
+                    "title": "HTTP 采集测试夹克",
+                    "category": "上装",
+                    "subcategory": "夹克",
+                    "prompt_text": prompt_text,
+                    "prompt_summary": "保留人物与镜头，只替换夹克",
+                    "asset_paths": list(asset_files),
+                    "asset_roles": [{
+                        "asset_index": 1, "asset_path": asset_files[0],
+                        "role": "front", "role_label": "正面整体图",
+                        "priority": "primary", "governs": ["整体结构"],
+                    }],
+                    "outfit_items": [{
+                        "item_index": 1, "category": "上装", "name": "深黑夹克",
+                        "color": "深黑", "material": "尼龙", "confidence": 0.9,
+                    }],
+                    "outfit_relations": [],
+                }
+
+            with mock.patch.object(self.app, "analyze_assets", side_effect=fake_analysis):
+                analysis = request_json("/api/ai/analyze", {
+                    "prompt_path": str(prompt_path),
+                    "asset_paths": [str(image_path)],
+                    "api_key": "test-key-not-persisted",
+                    "endpoint": "https://api.example.invalid/v1",
+                    "model": "test-model",
+                })
+            self.assertTrue(analysis["ok"])
+            self.assertEqual(analysis["result"]["prompt_text"], prompt_text)
+            approved = request_json("/api/ai/approve", {"analysis_id": analysis["analysis_id"]})
+            self.assertTrue(approved["ok"])
+            imported = next(item for item in approved["data"]["cases"] if item["id"] == approved["asset_id"])
+            self.assertEqual(imported["body"], prompt_text)
+            self.assertEqual(imported["name"], "HTTP 采集测试夹克")
+            self.assertEqual(imported["image_roles"][0]["priority"], "primary")
+            self.assertEqual(imported["outfit_items"][0]["name"], "深黑夹克")
+            self.assertEqual(imported["provenance"]["source_prompt"]["path"], str(prompt_path))
+            copied_image = self.images / imported["image"]
+            self.assertTrue(copied_image.is_file())
+            self.assertEqual(copied_image.read_bytes(), image_path.read_bytes())
+            self.assertEqual(request_json("/api/ai/reviews")["reviews"], [])
+        finally:
+            try:
+                self.app.STORAGE.save_data(original)
+                for copied in self.images.glob("history_*"):
+                    copied.unlink(missing_ok=True)
+            finally:
+                shutil.rmtree(source_dir, ignore_errors=True)
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
     def test_recycle_bin_api_exposes_deleted_assets_for_recovery(self):
         self.app.STORAGE.save_data({
             "cases": [{
