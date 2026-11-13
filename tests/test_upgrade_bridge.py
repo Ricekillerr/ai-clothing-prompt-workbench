@@ -106,6 +106,9 @@ class V065IntegrationTests(unittest.TestCase):
         self.assertIn("x.sku,x.style_number,x.product_code", html)
         self.assertIn("m.case.sku||m.case.style_number||m.case.product_code", html)
         self.assertIn("if(!response.ok||result.ok===false)", html)
+        self.assertIn("保存失败，原数据已恢复", html)
+        self.assertIn("删除失败，原数据已恢复", html)
+        self.assertIn("async function deleteCurrent()", html)
 
     def test_legacy_json_is_migrated_without_replacing_source(self):
         self.assertIn("legacy_json=LEGACY_DATA", self.app)
