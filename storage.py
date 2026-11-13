@@ -587,6 +587,34 @@ class Storage:
                     for role in (result.get("asset_roles") or [])
                     if isinstance(role, dict)
                 ][:8],
+                "outfit_items": [
+                    {
+                        "item_index": int(part.get("item_index", index)),
+                        "category": str(part.get("category") or "其他")[:20],
+                        "subcategory": str(part.get("subcategory") or "")[:60],
+                        "name": str(part.get("name") or "")[:120],
+                        "color": str(part.get("color") or "")[:60],
+                        "material": str(part.get("material") or "")[:120],
+                        "silhouette": str(part.get("silhouette") or "")[:80],
+                        "fit": str(part.get("fit") or "")[:60],
+                        "details": [str(value)[:100] for value in part.get("details", [])[:20]]
+                            if isinstance(part.get("details"), list) else [],
+                        "evidence": str(part.get("evidence") or "")[:300],
+                        "confidence": max(0.0, min(1.0, float(part.get("confidence", 0) or 0))),
+                    }
+                    for index, part in enumerate(result.get("outfit_items") or [], start=1)
+                    if isinstance(part, dict)
+                ][:12],
+                "outfit_relations": [
+                    {
+                        "source_item": int(rel.get("source_item", 0)),
+                        "target_item": int(rel.get("target_item", 0)),
+                        "relation": str(rel.get("relation") or "unknown")[:20],
+                        "evidence": str(rel.get("evidence") or "")[:240],
+                    }
+                    for rel in (result.get("outfit_relations") or [])
+                    if isinstance(rel, dict)
+                ][:20],
                 "provenance": {
                     "type": "ai_history_import",
                     "analysis_id": analysis_id,
