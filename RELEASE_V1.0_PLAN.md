@@ -335,3 +335,10 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Generation outcome updates now run in one SQLite transaction: prior asset snapshot, case status/last-outcome metadata, and generation-feedback event are committed together. The feedback table is bounded to 5,000 records.
 - Full backup restore now reapplies additive schema initialization after installing the restored database, allowing older backups to gain newer local tables/indexes before the app uses them. Added a regression test that restores a database missing the generation-feedback table and verifies the feature works afterward.
 - GitHub Actions run 43362347918 passed 87 regression tests, all 8 update-manifest hashes, PowerShell parsing, release source/channel gate, and all four Windows Server 2025 runtime smoke tests.
+
+
+## Implementation log — 2026-11-13 (opt-in automatic installation)
+- Added a persistent `auto_update_enabled` setting and local API to control it. Automatic installation is off by default and requires one explicit user opt-in in Settings.
+- When enabled, startup and six-hour update checks automatically invoke the verified update pipeline if a newer version is available. The updater still creates a pre-update full backup, validates staged files against the manifest, shuts down/restarts the app, and uses transactional rollback.
+- The Settings page shows whether automatic installation is authorized and lets the user disable it. Manual update confirmation remains the default when authorization is off.
+- This implements the intended no-recurring-download workflow without silently installing updates before the user explicitly enables it.
