@@ -483,6 +483,25 @@ class Storage:
             if cur.rowcount != 1:
                 raise StorageError("找不到待拒绝的 AI 分析结果")
 
+    def get_setting(self, key: str, default: str | None = None) -> str | None:
+        key = str(key or "").strip()
+        if not key:
+            raise StorageError("设置键不能为空")
+        with self._session() as con:
+            row = con.execute("SELECT value FROM metadata WHERE key=?", (key,)).fetchone()
+            return row["value"] if row else default
+
+    def set_setting(self, key: str, value: str) -> None:
+        key = str(key or "").strip()
+        if not key:
+            raise StorageError("设置键不能为空")
+        with self._session() as con:
+            con.execute(
+                "INSERT INTO metadata(key,value) VALUES(?,?) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (key, str(value)),
+            )
+
     def backup(self, destination: Path | None = None) -> Path:
         target = Path(destination) if destination else self.home / "backups" / "prompt_library.sqlite3"
         target.parent.mkdir(parents=True, exist_ok=True)
