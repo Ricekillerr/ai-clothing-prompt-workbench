@@ -160,3 +160,9 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 ## Implementation log — 2026-11-13 (manual reference authority controls verified)
 - Manual reference-role editing, role-index bounds, and the primary/secondary/supporting priority display passed GitHub Actions run 43357598746: 67 regression tests, Python compilation, frontend JavaScript syntax, 8-file update manifest SHA-256 validation, Windows PowerShell parser validation, and release source/channel gate.
 - Reference authority is now both machine-suggested and user-correctable; source paths remain attached to the same image index when editing existing records.
+
+
+## Implementation log — 2026-11-13 (reference-aware prompt composition)
+- The prompt composer now has an optional, enabled-by-default structure guide. When the base case contains structured outfit items or reference roles, it appends the garment breakdown, explicit saved layering relations, reference role/priority, governed attributes, and a conflict-precedence rule (primary > secondary > supporting).
+- The generated guide clearly states that stored associated-image numbering does not automatically rewrite `@图片` identifiers in the original prompt; the user must verify the mapping. This avoids silently pointing the video model at the wrong reference image.
+- Added integration checks for the composer guide and its reference-numbering warning. The code change passed frontend syntax validation; its updated runtime hash and full pipeline are being rechecked.
