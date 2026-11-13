@@ -3,7 +3,10 @@ import importlib
 import json
 import os
 import shutil
+import socket
+import subprocess
 import sys
+import time
 import tempfile
 import threading
 import unittest
@@ -132,6 +135,84 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         return server, thread, f"http://127.0.0.1:{server.server_address[1]}"
+
+    @unittest.skipUnless(os.name == "nt", "actual .bat launcher test requires Windows")
+    def test_real_windows_launcher_starts_and_closes_service(self):
+        repo_root = Path(__file__).resolve().parents[1]
+        launcher = repo_root / "启动AI服装提示词工作台.bat"
+        self.assertTrue(launcher.is_file())
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "profile"
+            home.mkdir()
+            site = Path(tmp) / "site"
+            site.mkdir()
+            (site / "sitecustomize.py").write_text(
+                "import webbrowser\\nwebbrowser.open = lambda *args, **kwargs: False\\n",
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env["USERPROFILE"] = str(home)
+            env["HOME"] = str(home)
+            env["PYTHONPATH"] = str(site) + os.pathsep + env.get("PYTHONPATH", "")
+            command = f'cmd.exe /c "{launcher}"'
+            process = subprocess.Popen(
+                command, cwd=str(repo_root), env=env, stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT, text=True,
+                creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
+            )
+            connected = False
+            try:
+                deadline = time.time() + 25
+                while time.time() < deadline:
+                    if process.poll() is not None:
+                        break
+                    probe = socket.socket()
+                    probe.settimeout(0.2)
+                    try:
+                        if probe.connect_ex(("127.0.0.1", 8765)) == 0:
+                            connected = True
+                            break
+                    finally:
+                        probe.close()
+                    time.sleep(0.25)
+                self.assertTrue(connected, "BAT launcher did not start the local HTTP service")
+                with urlopen("http://127.0.0.1:8765/api/version", timeout=10) as response:
+                    version = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(version["version"], self.app.APP_VERSION)
+                request = Request(
+                    "http://127.0.0.1:8765/api/client/heartbeat",
+                    data=b"{}", headers={"Content-Type": "application/json"}, method="POST",
+                )
+                with urlopen(request, timeout=10) as response:
+                    self.assertTrue(json.loads(response.read().decode("utf-8"))["ok"])
+                close_request = Request(
+                    "http://127.0.0.1:8765/api/client/close",
+                    data=b"{}", headers={"Content-Type": "application/json"}, method="POST",
+                )
+                with urlopen(close_request, timeout=10) as response:
+                    self.assertTrue(json.loads(response.read().decode("utf-8"))["ok"])
+                process.wait(timeout=12)
+                self.assertEqual(process.returncode, 0, process.stdout.read() if process.stdout else "")
+                deadline = time.time() + 5
+                while time.time() < deadline:
+                    probe = socket.socket()
+                    probe.settimeout(0.2)
+                    try:
+                        if probe.connect_ex(("127.0.0.1", 8765)) != 0:
+                            break
+                    finally:
+                        probe.close()
+                    time.sleep(0.2)
+            finally:
+                if process.poll() is None:
+                    process.terminate()
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait(timeout=5)
+                if process.stdout:
+                    process.stdout.close()
 
     def test_local_api_backup_and_restart_preserve_user_data(self):
         server, thread, base = self._start_server()
