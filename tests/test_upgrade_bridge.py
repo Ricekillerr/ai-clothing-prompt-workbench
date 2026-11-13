@@ -67,7 +67,7 @@ class V065IntegrationTests(unittest.TestCase):
         self.assertIn("includeConflicts", html)
         self.assertIn("renderMatchConflicts", html)
         smart_search = html[html.index("async function runSmartCaseSearch()"):html.index("\\nfunction gallery()")]
-        self.assertNotRegex(smart_search, r"\\\\\\$\\{")
+        self.assertNotIn(chr(92)+"${", smart_search)
         self.assertIn("[[\"商品款号\",x.sku||x.style_number||x.product_code]", html)
         self.assertIn("include_conflicts", self.app)
         self.assertIn("threshold_raw", self.app)
