@@ -76,7 +76,7 @@ class FrontendSyntaxTests(unittest.TestCase):
         self.assertIn("pruneSelectionToVisible(selectedCaseIds,arr)", html)
         self.assertIn("pruneSelectionToVisible(selectedModuleIds,a)", html)
         helper = re.search(
-            r"function pruneSelectionToVisible\\(selection,visibleItems\\)\\{[^{}]*\\}",
+            r"function pruneSelectionToVisible\(selection,visibleItems\)\{[^{}]*\}",
             html,
         )
         self.assertIsNotNone(helper, "Selection pruning must remain a small independently testable helper")
