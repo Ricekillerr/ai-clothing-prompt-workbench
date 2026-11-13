@@ -625,7 +625,7 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
             self.assertEqual(imported["name"], "HTTP 采集测试夹克")
             self.assertEqual(imported["image_roles"][0]["priority"], "primary")
             self.assertEqual(imported["outfit_items"][0]["name"], "深黑夹克")
-            self.assertEqual(imported["provenance"]["source_prompt"]["path"], str(prompt_path))
+            self.assertEqual(imported["provenance"]["source_prompt"]["path"], str(prompt_path.resolve()))
             copied_image = self.images / imported["image"]
             self.assertTrue(copied_image.is_file())
             self.assertEqual(copied_image.read_bytes(), image_path.read_bytes())
