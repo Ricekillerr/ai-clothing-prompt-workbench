@@ -28,8 +28,14 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Database and reference-image preservation tests.
 - No unresolved critical/high severity regressions.
 
-## Current status
-The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item static quality check in the available non-Windows environment. Windows native acceptance remains outstanding. The branch must not be treated as a production release until the gates above are met.
+## Current status — refreshed 2026-11-13
+
+- Development remains isolated on `release/v0.6.5-stabilization`; `main` and the production update channel have not been changed.
+- Latest GitHub Actions run 43358645528 passed 69 regression tests, Python compilation, frontend JavaScript syntax, all 8 update-manifest SHA-256 checks, Windows PowerShell parser validation, and release source/channel gate.
+- Implemented in this candidate: local full backup and pre-update snapshot; source provenance; folder auto-scan and human-reviewed AI ingestion; structured outfit decomposition and garment-level retrieval; reference-image role/priority metadata with manual correction; local perceptual-hash image shortlist; reference-aware prompt composition; bilingual prompt storage/output; revision comparison/restore; retrieval feedback analytics; serialized saves, request timeouts and privacy-safe diagnostics.
+- Important limitations still tracked: browser perceptual hashing is a coarse visual shortlist, not semantic same-garment recognition; English versions are stored/reused but not automatically translated; reference numbering must be manually mapped to the original prompt's @image identifiers.
+- Remaining V1.0 work: complete model-specific guidance and evaluation, broader visual retrieval validation, security/functional audit, clean-install and in-place-update verification, and native Windows launch/close/restart/backup/update/rollback/data-preservation acceptance.
+- This candidate is not a production release. No Windows GUI acceptance is claimed, and no merge to `main` or public release should occur until every mandatory gate passes.
 
 
 ## Implementation log — 2026-11-13
