@@ -451,7 +451,7 @@ class StorageTests(unittest.TestCase):
         def fail_json_swap_and_database_rollback(src, dst):
             calls["count"] += 1
             if Path(dst) == store.legacy_json or (
-                Path(dst) == store.db_path and calls["count"] >= 4
+                Path(dst) == store.db_path and Path(src).name == "old.sqlite3"
             ):
                 raise OSError("injected restore/rollback failure")
             return real_replace(src, dst)
