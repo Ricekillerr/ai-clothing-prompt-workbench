@@ -201,3 +201,9 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 ## Implementation log — 2026-11-13 (request reliability validation)
 - GitHub Actions run 43358456440 passed all 69 regression tests, Python compilation, frontend JavaScript syntax, all 8 update manifest hashes, Windows PowerShell parser validation, and release source/channel gate.
 - The candidate now has serialized writes, bounded request timeouts, and local diagnostics that deliberately omit request payloads, URLs, and credential-bearing exception text.
+
+
+## Implementation log — 2026-11-13 (bilingual prompt assets)
+- Cases and reusable modules now support an optional separate English prompt body while preserving the original primary-language text. The editor can maintain both versions, the detail view switches between them, and the English version has its own copy action.
+- The prompt composer can optionally append saved English versions for the base case and selected modules. Missing English text is omitted rather than machine-translated or fabricated; this iteration provides bilingual storage/reuse, not automatic translation.
+- Added integration guards for bilingual editor fields, detail tabs, copy action, and composer output. Full runtime hash and regression validation are pending.
