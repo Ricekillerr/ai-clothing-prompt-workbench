@@ -551,10 +551,14 @@ class Storage:
                             relative = item.relative_to(source).as_posix()
                             payloads["references/" + relative] = item
 
-            checksums = {
-                name: hashlib.sha256(path.read_bytes()).hexdigest()
-                for name, path in payloads.items()
-            }
+            def file_sha256(path: Path) -> str:
+                digest = hashlib.sha256()
+                with path.open("rb") as stream:
+                    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                        digest.update(chunk)
+                return digest.hexdigest()
+
+            checksums = {name: file_sha256(path) for name, path in payloads.items()}
             manifest = {
                 "format": "PromptAtelierFullBackup",
                 "format_version": 1,
@@ -579,8 +583,11 @@ class Storage:
                     if bad_member:
                         raise StorageError(f"备份压缩包完整性检查失败：{bad_member}")
                     for name, expected in checksums.items():
-                        actual = hashlib.sha256(archive.read(name)).hexdigest()
-                        if actual != expected:
+                        digest = hashlib.sha256()
+                        with archive.open(name, "r") as stream:
+                            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                                digest.update(chunk)
+                        if digest.hexdigest() != expected:
                             raise StorageError(f"备份文件校验失败：{name}")
                 os.replace(temp_archive, target)
             finally:
