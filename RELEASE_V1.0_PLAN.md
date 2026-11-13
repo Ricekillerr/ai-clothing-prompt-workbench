@@ -58,3 +58,12 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 - Refreshed the V0.6.5 update manifest hashes for all runtime files after integration.
 - GitHub Actions run 43348983368 completed successfully: Python compilation, inline JavaScript syntax, release manifest SHA-256 validation, complete regression suite, Windows PowerShell parser validation, and release source/channel gate all passed.
 - This is a staging-branch implementation only. No changes were made to `main`; Windows-native runtime acceptance is still a separate release gate.
+
+
+## Implementation log — 2026-11-13 (batch asset management)
+- Added multi-select controls to the visual case library, including select-all-visible and clear-selection actions.
+- Added batch status updates (verified / pending / failed) and batch tag addition for selected cases.
+- Added explicit-confirmation batch deletion. The existing storage layer records deleted assets in revision history before removal, so deleted cases remain recoverable through the version restore workflow.
+- Hardened the shared save helper to surface HTTP/application save failures. Batch status and tag operations restore the in-memory dataset if persistence fails; deletion also restores the previous dataset on failure.
+- Added integration guards for the batch controls and rollback behavior. The visual selection checkbox is anchored to each case card.
+- GitHub Actions run 43352327949: JavaScript syntax, manifest SHA-256 validation, 56 regression tests, Windows PowerShell parser validation, and release source/channel gate are being checked on the staging branch. Production `main` remains untouched.
