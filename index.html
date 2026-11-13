@@ -20,9 +20,24 @@
 <div class="overlay" id="detailOverlay"><aside class="detail"><div class="dhead"><h2>资产详情</h2><button class="close" id="closeDetail">×</button></div><div id="detailContent"></div></aside></div>
 <div class="modal" id="editModal"><div class="modalbox"><div class="modalhead"><h2 id="modalTitle">新增资产</h2><button class="close" id="closeModal">×</button></div><div id="modalForm"></div></div></div><div class="toast" id="toast"></div><input type="file" id="imagePicker" accept="image/*" hidden><input type="file" id="jsonPicker" accept=".json" hidden>
 <script>
-const CATS=["上装","下装","鞋履","配饰","整套搭配","其他"],TYPES=["款式与结构","面料材质","颜色与质感","场景与环境","光影","镜头与动作","人物与身体锁定","换装约束","失败修复","其他"],MODELS=["通用","RunningHub","WAN 3.0","MiniMax H3","其他"],ST=["已验证成功","待验证","失败案例"];let db={cases:[],modules:[]},page="gallery",filter="全部",chosen=null,kind="case",editId=null,editKind="case",imagePath="",activeDetailTab="prompt";const selectedCaseIds=new Set();const selectedModuleIds=new Set();const $=x=>document.getElementById(x);
+const CATS=["上装","下装","鞋履","配饰","整套搭配","其他"],TYPES=["款式与结构","面料材质","颜色与质感","场景与环境","光影","镜头与动作","人物与身体锁定","换装约束","失败修复","其他"],MODELS=["通用","RunningHub","WAN 3.0","MiniMax H3","其他"],ST=["已验证成功","待验证","失败案例"];let db={cases:[],modules:[]},page="gallery",filter="全部",chosen=null,kind="case",editId=null,editKind="case",imagePath="",activeDetailTab="prompt";const selectedCaseIds=new Set();const selectedModuleIds=new Set();let saveQueue=Promise.resolve();const $=x=>document.getElementById(x);
 function esc(s=""){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}function toast(s){$("toast").textContent=s;$("toast").classList.add("show");setTimeout(()=>$("toast").classList.remove("show"),1700)}function image(x){return x.image?`<img src="/media/${encodeURIComponent(x.image.split(/[\\/]/).pop())}" onerror="this.outerHTML='<div class=placeholder>◇</div>'">`:`<div class="placeholder">◇</div>`}
-async function load(){try{db=await(await fetch("/api/data")).json()}catch(e){toast("读取本地数据失败")}}async function save(){const response=await fetch("/api/data",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(db)});let result={};try{result=await response.json()}catch(_){}if(!response.ok||result.ok===false)throw new Error(result.error||"数据保存失败");return true}function stats(){$("caseCount").textContent=db.cases.length;$("moduleCount").textContent=db.modules.length;$("verifiedCount").textContent=db.cases.filter(x=>x.status==="已验证成功").length;$("imageCount").textContent=[...db.cases,...db.modules].filter(x=>x.image).length}
+async function load(){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);try{const response=await fetch("/api/data",{signal:controller.signal,cache:"no-store"});if(!response.ok)throw new Error("HTTP "+response.status);db=await response.json()}catch(e){toast(e.name==="AbortError"?"读取本地数据超时，请检查工作台服务":"读取本地数据失败："+e.message)}finally{clearTimeout(timer)}}
+function save(){
+ const payload=JSON.stringify(db);
+ const task=saveQueue.catch(()=>{}).then(async()=>{
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+  try{
+   const response=await fetch("/api/data",{method:"POST",headers:{"Content-Type":"application/json"},body:payload,signal:controller.signal});
+   let result={};try{result=await response.json()}catch(_){}
+   if(!response.ok||result.ok===false)throw new Error(result.error||"数据保存失败");
+   return true;
+  }catch(error){if(error.name==="AbortError")throw new Error("保存超时；请勿重复点击，先刷新确认数据状态");throw error}
+  finally{clearTimeout(timer)}
+ });
+ saveQueue=task;
+ return task;
+}function stats(){$("caseCount").textContent=db.cases.length;$("moduleCount").textContent=db.modules.length;$("verifiedCount").textContent=db.cases.filter(x=>x.status==="已验证成功").length;$("imageCount").textContent=[...db.cases,...db.modules].filter(x=>x.image).length}
 function setTitle(t,s){$("pageTitle").textContent=t;$("pageSub").textContent=s}function render(){stats();document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.page===page));if(page==="gallery"||page==="all")gallery();else if(page==="modules")modules();else if(page==="vault")vault();else if(page==="smartsearch")smartSearchPage();else if(page==="compose")compose();else settings()}
 
 function smartSearchPage(){
@@ -380,7 +395,14 @@ async function applyUpdate(){
   }
 }
 
-async function scanApi(path,body){const r=await fetch(path,{method:body?"POST":"GET",headers:{"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});const d=await r.json();if(!r.ok)throw new Error(d.error||"请求失败");return d}
+async function scanApi(path,body,timeoutMs){
+ const timeout=Number(timeoutMs)|| (path==="/api/ai/analyze"?180000:30000),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeout);
+ try{
+  const r=await fetch(path,{method:body?"POST":"GET",headers:{"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined,signal:controller.signal});
+  const d=await r.json();if(!r.ok)throw new Error(d.error||"请求失败");return d;
+ }catch(error){if(error.name==="AbortError")throw new Error("请求超时（"+Math.round(timeout/1000)+" 秒），请检查工作台服务后重试");throw error}
+ finally{clearTimeout(timer)}
+}
 async function refreshAutoScanState(){try{const d=await scanApi("/api/scan/auto");const b=$("autoScanToggle");if(b)b.textContent=d.enabled?"自动监控：已开启（点击关闭）":"自动监控：已关闭（点击开启）";const s=$("autoScanStatus");if(s)s.textContent=d.enabled?"工作台运行期间每 60 秒扫描一次已添加文件夹。":"自动监控已关闭；可随时手动扫描。"}catch(e){const b=$("autoScanToggle");if(b)b.textContent="自动监控状态不可用"}}
 async function toggleAutoScan(){try{const d=await scanApi("/api/scan/auto");const r=await scanApi("/api/scan/auto",{enabled:!d.enabled});await refreshAutoScanState();toast(r.enabled?"已开启文件夹自动监控":"已关闭文件夹自动监控")}catch(e){toast("设置自动监控失败："+e.message)}}
 async function addScanSource(){const folder=$("scanFolder").value.trim();if(!folder){$("scanStatus").textContent="请先填写文件夹路径";return}try{await scanApi("/api/scan/source",{folder,recursive:true});$("scanStatus").textContent="文件夹已添加："+folder;$("scanFolder").value="";await loadScanQueue()}catch(e){$("scanStatus").textContent="添加失败："+e.message}}
