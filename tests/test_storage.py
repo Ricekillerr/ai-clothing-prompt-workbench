@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Offline regression tests for Prompt Atelier storage.py."""
 import hashlib
+import os
 import json
 import sqlite3
 import tempfile
