@@ -135,13 +135,37 @@ async function recordGenerationOutcome(caseId,outcome){
  const notes=$("generationOutcomeNotes")?.value||"";
  const label=outcome==="success"?"生成成功":"生成失败";
  if(!confirm("确认将此案例标记为「"+label+"」？系统会保留本次修改前的历史版本。"))return;
+ const before=db.cases.find(item=>item.id===caseId);
+ const previousAt=before?.last_generation_at||"";
  try{
-  const result=await scanApi("/api/cases/outcome",{case_id:caseId,outcome,notes});
+  await scanApi("/api/cases/outcome",{case_id:caseId,outcome,notes});
+ }catch(writeError){
+  // A timed-out response does not prove the server rolled back the write.
+  try{
+   const check=await fetch("/api/data",{cache:"no-store"});
+   if(!check.ok)throw new Error("服务器数据暂不可读取");
+   const latest=await check.json();
+   const saved=latest.cases.find(item=>item.id===caseId);
+   if(!saved||saved.last_generation_outcome!==outcome
+      ||saved.last_generation_note!==(notes.trim().slice(0,1000))
+      ||saved.last_generation_at===previousAt)throw new Error("尚未核实到本次生成结果");
+   db=latest;render();openDetail(caseId,"case");
+   toast("请求响应异常，但已核实生成结果保存成功");
+   return;
+  }catch(_){
+   toast("生成结果尚未确认；请重新打开案例核对，勿立即重复提交");
+   return;
+  }
+ }
+ // The write is confirmed. A subsequent refresh failure must not be reported as a failed write.
+ try{
   const response=await fetch("/api/data",{cache:"no-store"});
-  if(!response.ok)throw new Error("案例状态已更新，但刷新列表失败");
+  if(!response.ok)throw new Error("HTTP "+response.status);
   db=await response.json();render();openDetail(caseId,"case");
-  toast("已记录生成结果："+(result.status||label));
- }catch(error){toast("记录生成结果失败："+error.message)}
+  toast("已记录生成结果："+label);
+ }catch(refreshError){
+  toast("生成结果已保存，但列表刷新失败；重新打开工作台即可读取最新状态");
+ }
 }
 async function recordCaseFeedback(caseId,score,feedback,query,button){
  if(button.disabled)return;
