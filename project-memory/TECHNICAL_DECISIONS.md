@@ -62,3 +62,10 @@
 - 区分代码实现、CI 通过、个人设备验收和正式发布。
 - 不用多版本 A/B 试错替代事前反推与风险预检。
 - 对话用于指挥和说明；项目事实以 GitHub 代码、测试和本记忆中心为准。
+
+
+## 2026-11-13 本轮本地 API 安全审计
+- 发现：本地服务虽然绑定 127.0.0.1，但原 Handler 未校验 Host；DNS rebinding 场景可利用攻击者域名 Host 将浏览器请求路由到 loopback 服务。原 POST 处理器也未校验 Origin / JSON Content-Type，跨站简单请求可能触发状态写入。
+- 修复：所有 GET/POST 先验证 Host 必须为 127.0.0.1 或 localhost，且端口等于当前服务端口；若存在 Origin，则必须为 http loopback 来源且端口相同；JSON POST 必须为 application/json，备份恢复单独走 application/zip。
+- 回归：新增恶意 Host、跨来源 JSON 写入和简单表单 content-type 三项测试。最新 CI run 43380232584 的 Windows runner 9 项通过，主验证 96 项运行、95 项通过、1 项环境跳过。
+- 兼容性边界：浏览器同源访问和不带 Origin 的本地自动化/CLI 请求仍可用；本机其他进程仍属于本机信任边界，不由 Host/Origin 检查隔离。
