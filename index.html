@@ -179,11 +179,11 @@ function parseOutfitRelations(value,itemCount,previous=[]){
  }).filter(x=>Number.isInteger(x.source_item)&&Number.isInteger(x.target_item)&&x.source_item>=1&&x.target_item>=1&&x.source_item<=itemCount&&x.target_item<=itemCount&&x.source_item!==x.target_item);
 }
 function formatImageRoles(roles){return (Array.isArray(roles)?roles:[]).map(r=>[r.asset_index||"",r.role||"unknown",r.priority||"supporting",r.role_label||"",Array.isArray(r.governs)?r.governs.join("、"):"",r.observation||""].join("|")).join("\n")}
-function parseImageRoles(value,previous=[]){
+function parseImageRoles(value,previous=[],maxImages=8){
  const roleTypes=new Set(["overall","front","back","detail","fabric","label","scene","other","unknown"]),priorities=new Set(["primary","secondary","supporting"]),old=Array.isArray(previous)?previous:[];
  return String(value||"").split(/\r?\n/).map(line=>line.trim()).filter(Boolean).slice(0,8).map(line=>{
   const p=line.split("|").map(x=>x.trim()),index=Number(p[0]),prior=old.find(x=>Number(x.asset_index)===index)||{};
-  if(!Number.isInteger(index)||index<1||index>8)return null;
+  if(!Number.isInteger(index)||index<1||index>Math.min(8,maxImages))return null;
   const role=roleTypes.has(p[1])?p[1]:"unknown",priority=priorities.has(p[2])?p[2]:(role==="overall"||role==="front"||role==="back"?"primary":role==="detail"||role==="fabric"?"secondary":"supporting");
   return {asset_index:index,role,priority,role_label:(p[3]||prior.role_label||"待人工确认").slice(0,40),governs:(p[4]||"").split(/[、,，]/).map(x=>x.trim()).filter(Boolean).slice(0,6),observation:(p[5]||prior.observation||"").slice(0,500),source_path:prior.source_path||""};
  }).filter(Boolean).sort((a,b)=>a.asset_index-b.asset_index);
@@ -198,7 +198,7 @@ async function saveEditor(){
  if(editKind==="case"){
   x.outfit_items=parseOutfitItems($("f_outfit_items")?.value||"",old.outfit_items);
   x.outfit_relations=parseOutfitRelations($("f_outfit_relations")?.value||"",x.outfit_items.length,old.outfit_relations);
-  x.image_roles=parseImageRoles($("f_image_roles")?.value||"",old.image_roles);
+  x.image_roles=parseImageRoles($("f_image_roles")?.value||"",old.image_roles,Math.max(1,Array.isArray(old.images)&&old.images.length?old.images.length:(imagePath||old.image?1:8)));
  }
  try{const provenance=JSON.parse($("f_composition")?.value||"{}");if(provenance&&Object.keys(provenance).length)x.composition=provenance;else if(editKind==="case"&&old.composition)x.composition=old.composition}catch{return toast("组合来源记录格式异常，未保存")}
  if(!x.name||!x.body)return toast("名称和正文不能为空");
