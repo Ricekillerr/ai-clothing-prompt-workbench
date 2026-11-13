@@ -187,3 +187,9 @@
 - 问题：composeNow() 原先从整个组合器内容区读取所有 checked checkbox；右侧结构化说明、双语输出、模型提醒开关也会被收集为值 "on"。正常 UUID 模块不会匹配该值，但若旧数据恰有 id="on"，会把选项开关误当作模块。
 - 修复：选择器限定为 .compose .pane:first-child 内的 checked checkbox，仅左侧模块列表参与组合。
 - 回归：Node 测试验证选择范围不包含右侧选项；146 项主回归、22 项 Windows 专项全部通过。index.html 的 SHA-256 已同步 update_manifest.json。
+
+
+## 提示词组合器真实生成行为回归 — 2026-11-13
+- 测试不再只检查选择器字符串，而是从 index.html 提取实际 findComposeConflicts、modelPromptGuide、buildCaseReferenceGuide、buildCompositionSnapshot 与 composeNow()，在 Node 中以最小 DOM 桩执行真实组合流程。
+- 验证选中的模块正文被加入、未选模块不会混入、右侧结构/模型选项不会被当作模块、基础提示词保留、模型提醒输出以及来源快照只记录被选模块。
+- CI run 43407891453：146 项主回归（145 通过、1 项环境跳过），Windows 专项 22 项，三个 jobs 全部成功。
