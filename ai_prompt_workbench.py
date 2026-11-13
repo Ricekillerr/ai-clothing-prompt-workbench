@@ -44,6 +44,9 @@ CLIENT_HEARTBEAT_TIMEOUT_SECONDS = 15
 def auto_scan_is_enabled():
     return STORAGE.get_setting("auto_scan_enabled", "0") == "1"
 
+def auto_update_is_enabled():
+    return STORAGE.get_setting("auto_update_enabled", "0") == "1"
+
 
 def log_background_error(message):
     try:
@@ -249,6 +252,8 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/scan/pending": self.send_json(200, {"items": STORAGE.list_pending_ingest()})
         elif path == "/api/scan/matches": self.send_json(200, {"matches": rank_matches(STORAGE.list_pending_ingest())})
         elif path == "/api/ai/reviews": self.send_json(200, {"reviews": STORAGE.list_ai_analyses("review")})
+        elif path == "/api/update/auto":
+            self.send_json(200, {"enabled": auto_update_is_enabled()})
         elif path == "/api/update/check":
             try: self.send_json(200, check_remote_update())
             except Exception as e: self.send_json(200, {"ok": False, "current_version": APP_VERSION, "error": str(e)})
@@ -389,6 +394,10 @@ class Handler(BaseHTTPRequestHandler):
                 if len(content) > 15 * 1024 * 1024: raise ValueError("图片不能超过15MB")
                 name = uuid.uuid4().hex[:16] + ext; (IMAGES / name).write_bytes(content)
                 self.send_json(200, {"path": name})
+            elif self.path == "/api/update/auto":
+                enabled = bool(d.get("enabled", False))
+                STORAGE.set_setting("auto_update_enabled", "1" if enabled else "0")
+                self.send_json(200, {"ok": True, "enabled": enabled})
             elif self.path == "/api/update/apply":
                 # Preserve a verified snapshot of the user's database and local
                 # reference images before any program update is staged or applied.
