@@ -133,11 +133,16 @@ _EXCLUSIVE_COLORS = {
 
 _EXCLUSIVE_MATERIALS = {
     "nylon": ("尼龙", "锦纶", "nylon"),
+    "polyester": ("聚酯", "涤纶", "polyester"),
+    "acrylic": ("腈纶", "acrylic"),
     "leather": ("皮革", "皮质", "真皮", "leather"),
     "corduroy": ("灯芯绒", "corduroy"),
-    "wool": ("羊毛", "羊绒", "wool", "cashmere"),
+    "wool": ("羊毛", "wool"),
+    "cashmere": ("羊绒", "cashmere"),
     "cotton": ("棉", "棉质", "cotton"),
     "denim": ("牛仔", "denim"),
+    "silk": ("真丝", "丝绸", "silk"),
+    "linen": ("亚麻", "linen"),
 }
 _MIXTURE_MARKERS = ("混纺", "混合", "拼接", "复合", "blend", "mixed", "mix")
 
