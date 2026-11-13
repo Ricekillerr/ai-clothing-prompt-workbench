@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """AI服装提示词资产工作台 V0.6.5。"""
-import base64, hashlib, json, mimetypes, os, shutil, subprocess, sys, tempfile, threading, time, uuid, webbrowser
+import base64, hashlib, json, os, shutil, subprocess, sys, tempfile, threading, time, uuid, webbrowser
 from pathlib import Path
 from urllib.parse import unquote, quote, parse_qs, urlsplit
 from urllib.request import Request, urlopen
@@ -24,6 +24,14 @@ HOME.mkdir(parents=True, exist_ok=True)
 IMAGES.mkdir(parents=True, exist_ok=True)
 ALLOWED_UPDATE_FILES = {"ai_prompt_workbench.py", "index.html", "启动AI服装提示词工作台.bat", "updater.py", "使用说明_AI服装提示词资产工作台_V0.4.3.txt", "使用说明_Prompt_Atelier_V1.0_候选版.txt", "storage.py", "collector.py", "case_matcher.py", "ai_analyzer.py"}
 MAX_UPDATE_FILE_SIZE = 20 * 1024 * 1024
+MEDIA_MIME_TYPES = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".bmp": "image/bmp",
+}
 
 # Keep the legacy JSON intact; migrate it transactionally into SQLite on first launch.
 LEGACY_DATA = DATA if DATA.exists() else next(
@@ -121,6 +129,41 @@ def _is_link_or_junction(path):
         return bool(checker()) if callable(checker) else False
     except OSError:
         return True
+
+
+def _safe_reference_root():
+    """Return the canonical references directory only when it remains inside HOME."""
+    if _is_link_or_junction(IMAGES):
+        return None
+    try:
+        home_root = HOME.resolve(strict=True)
+        image_root = IMAGES.resolve(strict=True)
+        if image_root.parent != home_root or not image_root.is_dir():
+            return None
+        return image_root
+    except (OSError, RuntimeError):
+        return None
+
+
+def _safe_reference_image_path(name):
+    name = str(name or "")
+    if not name or name in {".", ".."} or "/" in name or "\\" in name:
+        return None
+    mime = MEDIA_MIME_TYPES.get(Path(name).suffix.lower())
+    if not mime:
+        return None
+    root = _safe_reference_root()
+    if root is None:
+        return None
+    candidate = root / name
+    if _is_link_or_junction(candidate):
+        return None
+    try:
+        resolved = candidate.resolve(strict=True)
+        resolved.relative_to(root)
+    except (OSError, RuntimeError, ValueError):
+        return None
+    return resolved if resolved.is_file() else None
 
 
 def _validated_ingest_file_path(record):
@@ -227,6 +270,7 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args): pass
     def send_bytes(self, code, data, ctype):
         self.send_response(code); self.send_header("Content-Type", ctype)
+        self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Cache-Control", "no-store"); self.send_header("Content-Length", str(len(data)))
         self.end_headers(); self.wfile.write(data)
     def send_json(self, code, obj):
@@ -360,9 +404,12 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e: self.send_json(200, {"ok": False, "current_version": APP_VERSION, "error": str(e)})
         elif path.startswith("/media/"):
             with STORAGE.operation():
-                name = Path(path[len("/media/"):]).name; f = IMAGES / name
-                if f.is_file(): self.send_bytes(200, f.read_bytes(), mimetypes.guess_type(str(f))[0] or "application/octet-stream")
-                else: self.send_bytes(404, b"not found", "text/plain")
+                name = path[len("/media/"):]
+                media_file = _safe_reference_image_path(name)
+                if media_file:
+                    self.send_bytes(200, media_file.read_bytes(), MEDIA_MIME_TYPES[media_file.suffix.lower()])
+                else:
+                    self.send_bytes(404, b"not found", "text/plain")
         else: self.send_bytes(404, b"not found", "text/plain")
     def do_POST(self):
         if not self._validate_local_request(require_json=self.path != "/api/backup/restore"):
@@ -508,7 +555,12 @@ class Handler(BaseHTTPRequestHandler):
                     content = base64.b64decode(d.get("data", "").split(",", 1)[-1], validate=True)
                     if not content: raise ValueError("图片内容为空")
                     if len(content) > 15 * 1024 * 1024: raise ValueError("图片不能超过15MB")
-                    name = uuid.uuid4().hex[:16] + ext; (IMAGES / name).write_bytes(content)
+                    reference_root = _safe_reference_root()
+                    if reference_root is None:
+                        raise ValueError("参考图片目录不安全或已被替换，拒绝写入")
+                    name = uuid.uuid4().hex[:16] + ext
+                    with (reference_root / name).open("xb") as target:
+                        target.write(content)
                     self.send_json(200, {"path": name})
                 elif self.path == "/api/update/auto":
                     enabled = bool(d.get("enabled", False))

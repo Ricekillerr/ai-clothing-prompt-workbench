@@ -244,6 +244,47 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
         thread.start()
         return server, thread, f"http://127.0.0.1:{server.server_address[1]}"
 
+    def test_media_endpoint_never_serves_html_as_same_origin_content(self):
+        server, thread, base = self._start_server()
+        try:
+            (self.images / "payload.html").write_text(
+                "<script>window.__promptAtelierInjected=true</script>",
+                encoding="utf-8",
+            )
+            request = Request(
+                base + "/media/payload.html",
+                headers={"Host": f"127.0.0.1:{server.server_address[1]}"},
+            )
+            with self.assertRaises(HTTPError) as rejected:
+                urlopen(request, timeout=5)
+            self.assertEqual(rejected.exception.code, 404)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_media_endpoint_rejects_symlinked_image_files(self):
+        server, thread, base = self._start_server()
+        try:
+            outside = self.home / "private-outside.png"
+            outside.write_bytes(b"private")
+            linked = self.images / "linked.png"
+            try:
+                linked.symlink_to(outside)
+            except OSError:
+                self.skipTest("当前系统未授予创建符号链接的权限")
+            request = Request(
+                base + "/media/linked.png",
+                headers={"Host": f"127.0.0.1:{server.server_address[1]}"},
+            )
+            with self.assertRaises(HTTPError) as rejected:
+                urlopen(request, timeout=5)
+            self.assertEqual(rejected.exception.code, 404)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def test_loopback_api_rejects_dns_rebinding_host_header(self):
         server, thread, base = self._start_server()
         try:
