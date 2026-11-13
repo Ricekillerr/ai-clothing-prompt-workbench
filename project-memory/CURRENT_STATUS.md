@@ -9,6 +9,7 @@
 **状态：** V1.0 候选开发；不是正式发布。
 
 ## 最新 CI
+[GitHub Actions run 43399754217](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43399754217)：三个 job 全部成功。主回归 134 项（133 通过、1 项环境跳过），Windows 专项 19 项通过，9 个更新文件哈希和 release gate 通过。
 [GitHub Actions run 43398819845](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43398819845)：三个 job 全部成功。主回归 133 项（132 通过、1 项环境跳过），Windows 专项 19 项通过。
 [GitHub Actions run 43398618615](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43398618615)：三个 job 全部成功。主回归 133 项（132 通过、1 项因 Linux 环境跳过），Windows 专项 19 项全部通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
 [GitHub Actions run 43388913191](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43388913191)：三个 job 全部成功。
