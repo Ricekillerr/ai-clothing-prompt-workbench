@@ -13,11 +13,11 @@
     "使用说明_Prompt_Atelier_V1.0_候选版.txt"
   ],
   "sha256": {
-    "ai_prompt_workbench.py": "5b2502d8cd4f79791d87c89e67a4abd6a450a3e33bda27b245342db302ffe561",
+    "ai_prompt_workbench.py": "a54d1269e5462e3998dbdcd6c343cf8c988e4d55ff7e8d01c4ca1a2d81b46bf9",
     "updater.py": "7adaf88da25c09e8544f0489f6737d3c91b98126e8119fd317a86e8c7504a885",
     "启动AI服装提示词工作台.bat": "a64c3ba2bba22c3758857cb138b5eb71d624763be555a25c0694853c96066f02",
-    "index.html": "8b463d471f2d26e6a1186da38708ed54440e438991aed915ce86adcf089a19e8",
-    "storage.py": "d5a6c5a94580b7d2e26b55fb3cbc6e360e8df6ada06f14d26d385a76ba2b912b",
+    "index.html": "4bf4f3cd998aa3943db4187ca86eb23492d34fa5ce25bccec4fdda98ae0611c3",
+    "storage.py": "c1aba79a565f6320685d7902839489c4e308fe226c1c423bd25f1858d79c1ad5",
     "ai_analyzer.py": "d729bef3a448f5e11524c28f756f34af7ad533f098c7b6e9a7aa0d95796eb2ed",
     "collector.py": "d3ff4e2aa0e440121789bd488c7f9bd1fa97a2cf20bb0ec52a92adbf4c414682",
     "case_matcher.py": "01cb372793ff5565bc45d55af4b1fc9c7a6fc2dabebfc8c8a9053effff1cf6a1",

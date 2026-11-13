@@ -72,6 +72,11 @@ class FrontendSyntaxTests(unittest.TestCase):
         self.assertIn("服务器已确认恢复成功，但界面未能重新读取数据", restore)
         self.assertIn("if(!loaded)", restore)
 
+    def test_recycle_bin_restore_requires_the_asset_to_still_be_absent(self):
+        html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
+        restore = html.split("async function restoreDeletedAsset(assetId,revisionId,button){", 1)[1].split("async function trashPage()", 1)[0]
+        self.assertIn("expected_absent:true", restore)
+
     def test_restoring_an_asset_revision_refreshes_the_background_library(self):
         html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
         restore = html.split("async function restoreAssetRevision(revisionId){", 1)[1].split("function closeDetail()", 1)[0]

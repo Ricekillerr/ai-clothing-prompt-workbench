@@ -504,7 +504,8 @@ class Storage:
                 "asset": json.loads(row["payload_json"]),
             }
 
-    def restore_asset_revision(self, asset_id: str, revision_id: str) -> dict:
+    def restore_asset_revision(self, asset_id: str, revision_id: str,
+                               expected_absent: bool = False) -> dict:
         asset_id, revision_id = str(asset_id or "").strip(), str(revision_id or "").strip()
         if not asset_id or not revision_id:
             raise StorageError("资产 ID 或历史版本 ID 不能为空")
@@ -521,6 +522,10 @@ class Storage:
             current = con.execute(
                 "SELECT * FROM assets WHERE id=?", (asset_id,)
             ).fetchone()
+            if expected_absent and current is not None:
+                raise StorageError(
+                    "资产已重新存在；为避免覆盖新数据，已拒绝从旧回收站快照恢复。请刷新后重试。"
+                )
             if current:
                 con.execute(
                     """INSERT INTO asset_revisions

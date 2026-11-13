@@ -270,7 +270,7 @@ async function restoreDeletedAsset(assetId,revisionId,button){
  if(!confirm("恢复这条资产？它会重新出现在原来的视觉资产库或提示词模块中。"))return;
  button.disabled=true;button.textContent="恢复中…";
  try{
-  const response=await fetch("/api/assets/revisions/restore",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({asset_id:assetId,revision_id:revisionId})});
+  const response=await fetch("/api/assets/revisions/restore",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({asset_id:assetId,revision_id:revisionId,expected_absent:true})});
   const payload=await response.json();
   if(!response.ok||!payload.ok)throw new Error(payload.error||"恢复失败");
   db=normalizeAssetData(payload.data);deletedAssetsCache=null;stats();toast("资产已恢复");

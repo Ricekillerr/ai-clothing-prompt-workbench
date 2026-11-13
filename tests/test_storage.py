@@ -465,6 +465,22 @@ class StorageTests(unittest.TestCase):
         self.assertTrue(any(x["reason"] == "before_restore"
                             for x in store.list_asset_revisions("case-history")))
 
+    def test_deleted_restore_refuses_to_overwrite_an_asset_recreated_after_recycle_bin_load(self):
+        store = Storage(self.home)
+        store.save_data({"cases": [{"id": "recreated-id", "name": "Original", "body": "old prompt"}],
+                         "modules": []})
+        store.save_data({"cases": [], "modules": []})
+        deleted = store.list_deleted_assets()[0]
+        store.save_data({"cases": [{"id": "recreated-id", "name": "Newer asset", "body": "new prompt"}],
+                         "modules": []})
+        with self.assertRaisesRegex(StorageError, "资产已重新存在"):
+            store.restore_asset_revision(
+                deleted["asset_id"], deleted["revision_id"], expected_absent=True
+            )
+        current = store.load_data()["cases"][0]
+        self.assertEqual(current["name"], "Newer asset")
+        self.assertEqual(current["body"], "new prompt")
+
     def test_asset_revision_history_stays_bounded_after_repeated_restore(self):
         store = Storage(self.home)
         store.save_data({"cases": [{"id": "bounded-history", "name": "v0", "body": "prompt 0"}],

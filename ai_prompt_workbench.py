@@ -514,7 +514,12 @@ class Handler(BaseHTTPRequestHandler):
                 elif self.path == "/api/assets/revisions/restore":
                     asset_id = str(d.get("asset_id", "")).strip()
                     revision_id = str(d.get("revision_id", "")).strip()
-                    restored = STORAGE.restore_asset_revision(asset_id, revision_id)
+                    expected_absent = d.get("expected_absent", False)
+                    if not isinstance(expected_absent, bool):
+                        raise ValueError("expected_absent 必须是布尔值")
+                    restored = STORAGE.restore_asset_revision(
+                        asset_id, revision_id, expected_absent=expected_absent
+                    )
                     self.send_json(200, {"ok": True, "asset": restored, "data": load_data()})
                 elif self.path == "/api/scan/auto":
                     enabled = bool(d.get("enabled", False))
