@@ -316,3 +316,8 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Added explicit per-case generation outcome recording. From the case detail view, the user can mark a real reuse attempt as successful or failed and optionally record the observed result/failure cause.
 - Successful outcomes promote the case to `已验证成功`; failed outcomes mark it `失败案例`. Both transitions preserve the prior asset snapshot through the existing revision system and append a local generation-feedback record.
 - Retrieval analytics now includes generation success/failure counts alongside helpful/not-relevant retrieval feedback. The system records these labels but does not automatically change ranking weights without a validated benchmark.
+
+
+## Implementation log — 2026-11-13 (generation feedback loop validated)
+- GitHub Actions run 43362087830 passed 85 regression tests, all 8 runtime manifest hashes, Windows PowerShell parsing, release source/channel gate, and all four Windows Server 2025 runtime tests.
+- The generation feedback flow now changes case status to verified-success or failed, stores the outcome and notes locally, retains the pre-outcome asset revision, and exposes success/failure totals in retrieval analytics. The system records feedback without silently changing ranking weights.
