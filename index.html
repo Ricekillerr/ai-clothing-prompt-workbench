@@ -18,7 +18,7 @@
 <main class="main"><header class="top"><div class="heading"><h1 id="pageTitle">视觉资产库</h1><p id="pageSub">把成功经验沉淀为可复用的视觉资产</p></div><div class="search"><span>⌕</span><input id="search" placeholder="搜索案例、材质、款式、提示词标签…"></div><div class="actions"><button class="btn" id="importBtn">导入</button><button class="btn" id="exportBtn">备份</button><button class="btn" id="updateBtn">检查更新</button><button class="btn primary" id="addBtn">＋ 新增资产</button></div></header>
 <section class="stats"><div class="stat"><label>成功案例</label><strong id="caseCount">0</strong><small>完整提示词资产</small></div><div class="stat"><label>可复用模块</label><strong id="moduleCount">0</strong><small>跨品类调用</small></div><div class="stat"><label>已验证案例</label><strong id="verifiedCount">0</strong><small>经过实际生成验证</small></div><div class="stat"><label>关联图片</label><strong id="imageCount">0</strong><small>参考图与效果图</small></div></section><div id="content"></div></main></div>
 <div class="overlay" id="detailOverlay"><aside class="detail"><div class="dhead"><h2>资产详情</h2><button class="close" id="closeDetail">×</button></div><div id="detailContent"></div></aside></div>
-<div class="modal" id="editModal"><div class="modalbox"><div class="modalhead"><h2 id="modalTitle">新增资产</h2><button class="close" id="closeModal">×</button></div><div id="modalForm"></div></div></div><div class="toast" id="toast"></div><input type="file" id="imagePicker" accept="image/*" hidden><input type="file" id="jsonPicker" accept=".json" hidden>
+<div class="modal" id="editModal"><div class="modalbox"><div class="modalhead"><h2 id="modalTitle">新增资产</h2><button class="close" id="closeModal">×</button></div><div id="modalForm"></div></div></div><div class="toast" id="toast"></div><div id="autoUpdateNotice" role="status" style="display:none;position:fixed;right:18px;bottom:62px;z-index:45;max-width:min(560px,calc(100vw - 36px));gap:12px;align-items:center;padding:12px 14px;border:1px solid #a5baff66;border-radius:12px;background:#1d2634f5;box-shadow:0 14px 40px #0008;font-size:12px"><span id="autoUpdateNoticeText" style="flex:1"></span><button class="btn" onclick="cancelScheduledAutoUpdate()">取消更新</button></div><input type="file" id="imagePicker" accept="image/*" hidden><input type="file" id="jsonPicker" accept=".json" hidden>
 <script>
 const CATS=["上装","下装","鞋履","配饰","整套搭配","其他"],TYPES=["款式与结构","面料材质","颜色与质感","场景与环境","光影","镜头与动作","人物与身体锁定","换装约束","失败修复","其他"],MODELS=["通用","RunningHub","WAN 3.0","MiniMax H3","Seedance 2.5","其他"],ST=["已验证成功","待验证","失败案例"];let db={cases:[],modules:[]},page="gallery",filter="全部",chosen=null,kind="case",editId=null,editKind="case",imagePath="",activeDetailTab="prompt";const selectedCaseIds=new Set();const selectedModuleIds=new Set();let saveQueue=Promise.resolve();const $=x=>document.getElementById(x);
 function esc(s=""){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}function toast(s){$("toast").textContent=s;$("toast").classList.add("show");setTimeout(()=>$("toast").classList.remove("show"),1700)}function image(x){return x.image?`<img src="/media/${encodeURIComponent(x.image.split(/[\\/]/).pop())}" onerror="this.outerHTML='<div class=placeholder>◇</div>'">`:`<div class="placeholder">◇</div>`}
@@ -473,6 +473,7 @@ function clearAutoUpdateTimers(){
  if(autoUpdateIdleTimer!==null){clearTimeout(autoUpdateIdleTimer);autoUpdateIdleTimer=null}
  if(autoUpdateCountdownTimer!==null){clearTimeout(autoUpdateCountdownTimer);autoUpdateCountdownTimer=null}
  const cancel=$("cancelAutoUpdateBtn");if(cancel)cancel.style.display="none";
+ const notice=$("autoUpdateNotice");if(notice)notice.style.display="none";
 }
 function scheduleAuthorizedAutoUpdate(){
  if(!autoUpdateAuthorized||!updateInfo?.update_available
@@ -497,8 +498,12 @@ function startAuthorizedAutoUpdateCountdown(){
    clearAutoUpdateTimers();scheduleAuthorizedAutoUpdate();return;
   }
   const status=$("updateStatus"),cancel=$("cancelAutoUpdateBtn");
-  if(status)status.textContent="已授权自动更新：连续空闲达到 15 分钟，"+seconds+" 秒后开始下载、校验和安装；任意操作可延期。更新前会创建完整备份。";
+  const notice=$("autoUpdateNotice"),noticeText=$("autoUpdateNoticeText");
+  const message="已授权自动更新：连续空闲 15 分钟，"+seconds+" 秒后开始下载、校验和安装；任意操作可延期。更新前会创建完整备份。";
+  if(status)status.textContent=message;
   if(cancel)cancel.style.display="inline-block";
+  if(notice)notice.style.display="flex";
+  if(noticeText)noticeText.textContent=message;
   if(seconds<=0){clearAutoUpdateTimers();applyUpdate(true);return}
   seconds--;autoUpdateCountdownTimer=setTimeout(tick,1000);
  };
