@@ -5,13 +5,13 @@
 **生产分支：** main（保持不动）  
 **开发分支：** release/v0.6.5-stabilization  
 **候选版本：** 0.6.5  
-**核对提交：** 224613d4972ccd491355ceb8fb34efe1a2546b96  
+**最近代码提交：** fc8e68d3c42f19a44666cc1ae54dce1ddcea7fef  
 **状态：** V1.0 候选开发，不是正式发布。
 
 ## 最新 CI
-[GitHub Actions run 43380232584](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43380232584)：三个 job 全部成功。
-- 仓库回归测试：96 项运行，95 项通过，1 项按环境条件跳过（Windows BAT 实机用例在非 Windows runner 跳过）。
-- Windows Server 2025 运行验收：9 项通过，包括真实 BAT 启动/关闭、API 与备份恢复、干净安装、原位更新保留用户数据、更新安装和失败回滚。
+[GitHub Actions run 43380621994](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43380621994)：三个 job 全部成功。
+- 仓库回归测试：97 项运行，96 项通过，1 项按环境条件跳过（Windows BAT 实机用例在非 Windows runner 跳过）。
+- Windows Server 2025 运行验收：10 项通过，包括真实 BAT 启动/关闭、API 与备份恢复、干净安装、原位更新保留用户数据、更新安装和失败回滚。
 - Python 编译、前端 JavaScript 语法、更新清单 SHA-256、PowerShell 解析、版本/更新通道门禁均通过。
 - 以上不等于用户本人 Windows 桌面、浏览器、杀毒软件、网络和现有真实资料验收。
 
@@ -34,6 +34,12 @@
 - 浏览器请求携带 Origin 时必须与本机 loopback 来源和当前端口匹配；跨来源请求返回 403。
 - JSON 写入接口只接受 application/json，拒绝简单表单 content-type；ZIP 恢复仍单独要求 application/zip。
 - 新增 3 项 Windows 本地 API 安全回归测试，分别覆盖恶意 Host、跨来源 JSON 写入、简单表单 content-type。
+
+## 本轮更新器事务安全审计新增修复
+- 原更新器在回滚失败时静默吞掉异常，可能留下部分新旧文件混合状态。
+- 现在逐项收集回滚与临时文件清理错误；回滚不完整时，日志明确标记“自动回滚未完整完成”，并保留原始程序备份目录供人工恢复，不再伪装为普通更新失败。
+- 新增故障注入测试：模拟安装失败并再次模拟回滚失败，确认原始备份保留且日志指出恢复目录。
+- 最新 CI run 43380621994 三个 jobs 全部成功；主回归 97 项运行、96 项通过、1 项环境跳过；Windows Server 2025 10 项通过。
 
 ## 已知限制
 - 浏览器感知哈希检索只是粗略近重复/视觉结构候选，不是语义服装识别。
