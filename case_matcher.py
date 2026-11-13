@@ -74,14 +74,13 @@ def _match_text(value):
     return str(value)
 def _match_tokens(value):
     text=_match_text(value).casefold()
+    aliases = {"锦纶": "尼龙", "涤纶": "聚酯", "真丝": "丝绸", "米白": "米色", "藏青": "蓝色"}
+    for alias, canonical in aliases.items():
+        text = text.replace(alias, canonical)
     tokens=set(re.findall(r"[a-z0-9][a-z0-9._-]*",text))
     for run in re.findall(r"[\u4e00-\u9fff]+",text):
         if len(run)<=4: tokens.add(run)
         for size in (2,3,4): tokens.update(run[i:i+size] for i in range(max(0,len(run)-size+1)))
-    aliases = {"锦纶": "尼龙", "涤纶": "聚酯", "真丝": "丝绸", "米白": "米色", "藏青": "蓝色"}
-    for alias, canonical in aliases.items():
-        if alias in text:
-            tokens.add(canonical)
     return {x for x in tokens if len(x)>1}
 def _query_attribute_groups(query):
     lowered=query.casefold(); groups={}; classified=set()
