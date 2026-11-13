@@ -114,3 +114,13 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 - The workflow remains human-confirmed: AI role labels are suggestions, not automatic truth. No case is marked as verified-successful by this classification step.
 - Added tests for ordered role-to-image mapping, invalid/missing/duplicate role fallback, and role metadata persistence through approved import. GitHub Actions run 43355844148 passed all 64 regression tests, Python compilation, frontend syntax, runtime manifest hashes, Windows PowerShell parser validation, and release source/channel gate.
 - Candidate remains isolated on `release/v0.6.5-stabilization`; Windows GUI/runtime acceptance remains outstanding.
+
+
+## Implementation log — 2026-11-13 (structured outfit decomposition and garment-level retrieval)
+- AI history analysis now extracts up to 12 individual outfit items with bounded fields for category, subcategory, name, color, material, silhouette, fit, construction details, visible evidence, and a review score. It also extracts explicit pairwise outfit relationships only when the prompt or images support them; unsupported or out-of-range relations are discarded.
+- Item normalization skips malformed entries while retaining up to 12 valid garments, bounds text lengths and detail counts, and limits relation count. The initial regression test caught a cap edge case where malformed entries consumed the valid-item limit; the normalizer was corrected rather than weakening the test.
+- Approved cases persist the outfit item list and relations. AI review previews the proposed breakdown; saved case details show each item and evidence, explicitly labelling it as AI-identified and requiring human verification.
+- Case retrieval now indexes individual outfit item attributes, so a query for one garment (for example, a corduroy trouser) can retrieve its parent complete-outfit case without flattening away the item structure.
+- Found and fixed an incremental-update coverage gap: `collector.py` and `case_matcher.py` were imported runtime modules but absent from the update manifest. Both are now included with SHA-256 pins. The CI hash reporter now reads the manifest's actual file list instead of maintaining a separate hard-coded list, reducing future drift.
+- Added tests for item normalization, relation validation, persistence, garment-level retrieval, UI integration, and manifest dependency coverage. Regression suite passed 67 tests on GitHub Actions run 43356694190 before the final manifest-coverage guard was added; the updated manifest and new guard are undergoing a fresh full run.
+- Candidate remains isolated on `release/v0.6.5-stabilization`. No production release is claimed; native Windows GUI/update/rollback acceptance remains outstanding.
