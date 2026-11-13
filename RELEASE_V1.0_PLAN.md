@@ -31,7 +31,7 @@ This branch is an isolated stabilization lane. It is not the production update c
 ## Current status — refreshed 2026-11-13
 
 - Development remains isolated on `release/v0.6.5-stabilization`; `main` and the production update channel have not been changed.
-- Latest GitHub Actions run 43359752504 passed 75 regression tests (one Windows-only test is skipped on Linux), Python compilation, frontend JavaScript syntax, all 8 update-manifest SHA-256 checks, four Windows Server 2025 runtime smoke tests, PowerShell parser validation, and release source/channel gate.
+- Latest GitHub Actions run 43361168587 passed 78 regression tests, Python compilation, frontend JavaScript syntax, all 8 update-manifest SHA-256 checks, four Windows Server 2025 runtime smoke tests, PowerShell parser validation, and release source/channel gate.
 - Implemented in this candidate: local full backup and pre-update snapshot; source provenance; folder auto-scan and human-reviewed AI ingestion; structured outfit decomposition and garment-level retrieval; reference-image role/priority metadata with manual correction; local perceptual-hash image shortlist; reference-aware prompt composition; bilingual prompt storage/output; revision comparison/restore; retrieval feedback analytics; serialized saves, request timeouts and privacy-safe diagnostics.
 - Important limitations still tracked: browser perceptual hashing is a coarse visual shortlist, not semantic same-garment recognition; English versions are stored/reused but not automatically translated; reference numbering must be manually mapped to the original prompt's @image identifiers.
 - Remaining V1.0 work: complete model-specific guidance and evaluation, broader visual retrieval validation, security/functional audit, clean-install and in-place-update verification, and native Windows launch/close/restart/backup/update/rollback/data-preservation acceptance.
@@ -285,3 +285,9 @@ This branch is an isolated stabilization lane. It is not the production update c
 - Restore stages files under the local data directory, creates an automatic pre-restore full safety backup, then replaces the database, JSON export and reference images. If any swap or post-restore validation fails, it attempts to restore the previous database, JSON and references.
 - Added a streaming ZIP upload endpoint (500MB compressed cap; no full-archive buffering in RAM) and a settings-page restore flow with explicit confirmation and a 10-minute request timeout.
 - Added storage tests for successful round-trip restore, tampered archive rejection without live-data mutation, and ZIP path-traversal rejection. Windows smoke test now exercises backup, mutation, restore, automatic safety snapshot, restart and data persistence.
+
+
+## Implementation log — 2026-11-13 (full backup restore passed Windows runtime)
+- GitHub Actions run 43361168587 passed 78 regression tests, all 8 runtime update-file SHA-256 checks, Windows PowerShell parser validation, release source/channel gate, and all four Windows Server 2025 runtime tests.
+- The Windows local-server test now creates a full ZIP backup, mutates current data and references, restores the archive through the actual streaming HTTP endpoint, verifies the automatic pre-restore safety backup, restarts the service, and confirms restored data persists. The actual BAT launch/heartbeat/close test and updater install/rollback tests also passed.
+- Backup UI explicitly warns that SHA-256 checks detect file corruption but do not cryptographically authenticate who created the archive; users should restore only trusted backups.
