@@ -77,3 +77,10 @@
 - 故障注入：测试安装中途失败后再注入一个回滚失败，验证日志明确、备份目录仍存在、原始文件可从备份恢复。
 - Windows 路径大小写：测试比较备份目录 basename 时使用 casefold，避免 Windows runner 的 8.3 路径与日志规范路径差异导致误报。
 - 验收：CI run 43380621994 三个 jobs 全通过；97 项主回归中 96 通过、1 项因非 Windows runner 跳过；Windows runner 10 项通过。
+
+
+## 2026-11-13 完整备份恢复回滚审计
+- 发现：restore_full_backup 的回滚阶段原本吞掉 SQLite / JSON / references 恢复异常，并在 finally 删除 rollback_dir；发生二次故障时，恢复前数据副本可能丢失且 UI 仅收到笼统错误。
+- 修复：分别收集数据库、JSON、参考图片目录的回滚异常；有任一项失败则 keep_rollback_dir=True，不删除恢复副本，错误消息同时给出 rollback_dir 和恢复前完整 safety ZIP 的位置，明确提示不要删除。
+- 测试：保留原有中途 JSON swap 失败后正常回滚测试；新增故障注入测试，确保 JSON swap 和 old.sqlite3 回滚再次失败时，恢复前副本目录保留、参考图片仍处于完整状态、路径写入错误信息。
+- CI run 43381205157：3 个 jobs 全成功；主回归 98 项（97 通过、1 个 Linux 环境跳过），Windows Server 2025 10 项通过；manifest 验证 9 个更新文件。
