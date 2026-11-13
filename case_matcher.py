@@ -97,7 +97,7 @@ def _candidate_attribute_text(case):
         "category": vals("category","subcategory","silhouette","fit","name")+" "+tags,
         "material": vals("material","fabric","texture","material_details")+" "+tags,
         "color": vals("color","color_details")+" "+tags,
-        "details": vals("details","craftsmanship","features","subcategory")+" "+tags,
+        "details": vals("details","craftsmanship","features","subcategory","silhouette","fit")+" "+tags,
         "context": vals("model","scene","constraints","usage","notes")+" "+tags,
         "all": _match_text(case)+" "+body+" "+tags,
     }
