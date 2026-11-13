@@ -149,3 +149,9 @@ The V0.6.5 candidate has passed its included 20-test hardening suite and 24-item
 - Approved cases preserve priority and governed-attribute metadata. The AI review queue and case detail view display the reference authority level, helping later prompt assembly distinguish overall structure references from material/detail references.
 - GitHub Actions run 43357442566 passed all 67 regression tests, Python compilation, frontend JavaScript syntax, all 8 update-file hashes, Windows PowerShell parser validation, and release source/channel gate.
 - This priority metadata is now available to prompt assembly, but the final V1.0 acceptance still needs to verify that the composer actually emits the right reference precedence and does not silently reorder or override user-selected authority.
+
+
+## Implementation log — 2026-11-13 (manual reference-role review)
+- The case editor now exposes the imported reference-image roles and lets the user correct role type, authority priority, role label, governed attributes, and observation text. Original source-path provenance is retained for each existing image role.
+- Role indexes are bounded to the eight-image maximum and, where known, checked against the actual attached image count. Invalid indexes are discarded instead of attaching authority metadata to the wrong file.
+- Added integration guards for the editor controls and parser. The last CI attempt reached the expected manifest-hash gate after JavaScript syntax validation; the refreshed hash is being revalidated.
