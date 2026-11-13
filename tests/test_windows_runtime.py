@@ -15,6 +15,7 @@ from io import BytesIO
 from pathlib import Path
 from unittest import mock
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 
 
 class WindowsUpdaterTransactionTests(unittest.TestCase):
@@ -376,6 +377,21 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
             self.assertEqual(restored_result["cases"], 1)
             self.assertTrue((self.home / "backups" / restored_result["safety_backup"]).is_file())
             self.assertFalse((self.images / "after-restore.png").exists())
+
+            # A corrupt upload must be rejected without changing restored data.
+            corrupt_request = Request(
+                base + "/api/backup/restore",
+                data=b"not-a-valid-zip-archive",
+                headers={"Content-Type": "application/zip"},
+                method="POST",
+            )
+            with self.assertRaises(HTTPError) as rejected:
+                urlopen(corrupt_request, timeout=20)
+            self.assertEqual(rejected.exception.code, 400)
+            with urlopen(base + "/api/data", timeout=10) as response:
+                unchanged = json.loads(response.read().decode("utf-8"))
+            self.assertEqual(unchanged["cases"][0]["id"], "windows-smoke-case")
+            self.assertTrue((self.images / "smoke-reference.png").is_file())
         finally:
             server.shutdown()
             server.server_close()
