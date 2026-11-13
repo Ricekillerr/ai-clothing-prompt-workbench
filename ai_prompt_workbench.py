@@ -209,7 +209,7 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/version": self.send_json(200, {"version": APP_VERSION})
         elif path == "/api/settings/auto-update":
             self.send_json(200, {
-                "enabled": STORAGE.get_setting("auto_update_enabled", "1") == "1",
+                "enabled": STORAGE.get_setting("auto_update_enabled", "0") == "1",
                 "idle_minutes": 15,
             })
         elif path == "/api/backup/full":
