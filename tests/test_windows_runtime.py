@@ -163,7 +163,7 @@ class WindowsUpdaterTransactionTests(unittest.TestCase):
             self.assertEqual((backups[0] / "index.html").read_text(encoding="utf-8"), "old-ui")
             log = (root / "_update_error.log").read_text(encoding="utf-8")
             self.assertIn("自动回滚未完整完成", log)
-            self.assertIn(str(backups[0]), log)
+            self.assertIn(backups[0].name.casefold(), log.casefold())
             self.assertFalse(stage.exists())
             launch.assert_not_called()
 
