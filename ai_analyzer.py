@@ -66,8 +66,11 @@ def analyze_assets(prompt_path: str, asset_paths: list[str], api_key: str,
         "scene（生成场景）、constraints（生成约束字符串数组）、tags（字符串数组）、"
         "prompt_summary（中文摘要）、prompt_text（原提示词，尽量逐字保留）、"
         "asset_observations（综合素材可见特征；无法读取时明确写无法判断）、"
+        "asset_roles（数组，必须与输入图片顺序和数量完全一致；每项包含 asset_index 从1开始、"
+        "role 只能为 overall/front/back/detail/fabric/label/scene/other/unknown、"
+        "role_label 中文用途标签、observation 该图可见内容；不能确定时 role=unknown）、"
         "risk_notes（不确定性或潜在误判，字符串数组）、confidence（0到1）。"
-        "属性只记录提示词或图片明确支持的信息；图片之间存在冲突时写入 risk_notes，不要自行猜测。"
+        "不要把视频文件计入图片角色数组。属性只记录提示词或图片明确支持的信息；图片之间存在冲突时写入 risk_notes，不要自行猜测。"
     )
     user_content = [{
         "type": "text",
@@ -130,6 +133,34 @@ def analyze_assets(prompt_path: str, asset_paths: list[str], api_key: str,
     for key, value in defaults.items():
         parsed.setdefault(key, value)
     parsed["model"] = model.strip()
+    image_files = [path for path in assets if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}]
+    raw_roles = parsed.get("asset_roles")
+    roles_by_index = {}
+    if isinstance(raw_roles, list):
+        for role in raw_roles:
+            if not isinstance(role, dict):
+                continue
+            try:
+                index = int(role.get("asset_index", 0))
+            except (TypeError, ValueError):
+                continue
+            if 1 <= index <= len(image_files) and index not in roles_by_index:
+                roles_by_index[index] = role
+    allowed_roles = {"overall", "front", "back", "detail", "fabric", "label", "scene", "other", "unknown"}
+    normalized_roles = []
+    for index, image_file in enumerate(image_files, start=1):
+        role = roles_by_index.get(index, {})
+        value = str(role.get("role") or "unknown").strip().lower()
+        if value not in allowed_roles:
+            value = "unknown"
+        normalized_roles.append({
+            "asset_index": index,
+            "asset_path": str(image_file),
+            "role": value,
+            "role_label": str(role.get("role_label") or ("待人工确认" if value == "unknown" else value))[:40],
+            "observation": str(role.get("observation") or "未提供可靠的单图观察")[:500],
+        })
+    parsed["asset_roles"] = normalized_roles
     parsed["prompt_path"] = str(prompt_file)
     parsed["asset_paths"] = [str(path) for path in assets]
     parsed["asset_path"] = str(assets[0])
