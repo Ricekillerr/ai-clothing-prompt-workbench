@@ -230,6 +230,35 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(store.load_data()["cases"], [])
         self.assertEqual(store.list_ai_analyses("rejected")[0]["id"], analysis_id)
 
+    def test_asset_edits_create_revisions_and_can_be_restored(self):
+        store = Storage(self.home)
+        original = {"cases": [{"id": "case-history", "name": "Before", "body": "prompt v1"}],
+                    "modules": []}
+        store.save_data(original)
+        changed = {"cases": [{"id": "case-history", "name": "After", "body": "prompt v2"}],
+                   "modules": []}
+        store.save_data(changed)
+        revisions = store.list_asset_revisions("case-history")
+        self.assertEqual(len(revisions), 1)
+        self.assertEqual(revisions[0]["name"], "Before")
+        restored = store.restore_asset_revision("case-history", revisions[0]["revision_id"])
+        self.assertEqual(restored["name"], "Before")
+        self.assertEqual(restored["body"], "prompt v1")
+        self.assertEqual(store.load_data()["cases"][0]["name"], "Before")
+        self.assertTrue(any(x["reason"] == "before_restore"
+                            for x in store.list_asset_revisions("case-history")))
+
+    def test_deleted_asset_can_be_recovered_from_its_last_revision(self):
+        store = Storage(self.home)
+        store.save_data({"cases": [{"id": "deleted-case", "name": "Recover me", "body": "prompt"}],
+                         "modules": []})
+        store.save_data({"cases": [], "modules": []})
+        revisions = store.list_asset_revisions("deleted-case")
+        deleted = next(x for x in revisions if x["reason"] == "deleted")
+        restored = store.restore_asset_revision("deleted-case", deleted["revision_id"])
+        self.assertEqual(restored["name"], "Recover me")
+        self.assertEqual(store.load_data()["cases"][0]["id"], "deleted-case")
+
     def test_local_settings_persist_in_sqlite_metadata(self):
         store = Storage(self.home)
         self.assertEqual(store.get_setting("auto_scan_enabled", "0"), "0")
