@@ -198,6 +198,10 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_file_download(archive, archive.name)
             except Exception as e:
                 self.send_json(500, {"ok": False, "error": f"完整备份创建失败：{e}"})
+        elif path == "/api/assets/revisions":
+            params = parse_qs(urlsplit(self.path).query)
+            asset_id = str((params.get("asset_id") or [""])[0]).strip()
+            self.send_json(200, {"revisions": STORAGE.list_asset_revisions(asset_id)})
         elif path == "/api/cases/search":
             params = parse_qs(urlsplit(self.path).query)
             query = str((params.get("q") or [""])[0]).strip()
@@ -243,6 +247,11 @@ class Handler(BaseHTTPRequestHandler):
                 if not isinstance(d, dict): raise ValueError("数据格式不正确")
                 d.setdefault("cases", []); d.setdefault("modules", []); save_data(d)
                 self.send_json(200, {"ok": True})
+            elif self.path == "/api/assets/revisions/restore":
+                asset_id = str(d.get("asset_id", "")).strip()
+                revision_id = str(d.get("revision_id", "")).strip()
+                restored = STORAGE.restore_asset_revision(asset_id, revision_id)
+                self.send_json(200, {"ok": True, "asset": restored, "data": load_data()})
             elif self.path == "/api/scan/auto":
                 enabled = bool(d.get("enabled", False))
                 STORAGE.set_setting("auto_scan_enabled", "1" if enabled else "0")
