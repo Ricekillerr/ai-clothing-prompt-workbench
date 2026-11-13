@@ -65,6 +65,16 @@ class CaseMatcherTests(unittest.TestCase):
                     material_details=None, body="尼龙外套背景中的黑色马甲")
         self.assertEqual(find_case_conflicts(case, "尼龙面料马甲"), [])
 
+    def test_cashmere_and_wool_are_distinct_material_values(self):
+        case = dict(self.case, material="羊毛")
+        conflicts = find_case_conflicts(case, "羊绒马甲")
+        self.assertTrue(any(x["attribute"] == "material" for x in conflicts))
+
+    def test_polyester_and_acrylic_aliases_are_recognized(self):
+        case = dict(self.case, material="聚酯纤维")
+        conflicts = find_case_conflicts(case, "腈纶面料")
+        self.assertTrue(any(x["attribute"] == "material" for x in conflicts))
+
     def test_conflicting_case_is_excluded_by_default(self):
         results = rank_case_matches([self.case], "红色立领无袖马甲", threshold=0.1)
         self.assertEqual(results, [])
