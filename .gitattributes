@@ -1,0 +1,8 @@
+# Keep text blobs LF in Git so GitHub Raw and local release hashes are deterministic.
+*.py text eol=lf
+*.html text eol=lf
+*.bat text eol=lf
+*.cmd text eol=lf
+*.json text eol=lf
+*.txt text eol=lf
+*.yml text eol=lf

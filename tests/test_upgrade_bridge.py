@@ -14,7 +14,7 @@ class V050IntegrationTests(unittest.TestCase):
         cls.updater = (cls.root / "updater.py").read_text(encoding="utf-8")
 
     def test_manifest_is_v050_and_all_release_files_are_hash_covered(self):
-        self.assertEqual(self.manifest["version"], "0.5.1")
+        self.assertEqual(self.manifest["version"], "0.6.0")
         self.assertEqual(set(self.manifest["files"]), set(self.manifest["sha256"]))
         for name in self.manifest["files"]:
             content = (self.root / name).read_bytes().replace(b"\r\n", b"\n")

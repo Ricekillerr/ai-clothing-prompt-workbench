@@ -10,7 +10,7 @@ from collector import scan_folder, sha256_file
 from case_matcher import rank_matches, rank_case_matches
 from ai_analyzer import analyze_pair
 
-APP_VERSION = "0.5.2"
+APP_VERSION = "0.6.0"
 GITHUB_OWNER = "Ricekillerr"
 GITHUB_REPO = "ai-clothing-prompt-workbench"
 GITHUB_BRANCH = "main"
@@ -46,11 +46,58 @@ def version_tuple(v):
     return tuple((vals + [0, 0, 0])[:3])
 
 def fetch_bytes(url, timeout=20):
-    req = Request(url, headers={"User-Agent": "Prompt-Atelier-Updater/0.5.0", "Cache-Control": "no-cache"})
+    req = Request(url, headers={
+        "User-Agent": "Prompt-Atelier-Updater/0.6.0",
+        "Cache-Control": "no-cache",
+        "Accept-Encoding": "identity",
+    })
     with urlopen(req, timeout=timeout) as res:
         if getattr(res, "status", 200) != 200:
             raise ValueError(f"下载服务器返回状态码：{res.status}")
         return res.read()
+
+def fetch_github_api_bytes(url, timeout=45):
+    req = Request(url, headers={
+        "User-Agent": "Prompt-Atelier-Updater/0.6.0",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Cache-Control": "no-cache",
+    })
+    with urlopen(req, timeout=timeout) as res:
+        if getattr(res, "status", 200) != 200:
+            raise ValueError(f"GitHub API返回状态码：{res.status}")
+        payload = json.loads(res.read().decode("utf-8"))
+    if payload.get("encoding") == "base64":
+        return base64.b64decode("".join(str(payload.get("content", "")).split()), validate=True)
+    if payload.get("encoding") == "utf-8":
+        return str(payload.get("content", "")).encode("utf-8")
+    raise ValueError("GitHub API未返回可验证的文件内容")
+
+def fetch_verified_bytes(name, expected, timeout=45):
+    """Fetch exact repository bytes; fall back to GitHub Contents API."""
+    raw_url = RAW_BASE + quote(name)
+    api_url = (
+        f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/"
+        f"{quote(name)}?ref={GITHUB_BRANCH}"
+    )
+    attempts = []
+    sources = [
+        ("GitHub Raw", lambda: fetch_bytes(raw_url, timeout=timeout)),
+        ("GitHub Contents API", lambda: fetch_github_api_bytes(api_url, timeout=timeout)),
+    ]
+    for label, getter in sources:
+        try:
+            payload = getter()
+            actual = hashlib.sha256(payload).hexdigest()
+            if actual == expected:
+                return payload
+            attempts.append(f"{label}: SHA-256不一致，实际={actual}，字节数={len(payload)}")
+        except Exception as exc:
+            attempts.append(f"{label}: {type(exc).__name__}: {exc}")
+    raise ValueError(
+        f"文件完整性校验失败：{name}。两种下载渠道均未通过校验。"
+        + "；".join(attempts)
+    )
 
 def fetch_manifest():
     raw = fetch_bytes(MANIFEST_URL)
@@ -91,13 +138,11 @@ def stage_update():
             expected = str(hashes[name]).lower()
             if len(expected) != 64 or any(c not in "0123456789abcdef" for c in expected):
                 raise ValueError("更新清单中的 SHA-256 格式无效：" + name)
-            data = fetch_bytes(RAW_BASE + quote(name), timeout=45)
+            data = fetch_verified_bytes(name, expected, timeout=45)
             if not data:
                 raise ValueError("下载文件为空：" + name)
             if len(data) > MAX_UPDATE_FILE_SIZE:
                 raise ValueError("更新文件超过 20MB 安全限制：" + name)
-            if hashlib.sha256(data).hexdigest() != expected:
-                raise ValueError("文件完整性校验失败，已取消更新：" + name)
             (stage / name).write_bytes(data)
             verified[name] = expected
         (stage / "update_meta.json").write_text(json.dumps({"version": latest, "files": verified}, ensure_ascii=False, indent=2), encoding="utf-8")

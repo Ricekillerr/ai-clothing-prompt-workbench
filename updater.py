@@ -141,8 +141,8 @@ def main():
                         replace_with_retry(restore, dst)
                     elif dst.exists():
                         dst.unlink()
-                except Exception:
-                    pass
+                except Exception as rollback_error:
+                    write_log(root, f"回滚文件失败：{dst}；{rollback_error}")
             try:
                 if version_existed and version_backup.is_file():
                     restore = version_dst.with_name(version_dst.name + ".restore_tmp")
@@ -150,20 +150,26 @@ def main():
                     replace_with_retry(restore, version_dst)
                 elif version_dst.exists():
                     version_dst.unlink()
-            except Exception:
-                pass
+            except Exception as rollback_error:
+                write_log(root, f"恢复安装版本标记失败：{rollback_error}")
             raise
 
         finally:
             shutil.rmtree(stage, ignore_errors=True)
 
-        keep = root / "_update_backup"
-        if keep.exists():
-            shutil.rmtree(keep, ignore_errors=True)
+        # Keep the previous known-good backup until the new backup is safely renamed.
+        keep = root / ("_update_backup_" + time.strftime("%Y%m%d_%H%M%S"))
         try:
             backup.rename(keep)
+            old_backups = sorted(
+                root.glob("_update_backup_*"),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            )
+            for old in old_backups[3:]:
+                shutil.rmtree(old, ignore_errors=True)
         except Exception as e:
-            write_log(root, f"更新已完成，但整理备份目录失败：{e}")
+            write_log(root, f"更新已完成，但保留备份时发生问题：{e}")
 
         try:
             launch_workbench(root, launcher)
