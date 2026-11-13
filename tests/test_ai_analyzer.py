@@ -1,5 +1,7 @@
+import json
 import tempfile
 import unittest
+from unittest import mock
 from io import BytesIO
 from urllib.request import Request
 from pathlib import Path
@@ -37,6 +39,15 @@ class AIAnalyzerTests(unittest.TestCase):
             prompt.write_bytes(b"x" * (1024 * 1024 + 1))
             with self.assertRaisesRegex(ValueError, "超过 1MB"):
                 _read_text(prompt)
+
+    def test_endpoint_rejects_query_parameters_and_fragments(self):
+        for endpoint in (
+            "https://api.example.com/v1?api_key=secret",
+            "https://api.example.com/v1#token",
+        ):
+            with self.subTest(endpoint=endpoint):
+                with self.assertRaisesRegex(ValueError, "查询参数或片段"):
+                    _safe_endpoint(endpoint)
 
     def test_endpoint_rejects_embedded_credentials(self):
         with self.assertRaises(ValueError):
@@ -116,6 +127,45 @@ class AIAnalyzerTests(unittest.TestCase):
         ])
         self.assertEqual(len(items), 12)
         self.assertEqual(relations, [])
+
+    def test_model_cannot_replace_the_original_prompt_text(self):
+        original_prompt = "第一行：严格保留原始提示词\n第二行：拉链完全敞开"
+        with tempfile.TemporaryDirectory() as tmp:
+            prompt = Path(tmp) / "prompt.txt"
+            image = Path(tmp) / "image.png"
+            prompt.write_text(original_prompt, encoding="utf-8")
+            image.write_bytes(b"image")
+            response_payload = {
+                "choices": [{
+                    "message": {
+                        "content": json.dumps({
+                            "title": "测试案例",
+                            "prompt_text": "模型擅自改写的内容",
+                        }, ensure_ascii=False)
+                    }
+                }]
+            }
+            opener = mock.Mock()
+            opener.open.return_value = BytesIO(
+                json.dumps(response_payload).encode("utf-8")
+            )
+            with mock.patch("ai_analyzer.build_opener", return_value=opener):
+                result = analyze_assets(
+                    str(prompt), [str(image)], "test-key"
+                )
+            self.assertEqual(result["prompt_text"], original_prompt)
+            opener.open.assert_called_once()
+
+    def test_api_key_and_model_name_have_bounded_lengths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prompt = Path(tmp) / "prompt.txt"
+            image = Path(tmp) / "image.png"
+            prompt.write_text("prompt", encoding="utf-8")
+            image.write_bytes(b"image")
+            with self.assertRaisesRegex(ValueError, "API Key 长度"):
+                analyze_assets(str(prompt), [str(image)], "k" * 4097)
+            with self.assertRaisesRegex(ValueError, "模型名称"):
+                analyze_assets(str(prompt), [str(image)], "test-key", model="m" * 121)
 
     def test_analysis_rechecks_the_exact_scanned_prompt_and_image_hashes(self):
         with tempfile.TemporaryDirectory() as tmp:

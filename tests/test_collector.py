@@ -40,6 +40,28 @@ class CollectorTests(unittest.TestCase):
             self.assertEqual(len(delta), 1)
             self.assertNotEqual(delta[0]["sha256"], first[0]["sha256"])
 
+    def test_force_hash_detects_same_size_content_change_with_preserved_mtime(self):
+        import os
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            prompt = root / "prompt.txt"
+            prompt.write_text("first", encoding="utf-8")
+            first = scan_folder(root)
+            snapshot = {item["path"]: item for item in first}
+            original_stat = prompt.stat()
+
+            prompt.write_text("other", encoding="utf-8")
+            self.assertEqual(prompt.stat().st_size, original_stat.st_size)
+            os.utime(
+                prompt,
+                ns=(original_stat.st_atime_ns, original_stat.st_mtime_ns),
+            )
+
+            verified = scan_folder(root, previous=snapshot, force_hash=True)
+            self.assertNotEqual(verified[0]["sha256"], first[0]["sha256"])
+            self.assertEqual(len(find_new_or_changed(snapshot, verified)), 1)
+
     def test_skips_symlinked_files_and_external_directory_aliases(self):
         with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside:
             root = Path(tmp)

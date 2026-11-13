@@ -43,7 +43,8 @@ def sha256_file(path: Path) -> str:
 
 def scan_folder(folder: Path, recursive: bool = True,
                 extensions: Iterable[str] | None = None,
-                previous: dict[str, dict] | None = None) -> list[dict]:
+                previous: dict[str, dict] | None = None,
+                force_hash: bool = False) -> list[dict]:
     """Return metadata for supported files; never move, rename, or modify sources."""
     root = Path(folder).expanduser().resolve(strict=True)
     if not root.is_dir():
@@ -82,7 +83,7 @@ def scan_folder(folder: Path, recursive: bool = True,
                 continue
             canonical = str(canonical_path)
             old = (previous or {}).get(canonical)
-            unchanged = bool(old and old.get("size") == stat.st_size
+            unchanged = bool(not force_hash and old and old.get("size") == stat.st_size
                              and old.get("modified_ns") == stat.st_mtime_ns
                              and old.get("sha256"))
             found.append({

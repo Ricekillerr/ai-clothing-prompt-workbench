@@ -260,6 +260,29 @@ class WindowsLocalServerSmokeTests(unittest.TestCase):
             server.server_close()
             thread.join(timeout=5)
 
+    def test_loopback_api_rejects_cross_site_backup_requests(self):
+        server, thread, base = self._start_server()
+        try:
+            port = server.server_address[1]
+            backup_dir = self.home / "backups"
+            before = set(backup_dir.glob("PromptAtelier_full_backup_*.zip")) if backup_dir.exists() else set()
+            request = Request(
+                base + "/api/backup/full",
+                headers={
+                    "Host": f"127.0.0.1:{port}",
+                    "Sec-Fetch-Site": "cross-site",
+                },
+            )
+            with self.assertRaises(HTTPError) as rejected:
+                urlopen(request, timeout=5)
+            self.assertEqual(rejected.exception.code, 403)
+            after = set(backup_dir.glob("PromptAtelier_full_backup_*.zip")) if backup_dir.exists() else set()
+            self.assertEqual(after, before)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def test_loopback_api_rejects_cross_origin_json_writes(self):
         server, thread, base = self._start_server()
         try:

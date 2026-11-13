@@ -21,9 +21,13 @@ MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 
 def _safe_endpoint(endpoint: str) -> str:
     endpoint = str(endpoint or "").strip().rstrip("/")
+    if len(endpoint) > 2048:
+        raise ValueError("API 地址长度超过限制")
     parsed = urlparse(endpoint)
     if parsed.scheme not in {"https", "http"} or not parsed.netloc:
         raise ValueError("API 地址必须是有效的 HTTP(S) 地址")
+    if parsed.query or parsed.fragment:
+        raise ValueError("API 地址不能包含查询参数或片段；请只填写服务基础地址")
     if parsed.scheme == "http" and parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
         raise ValueError("非本机 API 必须使用 HTTPS，避免 API Key 在网络中明文传输")
     if parsed.username or parsed.password:
@@ -180,8 +184,14 @@ def analyze_assets(prompt_path: str, asset_paths: list[str], api_key: str,
         raise ValueError("关联素材不能重复")
     if any(not path.is_file() for path in assets):
         raise ValueError("至少一个关联素材文件不存在")
-    if not api_key.strip():
+    api_key = str(api_key or "").strip()
+    if not api_key:
         raise ValueError("请填写 API Key；密钥仅在本次请求中使用，不会保存")
+    if len(api_key) > 4096:
+        raise ValueError("API Key 长度超过安全限制")
+    model = str(model or "").strip()
+    if not model or len(model) > 120:
+        raise ValueError("模型名称不能为空且不能超过 120 个字符")
     if prompt_file.suffix.lower() not in {".txt", ".md", ".json"}:
         raise ValueError("提示词文件仅支持 TXT、MD、JSON")
     text = _read_text(prompt_file, expected_prompt_sha256)
@@ -281,7 +291,10 @@ def analyze_assets(prompt_path: str, asset_paths: list[str], api_key: str,
     }
     for key, value in defaults.items():
         parsed.setdefault(key, value)
-    parsed["model"] = model.strip()
+    # The model may summarize a prompt, but it must never rewrite the source
+    # text that will later be stored as the reusable original prompt.
+    parsed["prompt_text"] = text
+    parsed["model"] = model
     image_files = [path for path in assets if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}]
     parsed["asset_roles"] = normalize_asset_roles(parsed.get("asset_roles"), image_files)
     parsed["outfit_items"], parsed["outfit_relations"] = normalize_outfit_items(

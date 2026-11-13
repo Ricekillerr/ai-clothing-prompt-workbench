@@ -249,6 +249,11 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(403, {"ok": False, "error": "拒绝非本机 Host 请求"})
             return False
 
+        fetch_site = str(self.headers.get("Sec-Fetch-Site", "")).strip().lower()
+        if fetch_site and fetch_site not in {"same-origin", "none"}:
+            self.send_json(403, {"ok": False, "error": "拒绝跨站浏览器请求"})
+            return False
+
         origin = self.headers.get("Origin")
         if origin:
             try:
@@ -431,7 +436,10 @@ class Handler(BaseHTTPRequestHandler):
                     source = next((x for x in STORAGE.list_scan_sources() if x["id"] == source_id), None)
                     if not source: raise ValueError("扫描来源不存在")
                     previous = STORAGE.get_scan_snapshot(source_id)
-                    items = scan_folder(Path(source["folder_path"]), bool(source["recursive"]), previous=previous)
+                    items = scan_folder(
+                        Path(source["folder_path"]), bool(source["recursive"]),
+                        previous=previous, force_hash=True,
+                    )
                     summary = STORAGE.save_scan_results(source_id, items)
                     self.send_json(200, {"ok": True, "summary": summary})
                 elif self.path == "/api/cases/feedback":
