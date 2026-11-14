@@ -90,14 +90,27 @@ def _match_tokens(value):
         for size in (2,3,4): tokens.update(run[i:i+size] for i in range(max(0,len(run)-size+1)))
     return {x for x in tokens if len(x)>1}
 def _query_attribute_groups(query):
-    lowered=query.casefold(); groups={}; classified=set()
+    lowered=query.casefold()
+    groups={}
+    matched_terms=set()
     for dim,terms in _MATCH_TERMS.items():
         found=set()
         for term in terms:
             # English aliases require whole-word matches; Chinese aliases remain phrase matches.
-            if _contains_alias(lowered, term): found.update(_match_tokens(term))
-        groups[dim]=found; classified.update(found)
-    return groups,_match_tokens(query)-classified
+            if _contains_alias(lowered, term):
+                found.update(_match_tokens(term))
+                matched_terms.add(term)
+        groups[dim]=found
+    # Remove recognized phrases before extracting generic Chinese n-grams.
+    # Otherwise cross-boundary fragments such as "色尼" from "黑色尼龙"
+    # become artificial missing terms and unfairly lower an otherwise complete match.
+    generic_text=lowered
+    for term in sorted(matched_terms,key=len,reverse=True):
+        if re.fullmatch(r"[a-z]+",term.casefold()):
+            generic_text=re.sub(r"(?<![a-z])"+re.escape(term.casefold())+r"(?![a-z])"," ",generic_text)
+        else:
+            generic_text=generic_text.replace(term.casefold()," ")
+    return groups,_match_tokens(generic_text)
 def _candidate_attribute_text(case):
     tags=_match_text(case.get("tags")); body=_match_text(case.get("body"))
     def vals(*keys): return _match_text([case.get(k) for k in keys])
