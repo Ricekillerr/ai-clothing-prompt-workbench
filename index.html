@@ -313,6 +313,8 @@ function vault(){setTitle("Prompt Vault","完整提示词保险库 · 原始版�
 }
 let lastCompositionSnapshot=null;
 function compose(){lastCompositionSnapshot=null;setTitle("智能组合器","以完整成功案例为基础，叠加可复用模块");$("content").innerHTML=`<div class="section"><div><h2>组合工作台</h2><p>基础提示词 + 可选模块 → 新的组合草稿</p></div></div><div class="compose"><div class="pane"><h3>01 / 基础案例</h3><select id="base" aria-label="选择基础成功案例"><option value="">选择完整成功案例</option>${db.cases.map(x=>`<option value="${esc(x.id)}">${esc(x.name)} · ${esc(x.category||"")}</option>`).join("")}</select><h3 style="margin-top:18px">02 / 追加模块</h3><div>${db.modules.map(x=>`<label class="check"><input type="checkbox" value="${esc(x.id)}">${esc(x.name)} <small style="color:#8290a3">${esc(x.module_type||"")}</small></label>`).join("")||'<p style="font-size:10px;color:#8994a4">模块库为空，请先添加模块。</p>'}</div><button class="btn primary" style="width:100%;margin-top:14px" onclick="composeNow()">生成组合草稿 →</button></div><div class="pane"><h3>03 / 组合结果</h3><div id="composeWarnings" role="status" style="font-size:12px;margin:8px 0;color:var(--muted)">组合前将检查模型兼容性和明确的互斥约束。</div><label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin:10px 0"><input id="includeStructureGuide" type="checkbox" checked>附加结构化单品与参考图优先级说明</label><label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin:10px 0"><input id="includeBilingual" type="checkbox" checked>同时输出已保存的英文版本</label><label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin:10px 0"><input id="includeModelGuide" type="checkbox" checked>附加所选模型的通用适配提醒</label><textarea id="output" aria-label="组合提示词输出结果" placeholder="组合结果将在这里生成…"></textarea><div style="display:flex;gap:8px;margin-top:10px"><button class="btn" onclick="copyText($('output').value)">复制结果</button><button class="btn" onclick="saveDraft()">另存为待验证案例</button></div></div></div>`}
+let trashPageNum=1,trashQuerySnapshot=null;
+const TRASH_PAGE_SIZE=50;
 async function trashPage(){
  setTitle("回收站","已删除的案例和提示词模块仍保留在本地，可随时恢复");
  $("content").innerHTML='<div class="vault"><h3>已删除资产</h3><p id="trashContent">正在读取本地删除记录…</p></div>';
@@ -331,16 +333,26 @@ async function trashPage(){
  }
  if(page!=="trash")return;
  const query=$("search").value.trim().toLowerCase();
+ if(query!==trashQuerySnapshot){trashPageNum=1;trashQuerySnapshot=query}
  const items=deletedAssetsCache.filter(item=>!query||[item.name,item.sku,item.category,item.summary].join(" ").toLowerCase().includes(query));
  if(!items.length){
   $("content").innerHTML='<div class="empty"><b>回收站为空</b>删除的案例和模块会保留在这里，方便恢复。</div>';
   return;
  }
- $("content").innerHTML='<div class="section"><div><h2>最近删除</h2><p>最多显示最近 500 条；恢复后会回到原来的资产库。</p></div><span class="tag">'+items.length+' 条</span></div><div class="vaultgrid">'+items.map(item=>'<div class="vault"><div class="hero" style="height:150px">'+image({image:item.image})+'</div><div class="kind">'+esc(item.kind==="module"?"提示词模块":"案例资产")+' · '+esc(item.category||"未分类")+'</div><h3>'+esc(item.name)+'</h3><p>'+esc(item.sku||"无款号")+' · 删除于 '+esc(item.deleted_at||"")+'</p><p>'+esc(item.summary||"没有摘要")+'</p><button class="btn primary" data-trash-restore="'+esc(item.asset_id)+'" data-revision-id="'+esc(item.revision_id)+'">恢复资产</button></div>').join("")+'</div>';
+ const totalPages=Math.max(1,Math.ceil(items.length/TRASH_PAGE_SIZE));
+ trashPageNum=Math.min(Math.max(1,trashPageNum),totalPages);
+ const pageItems=items.slice((trashPageNum-1)*TRASH_PAGE_SIZE,trashPageNum*TRASH_PAGE_SIZE);
+ $("content").innerHTML='<div class="section"><div><h2>最近删除</h2><p>最多显示最近 500 条；共 '+items.length+' 条 · 第 '+trashPageNum+' / '+totalPages+' 页 · 每页 '+TRASH_PAGE_SIZE+' 条；恢复后会回到原来的资产库。</p></div><span class="tag">'+items.length+' 条</span></div><div class="vaultgrid">'+pageItems.map(item=>'<div class="vault"><div class="hero" style="height:150px">'+image({image:item.image})+'</div><div class="kind">'+esc(item.kind==="module"?"提示词模块":"案例资产")+' · '+esc(item.category||"未分类")+'</div><h3>'+esc(item.name)+'</h3><p>'+esc(item.sku||"无款号")+' · 删除于 '+esc(item.deleted_at||"")+'</p><p>'+esc(item.summary||"没有摘要")+'</p><button class="btn primary" data-trash-restore="'+esc(item.asset_id)+'" data-revision-id="'+esc(item.revision_id)+'">恢复资产</button></div>').join("")+'</div><div id="trashPagination" style="display:none;justify-content:center;align-items:center;gap:10px;margin:18px 0"><button class="btn" id="trashPrev" type="button">上一页</button><span id="trashPageLabel" aria-live="polite" style="font-size:12px;color:var(--muted)"></span><button class="btn" id="trashNext" type="button">下一页</button></div>';
  document.querySelectorAll("[data-trash-restore]").forEach(button=>{
   button.onclick=()=>restoreDeletedAsset(button.dataset.trashRestore,button.dataset.revisionId,button);
  });
+ const pager=$("trashPagination"),prev=$("trashPrev"),next=$("trashNext"),label=$("trashPageLabel");
+ if(pager)pager.style.display=totalPages>1?"flex":"none";
+ if(label)label.textContent="第 "+trashPageNum+" / "+totalPages+" 页";
+ if(prev){prev.disabled=trashPageNum<=1;prev.addEventListener("click",()=>{if(trashPageNum>1){trashPageNum--;return trashPage()}})}
+ if(next){next.disabled=trashPageNum>=totalPages;next.addEventListener("click",()=>{if(trashPageNum<totalPages){trashPageNum++;return trashPage()}})}
 }
+
 async function restoreDeletedAsset(assetId,revisionId,button){
  if(!confirm("恢复这条资产？它会重新出现在原来的视觉资产库或提示词模块中。"))return;
  button.disabled=true;button.textContent="恢复中…";
