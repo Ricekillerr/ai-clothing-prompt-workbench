@@ -5,10 +5,11 @@
 **生产分支：** main（保持不动）  
 **开发分支：** release/v0.6.5-stabilization  
 **候选版本：** 0.6.5  
-**最近代码提交：** 1619a9e78f4c28df656302d0a23d20ff74b58418  
+**最近代码提交：** 94520b4a124812e89d9e0d363ea8165e64d0633b  
 **状态：** V1.0 候选开发；不是正式发布。
 
 ## 最新 CI
+[GitHub Actions run 43545588251](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43545588251)：三个 job 全部成功。主回归 167 项（166 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
 [GitHub Actions run 43544962496](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43544962496)：三个 job 全部成功。主回归 165 项（164 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
 [GitHub Actions run 43544594509](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43544594509)：三个 job 全部成功。主回归 164 项（163 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
 [GitHub Actions run 43544121145](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43544121145)：三个 job 全部成功。主回归 163 项（162 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
@@ -34,6 +35,11 @@ CI 证明隔离环境中的代码和测试通过，不等于用户本人 Windows
 - 搜索框、状态筛选、模型筛选、批量标签输入、批量状态选择和关闭编辑窗口按钮补充可访问名称；案例卡片增加原生 button“查看”，可通过 Enter/Space 打开，避免仅依赖鼠标点击 article。
 - toast 与批量选择计数使用 aria-live 状态播报；分页页码也使用 aria-live。
 - 主资产库的静态与行为回归通过。CI run 43544594509：164 项主回归（163 通过、1 项环境跳过），Windows 专项 22 项，三个 jobs 全部通过。全应用键盘/读屏审查仍未完成。
+
+## 2026-11-14 模块库与 Prompt Vault 分页
+- 提示词模块库每页 36 条；Prompt Vault 每页 20 条，避免大量模块/长提示词一次性进入 DOM。
+- 搜索变化时重置页码；模块批量管理仍接收全部筛选模块，不受当前页限制。
+- 用 80 条模块、100 条完整提示词验证分页边界、上一页/下一页、搜索后重置及全筛选数据范围。CI run 43545588251：167 项主回归（166 通过、1 项环境跳过），Windows 专项 22 项，三个 jobs 全部通过。
 
 ## 2026-11-14 视觉资产库分页与延迟加载
 - 资产库改为每页 48 条，只渲染当前页；图片增加 loading=lazy 和 decoding=async。
