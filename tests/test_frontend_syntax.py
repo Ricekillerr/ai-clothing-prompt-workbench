@@ -381,5 +381,34 @@ async function fetch(url,options){
         self.assertIn('id="toast" role="status" aria-live="polite"', html)
 
 
+    def test_secondary_tools_and_editor_fields_have_accessible_names(self):
+        html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
+        for marker in (
+            'id="smartQuery" aria-label=',
+            'id="moduleBulkTagInput" aria-label=',
+            'id="base" aria-label=',
+            'id="output" aria-label=',
+            'id="scanFolder" aria-label=',
+            'id="aiEndpoint" aria-label=',
+            'id="aiModel" aria-label=',
+            'id="aiKey" aria-label=',
+            'id="generationOutcomeNotes" aria-label=',
+            'id="moduleBulkCount" role="status" aria-live="polite"',
+            'id="smartSearchStatus" role="status" aria-live="polite"',
+            'id="visualSearchStatus" role="status" aria-live="polite"',
+            'id="scanStatus" role="status" aria-live="polite"',
+            '<label for="f_${key}">',
+            'for="f_outfit_items"',
+            'for="f_outfit_relations"',
+            'for="f_image_roles"',
+            'for="f_body"',
+            'for="f_body_en"',
+            'for="f_notes"',
+            'data-open-module-button=',
+            'aria-label="打开模块：',
+        ):
+            self.assertIn(marker, html)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
