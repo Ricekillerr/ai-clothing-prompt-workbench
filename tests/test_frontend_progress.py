@@ -315,7 +315,7 @@ if(count()!==11||pageLabel.textContent!=="第 1 / 1 页"||pager.style.display!==
 
     def test_composer_module_picker_paginates_and_preserves_selection(self):
         start = self.html.index("let composeModulePage=1,")
-        end = self.html.index("\\nfunction composeNow(", start)
+        end = self.html.index("\nfunction composeNow(", start)
         source = self.html[start:end]
         script = r"""
 const modules=Array.from({length:80},(_,i)=>({id:"module-"+i,name:"Module "+i,module_type:"Fabric",category_scope:"上装",material:"nylon",body:"prompt "+i}));
@@ -350,7 +350,7 @@ if(count()!==11||pageLabel.textContent!=="第 1 / 1 页 · 11 个匹配"||pager.
 
     def test_compose_now_rejects_unverified_base_and_uses_persistent_module_selection(self):
         start = self.html.index("function composeNow(){")
-        end = self.html.index("\\nfunction saveDraft", start)
+        end = self.html.index("\nfunction saveDraft", start)
         source = self.html[start:end]
         script = r"""
 const fields={base:{value:"good"},composeWarnings:{style:{},textContent:""},includeStructureGuide:{checked:false},includeModelGuide:{checked:false},includeBilingual:{checked:false},output:{value:""}};
