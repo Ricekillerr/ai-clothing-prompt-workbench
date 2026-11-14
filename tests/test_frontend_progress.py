@@ -102,5 +102,50 @@ async function loadAiReviews(){reviewCalls++;}
         self.run_node(script)
 
 
+    def test_smart_search_ignores_out_of_order_responses(self):
+        start = self.html.index("let smartSearchRequestId=0;")
+        end = self.html.index("\nfunction gallery(", start)
+        source = self.html[start:end]
+        script = r"""
+const input = {value:"red"};
+const status = {textContent:""};
+const box = {innerHTML:"", querySelectorAll(){return []; }};
+const fields = {
+  smartQuery:input,
+  smartSearchStatus:status,
+  smartSearchResults:box,
+  includeConflicts:{checked:false}
+};
+function $(id){return fields[id]||null;}
+const pending=[];
+function scanApi(url){return new Promise(resolve=>pending.push({url,resolve}));}
+function esc(value){return String(value??"");}
+function image(){return "";}
+function renderMatchAttributeDetails(){return "";}
+function renderMatchConflicts(){return "";}
+function openDetail(){}
+function recordCaseFeedback(){}
+"""
+        script += source
+        script += r"""
+(async()=>{
+ const older=runSmartCaseSearch();
+ if(pending.length!==1||!pending[0].url.includes("q=red"))throw new Error("First query was not submitted.");
+ input.value="black";
+ const newer=runSmartCaseSearch();
+ if(pending.length!==2||!pending[1].url.includes("q=black"))throw new Error("Second query was not submitted.");
+ pending[1].resolve({matches:[]});
+ await newer;
+ const latestStatus=status.textContent;
+ if(!latestStatus.includes("没有找到"))throw new Error("Newest query result was not rendered.");
+ pending[0].resolve({matches:[{case:{id:"old",name:"Old result"},match_percent:99,score:0.99,reasons:[]}]});
+ await older;
+ if(status.textContent!==latestStatus)throw new Error("An older response overwrote the newest search status.");
+ if(box.innerHTML!=="")throw new Error("An older response overwrote the newest search results.");
+})().catch(error=>{console.error(error);process.exit(1);});
+"""
+        self.run_node(script)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
