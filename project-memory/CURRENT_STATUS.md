@@ -5,10 +5,11 @@
 **生产分支：** main（保持不动）  
 **开发分支：** release/v0.6.5-stabilization  
 **候选版本：** 0.6.5  
-**最近代码提交：** 047a21ee2ae5644e24259231a493ff50b722c343  
+**最近代码提交：** 44c0d5e82c5efbc25d1622c53ec6adba292e6e6c  
 **状态：** V1.0 候选开发；不是正式发布。
 
 ## 最新 CI
+[GitHub Actions run 43544121145](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43544121145)：三个 job 全部成功。主回归 163 项（162 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
 [GitHub Actions run 43543289699](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43543289699)：三个 job 全部成功。主回归 162 项（161 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
 [GitHub Actions run 43540111339](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43540111339)：三个 job 全部成功。主回归 158 项（157 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
 [GitHub Actions run 43539256117](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43539256117)：三个 job 全部成功。主回归 153 项（152 通过、1 项环境跳过），Windows 专项 22 项通过。
@@ -19,6 +20,12 @@ CI 证明隔离环境中的代码和测试通过，不等于用户本人 Windows
 - **异步检索一致性：** 智能检索增加请求序号、DOM 节点身份和查询文本快照检查；较早返回的请求、页面已切换的请求或输入已变化的请求不会覆盖当前结果。Node 回归按“旧请求先发、新请求先返回”顺序验证。
 - **单品属性隔离：** 多单品完整穿搭在非整套查询且非精确款号查询时，逐件计算品类、颜色、材质和细节；不再把不同单品或父案例摘要的属性拼成一个虚假匹配。缺少专用字段时，仅用当前单品名称/子类别作为证据；结果返回并展示 matched_item。回归覆盖“黑色尼龙马甲 + 红色皮革裤”不得误命中“黑色皮革马甲”。
 - **验证：** CI run 43543289699，162 项主回归（161 通过、1 项环境跳过），Windows 专项 22 项，manifest 哈希和 release gate 均通过。
+
+## 2026-11-14 视觉资产库分页与延迟加载
+- 资产库改为每页 48 条，只渲染当前页；图片增加 loading=lazy 和 decoding=async。
+- 搜索词、分类、状态或模型筛选变化时回到第一页；页码变化不会丢失跨页选择。
+- 批量选择、批量状态/标签、批量删除仍使用完整筛选结果集，不受当前页限制。
+- 用 100 条模拟案例验证 48/48/4 分页、上一页/下一页、筛选后页码重置和全筛选结果批量范围。CI run 43544121145：163 项主回归（162 通过、1 项环境跳过），Windows 专项 22 项，三个 jobs 全部通过。
 
 ## 2026-11-14 视觉检索与可解释检索改进
 - **视觉检索：** 本地 63 位 DCT 感知哈希排除 DC 系数；对系数做标准归一化；校验哈希格式与图片尺寸（上限 4000 万像素）；只检索已验证成功案例；每个案例只保留最佳图片；汉明差异≤12/63才显示；最多扫描 500 张并明确提示截断；旧请求不能覆盖新请求；每 5 张让出事件循环。明确哈希差异不是同款语义置信度。
