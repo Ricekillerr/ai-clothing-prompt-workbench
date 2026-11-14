@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """AI服装提示词资产工作台 V0.6.5。"""
-import base64, hashlib, json, os, shutil, subprocess, sys, tempfile, threading, time, uuid, webbrowser
+import base64, errno, hashlib, json, os, shutil, subprocess, sys, tempfile, threading, time, uuid, webbrowser
 from pathlib import Path
 from urllib.parse import unquote, quote, parse_qs, urlsplit
 from urllib.request import Request, urlopen
@@ -308,6 +308,16 @@ def stage_update():
     except Exception:
         shutil.rmtree(stage, ignore_errors=True)
         raise
+
+class WorkbenchHTTPServer(ThreadingHTTPServer):
+    """Prevent Windows address reuse from hiding a duplicate workbench instance."""
+    if sys.platform == "win32":
+        allow_reuse_address = False
+
+
+# Preserve the existing patch/integration point while using the hardened server.
+ThreadingHTTPServer = WorkbenchHTTPServer
+
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args): pass
@@ -657,7 +667,13 @@ def _configure_console_output():
 
 def main():
     _configure_console_output()
-    server = ThreadingHTTPServer(("127.0.0.1", 8765), Handler)
+    try:
+        server = ThreadingHTTPServer(("127.0.0.1", 8765), Handler)
+    except OSError as exc:
+        if getattr(exc, "winerror", None) == 10048 or getattr(exc, "errno", None) == errno.EADDRINUSE:
+            print("启动失败：本机端口 8765 已被占用。请先关闭已有工作台实例或占用该端口的程序，再重新启动。", file=sys.stderr)
+            return 2
+        raise
     url = "http://127.0.0.1:8765"
     AUTO_SCAN_STOP.clear()
     if auto_scan_is_enabled():
@@ -675,4 +691,4 @@ def main():
         AUTO_SCAN_WAKE.set()
         server.server_close()
 
-if __name__ == "__main__": main()
+if __name__ == "__main__": raise SystemExit(main())
