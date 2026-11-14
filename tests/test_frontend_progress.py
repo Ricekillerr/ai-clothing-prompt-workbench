@@ -313,5 +313,68 @@ if(count()!==11||pageLabel.textContent!=="第 1 / 1 页"||pager.style.display!==
         self.run_node(script)
 
 
+    def test_composer_module_picker_paginates_and_preserves_selection(self):
+        start = self.html.index("let composeModulePage=1,")
+        end = self.html.index("\\nfunction composeNow(", start)
+        source = self.html[start:end]
+        script = r"""
+const modules=Array.from({length:80},(_,i)=>({id:"module-"+i,name:"Module "+i,module_type:"Fabric",category_scope:"上装",material:"nylon",body:"prompt "+i}));
+const content={innerHTML:""};
+const list={innerHTML:"",querySelectorAll(){return [];}};
+const search={value:"",addEventListener(type,fn){this.oninput=fn;}};
+const pager={style:{}},previous={disabled:false},next={disabled:false},pageLabel={textContent:""},selectionStatus={textContent:""};
+const fields={content,base:{value:""},composeModuleSearch:search,composeModuleList:list,composeModulePagination:pager,composeModulePrev:previous,composeModuleNext:next,composeModulePageLabel:pageLabel,composeModuleSelectionStatus:selectionStatus};
+function $(id){return fields[id]||null;}
+function setTitle(){}
+const db={cases:[{id:"good",name:"Good",category:"上装",status:"已验证成功",body:"valid prompt"},{id:"pending",name:"Pending",status:"待验证",body:"pending prompt"},{id:"failed",name:"Failed",status:"失败案例",body:"failed prompt"}],modules};
+let lastCompositionSnapshot=null;
+function esc(value){return String(value??"");}
+"""
+        script += source
+        script += r"""
+compose();
+const count=()=> (list.innerHTML.match(/class="check"/g)||[]).length;
+if(!content.innerHTML.includes('value="good"')||content.innerHTML.includes('value="pending"')||content.innerHTML.includes('value="failed"'))throw new Error("Composer base selector must only include verified complete cases.");
+if(count()!==30||pageLabel.textContent!=="第 1 / 3 页 · 80 个匹配"||pager.style.display!=="flex")throw new Error("Composer module page one is incorrect.");
+composeSelectedModuleIds.add("module-0");
+next.onclick();
+if(count()!==30||!list.innerHTML.includes('value="module-30"')||!list.innerHTML.includes('value="module-59"'))throw new Error("Composer module page two boundaries are incorrect.");
+if(selectionStatus.textContent!=="已选 1 个模块")throw new Error("Selected modules must persist across pages.");
+previous.onclick();
+if(!list.innerHTML.includes('value="module-0" checked'))throw new Error("Previously selected module must remain checked when returning to its page.");
+search.value="module 7";
+search.oninput();
+if(count()!==11||pageLabel.textContent!=="第 1 / 1 页 · 11 个匹配"||pager.style.display!=="none"||selectionStatus.textContent!=="已选 1 个模块")throw new Error("Composer search must reset page while retaining prior selection.");
+"""
+        self.run_node(script)
+
+    def test_compose_now_rejects_unverified_base_and_uses_persistent_module_selection(self):
+        start = self.html.index("function composeNow(){")
+        end = self.html.index("\\nfunction saveDraft", start)
+        source = self.html[start:end]
+        script = r"""
+const fields={base:{value:"good"},composeWarnings:{style:{},textContent:""},includeStructureGuide:{checked:false},includeModelGuide:{checked:false},includeBilingual:{checked:false},output:{value:""}};
+function $(id){return fields[id]||null;}
+const db={cases:[{id:"good",name:"Good",status:"已验证成功",body:"base prompt",body_en:"",model:"WAN3.0"},{id:"pending",name:"Pending",status:"待验证",body:"pending prompt",body_en:"",model:"WAN3.0"}],modules:[{id:"selected",name:"Selected",body:"selected module body",body_en:""},{id:"other",name:"Other",body:"other module body",body_en:""}]};
+const composeSelectedModuleIds=new Set(["selected"]);
+let lastCompositionSnapshot=null,toastMessage="";
+function toast(message){toastMessage=message;}
+function findComposeConflicts(){return [];}
+function buildCaseReferenceGuide(){return "";}
+function modelPromptGuide(){return "";}
+function buildCompositionSnapshot(base,mods,body){return {baseId:base.id,moduleIds:mods.map(x=>x.id),body};}
+"""
+        script += source
+        script += r"""
+composeNow();
+if(!fields.output.value.includes("selected module body")||fields.output.value.includes("other module body"))throw new Error("Composer must include only selected persistent module IDs.");
+if(!lastCompositionSnapshot||lastCompositionSnapshot.moduleIds.join(",")!=="selected")throw new Error("Composition provenance must include only selected module IDs.");
+fields.base.value="pending";
+composeNow();
+if(lastCompositionSnapshot!==null||fields.output.value!==""||!toastMessage.includes("已验证成功"))throw new Error("Unverified base must clear stale output and refuse composition.");
+"""
+        self.run_node(script)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
