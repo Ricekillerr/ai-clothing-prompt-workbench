@@ -203,7 +203,7 @@ if(count()!==11||bulkCount!==11||pageLabel.textContent!=="第 1 / 1 页"||pager.
 
     def test_module_library_paginates_and_keeps_bulk_scope_filtered(self):
         start = self.html.index("let modulePage=1,")
-        end = self.html.index("\\nlet vaultPage=1,", start)
+        end = self.html.index("\nlet vaultPage=1,", start)
         source = self.html[start:end]
         script = r"""
 const items=Array.from({length:80},(_,i)=>({id:"module-"+i,name:"Module "+i,module_type:"Fabric",category_scope:"上装",material:"nylon",body:"prompt "+i,body_en:"",tags:[],model:"WAN3.0"}));
@@ -241,7 +241,7 @@ if(count()!==11||bulkCount!==11||pageLabel.textContent!=="第 1 / 1 页"||pager.
 
     def test_prompt_vault_paginates_large_full_prompt_cards(self):
         start = self.html.index("let vaultPage=1,")
-        end = self.html.index("\\nlet lastCompositionSnapshot", start)
+        end = self.html.index("\nlet lastCompositionSnapshot", start)
         source = self.html[start:end]
         script = r"""
 const items=Array.from({length:100},(_,i)=>({id:"case-"+i,name:"Case "+i,body:"Prompt body "+i,body_en:"",material:"nylon",tags:[],category:"上装",model:"WAN3.0"}));
