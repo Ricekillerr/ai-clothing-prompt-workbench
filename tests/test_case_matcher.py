@@ -208,4 +208,100 @@ class CaseMatcherTests(unittest.TestCase):
             rank_case_matches(cases, "红色羊绒羽绒服", threshold=0.8), []
         )
 
+
+    def test_missing_requested_material_is_zero_coverage_and_reduces_the_score(self):
+        case = dict(self.case, material="")
+        query = "黑色尼龙马甲"
+        result = score_case_attributes(case, query)
+        self.assertAlmostEqual(result["score"], 0.6667, places=3)
+        details = {item["attribute"]: item for item in explain_case_match(case, query)}
+        self.assertEqual(details["material"]["coverage"], 0.0)
+        self.assertIn("尼龙", details["material"]["missing_terms"])
+        self.assertEqual(rank_case_matches([case], query, threshold=0.8), [])
+
+    def test_unrequested_missing_attributes_do_not_reduce_score(self):
+        case = dict(self.case, material="", color="", details=[], model="", scene="")
+        result = score_case_attributes(case, "黑色马甲")
+        self.assertEqual(result["score"], 1.0)
+
+    def test_english_garment_alias_requires_a_word_boundary(self):
+        case = dict(self.case, name="black vest", subcategory="vest", body="", tags=[])
+        result = score_case_attributes(case, "investment notes")
+        self.assertEqual(result["score"], 0.0)
+
+    def test_common_footwear_and_accessory_subcategories_are_searchable(self):
+        boots = dict(
+            self.case, id="boots", name="棕色皮革短靴", category="鞋履",
+            subcategory="短靴", material="皮革", color="棕色", details=["系带"],
+        )
+        backpack = dict(
+            self.case, id="backpack", name="黑色尼龙双肩包", category="配饰",
+            subcategory="双肩包", material="尼龙", color="黑色", details=["双肩","拉链"],
+        )
+        boot_results = rank_case_matches([boots], "棕色皮革短靴", threshold=0.8)
+        bag_results = rank_case_matches([backpack], "黑色尼龙双肩包", threshold=0.8)
+        self.assertEqual([item["case"]["id"] for item in boot_results], ["boots"])
+        self.assertEqual([item["case"]["id"] for item in bag_results], ["backpack"])
+
+    def test_retrieval_benchmark_reports_precision_at_1_and_recall_at_5(self):
+        cases = [
+            {"id":"vest","name":"黑色立领无袖马甲","status":"已验证成功","category":"上装","subcategory":"无袖马甲","material":"尼龙","color":"黑色","details":["立领","双拉头拉链"],"tags":["马甲"]},
+            {"id":"trousers","name":"深灰灯芯绒微喇裤","status":"已验证成功","category":"下装","subcategory":"微喇裤","material":"灯芯绒","color":"深灰","details":["微喇","宽松"],"tags":["裤子"]},
+            {"id":"coat","name":"藏青羊毛连帽外套","status":"已验证成功","category":"上装","subcategory":"外套","material":"羊毛","color":"蓝色","details":["连帽","拉链"],"tags":["外套"]},
+            {"id":"jacket","name":"棕色皮革短款夹克","status":"已验证成功","category":"上装","subcategory":"夹克","material":"皮革","color":"棕色","details":["短款","立领"],"tags":["夹克"]},
+            {"id":"sneakers","name":"白色尼龙运动鞋","status":"已验证成功","category":"鞋履","subcategory":"运动鞋","material":"尼龙","color":"白色","details":["网面","系带"],"tags":["鞋履"]},
+            {"id":"backpack","name":"黑色尼龙双肩包","status":"已验证成功","category":"配饰","subcategory":"双肩包","material":"尼龙","color":"黑色","details":["双肩","拉链"],"tags":["背包"]},
+            {"id":"hoodie","name":"灰色棉质连帽卫衣","status":"已验证成功","category":"上装","subcategory":"卫衣","material":"棉","color":"灰色","details":["连帽","抽绳"],"tags":["卫衣"]},
+            {"id":"shirt","name":"白色棉质衬衫","status":"已验证成功","category":"上装","subcategory":"衬衫","material":"棉","color":"白色","details":["纽扣","牛津纺"],"tags":["衬衫"]},
+            {"id":"shorts","name":"卡其尼龙运动短裤","status":"已验证成功","category":"下装","subcategory":"运动短裤","material":"尼龙","color":"卡其","details":["抽绳","宽松"],"tags":["短裤"]},
+            {"id":"scarf","name":"红色羊毛围巾","status":"已验证成功","category":"配饰","subcategory":"围巾","material":"羊毛","color":"红色","details":["针织"],"tags":["围巾"]},
+            {"id":"puffer","name":"黑色聚酯连帽羽绒服","status":"已验证成功","category":"上装","subcategory":"羽绒服","material":"聚酯","color":"黑色","details":["连帽","横向绗缝"],"tags":["羽绒服"]},
+            {"id":"jeans","name":"蓝色牛仔直筒裤","status":"已验证成功","category":"下装","subcategory":"直筒裤","material":"牛仔","color":"蓝色","details":["直筒"],"tags":["牛仔裤"]},
+            {"id":"boots","name":"棕色皮革短靴","status":"已验证成功","category":"鞋履","subcategory":"短靴","material":"皮革","color":"棕色","details":["系带"],"tags":["短靴"]},
+            {"id":"skirt","name":"米色亚麻半身裙","status":"已验证成功","category":"下装","subcategory":"半身裙","material":"亚麻","color":"米色","details":["A字"],"tags":["半身裙"]},
+            {"id":"failed","name":"黑色尼龙马甲失败样本","status":"失败案例","category":"上装","subcategory":"无袖马甲","material":"尼龙","color":"黑色","details":["立领"],"tags":["马甲"]},
+            {"id":"untested","name":"黑色尼龙马甲待验证样本","status":"待验证","category":"上装","subcategory":"无袖马甲","material":"尼龙","color":"黑色","details":["立领"],"tags":["马甲"]},
+        ]
+        labelled_queries = [
+            ("黑色尼龙无袖立领马甲 双拉头拉链","vest"),
+            ("深灰灯芯绒微喇裤 宽松版型","trousers"),
+            ("藏青羊毛连帽外套","coat"),
+            ("棕色皮革短款夹克","jacket"),
+            ("白色尼龙运动鞋 网面","sneakers"),
+            ("黑色尼龙双肩包","backpack"),
+            ("灰色棉质连帽卫衣 抽绳","hoodie"),
+            ("白色棉质衬衫 纽扣","shirt"),
+            ("卡其尼龙运动短裤 抽绳","shorts"),
+            ("红色羊毛围巾","scarf"),
+            ("黑色聚酯连帽羽绒服 横向绗缝","puffer"),
+            ("蓝色牛仔直筒裤","jeans"),
+            ("棕色皮革短靴","boots"),
+            ("米色亚麻半身裙","skirt"),
+        ]
+        hits_at_1 = 0
+        hits_at_5 = 0
+        returned_at_5 = 0
+        expected_ids = {expected for _, expected in labelled_queries}
+        for query, expected_id in labelled_queries:
+            with self.subTest(query=query):
+                results = rank_case_matches(cases, query, threshold=0.8, limit=5)
+                ranked_ids = [item["case"]["id"] for item in results]
+                if ranked_ids and ranked_ids[0] == expected_id:
+                    hits_at_1 += 1
+                if expected_id in ranked_ids:
+                    hits_at_5 += 1
+                returned_at_5 += len(ranked_ids)
+        precision_at_1 = hits_at_1 / len(labelled_queries)
+        recall_at_5 = hits_at_5 / len(expected_ids)
+        precision_at_5 = hits_at_5 / max(1, returned_at_5)
+        self.assertGreaterEqual(precision_at_1, 0.90)
+        self.assertGreaterEqual(recall_at_5, 0.90)
+        self.assertGreaterEqual(precision_at_5, 0.50)
+        result_ids = {
+            item["case"]["id"]
+            for item in rank_case_matches(cases, "黑色尼龙无袖立领马甲", threshold=0.8, limit=20)
+        }
+        self.assertNotIn("failed", result_ids)
+        self.assertNotIn("untested", result_ids)
+
 if __name__=="__main__": unittest.main(verbosity=2)

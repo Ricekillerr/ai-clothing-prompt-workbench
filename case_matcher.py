@@ -61,7 +61,14 @@ def rank_matches(items: list[dict], limit: int = 100) -> list[dict]:
 
 _MATCH_WEIGHTS = {"category": 0.25, "material": 0.20, "color": 0.15, "details": 0.20, "context": 0.20}
 _MATCH_TERMS = {
- "category": {"上装","下装","鞋履","配饰","整套搭配","马甲","背心","夹克","羽绒服","外套","衬衫","卫衣","裤子","长裤","短裤","直筒裤","阔腿裤","微喇裤","短款","长款","oversized","relaxed","slim","wide-leg","flare","运动鞋","gilet","vest","jacket","coat","shirt","pants","shoes"},
+ "category": {
+  "上装","上衣","下装","鞋履","鞋子","配饰","整套搭配","马甲","背心","夹克","羽绒服","外套","衬衫","卫衣","毛衣",
+  "裤子","长裤","短裤","运动短裤","牛仔裤","运动裤","直筒裤","阔腿裤","微喇裤","裙子","半身裙","连衣裙","连体裤",
+  "短款","长款","oversized","relaxed","slim","wide-leg","flare",
+  "运动鞋","皮鞋","靴子","短靴","长靴","凉鞋","高跟鞋",
+  "背包","双肩包","手提包","围巾","帽子","手套","腰带","戒指","眼镜","手表",
+  "gilet","vest","jacket","coat","shirt","pants","shoes","sneakers","boots","sandals","bag","backpack","scarf","hat","gloves","belt","ring","glasses","watch"
+ },
  "material": {"面料","材质","羊毛","羊绒","腈纶","聚酯","涤纶","棉","皮革","真皮","灯芯绒","尼龙","锦纶","羽绒","针织","牛仔","丝绸","真丝","亚麻","哑光","磨砂","光泽","反光","柔软","挺括","corduroy","leather","wool","cotton","nylon","polyester","matte"},
  "color": {"黑色","白色","灰色","深灰","浅灰","棕色","咖啡色","蓝色","藏青","绿色","红色","米色","米白","卡其","black","white","grey","gray","brown","blue","navy","green","red","beige"},
  "details": {"立领","高领","圆领","直筒","阔腿","微喇","拉链","双拉头","单拉头","双针","双针走线","口袋","袖口","下摆","绗缝","拼接","皮革边","无袖","微喇","宽松","修身","走线","抽绳","帽子","连帽","领口","纽扣","zipper","collar","pocket","hood","sleeveless","hem","stitch"},
@@ -87,7 +94,8 @@ def _query_attribute_groups(query):
     for dim,terms in _MATCH_TERMS.items():
         found=set()
         for term in terms:
-            if term.casefold() in lowered: found.update(_match_tokens(term))
+            # English aliases require whole-word matches; Chinese aliases remain phrase matches.
+            if _contains_alias(lowered, term): found.update(_match_tokens(term))
         groups[dim]=found; classified.update(found)
     return groups,_match_tokens(query)-classified
 def _candidate_attribute_text(case):
