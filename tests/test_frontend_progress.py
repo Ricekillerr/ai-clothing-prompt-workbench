@@ -42,6 +42,7 @@ async function scanApi(path){
 async function loadScanQueue(){queueCalls++;}
 """
         script += source
+        script += "\\nasync function loadScanQueue(){queueCalls++;}\\n"
         script += r"""
 (async()=>{
  await runAllScans(button);
