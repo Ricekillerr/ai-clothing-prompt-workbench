@@ -261,3 +261,12 @@
 - 案例卡片保留鼠标点击，同时增加原生“查看”button，带 aria-label 和 type=button；button click stopPropagation 后调用 openDetail，可由键盘 Enter/Space 激活。
 - toast 与批量选择计数使用 role=status / aria-live=polite；分页页码使用 aria-live。
 - 已通过主资产库静态断言与 Node 行为测试。该结论只覆盖主资产库关键路径；模块、组合器、编辑器、设置等页面仍需全应用人工键盘/读屏审查。
+
+
+## 2026-11-14 次级工作流与编辑器可访问性
+- 智能检索输入、模块批量标签、基础案例选择、组合结果、扫描文件夹路径、AI 接口地址/模型名称/API Key、本次生成结果备注均补充 aria-label。
+- 模块批量计数、智能检索状态、视觉检索状态、扫描状态使用 role=status / aria-live=polite。
+- 动态编辑器的通用字段 label 使用 for="f_${key}" 关联 select/input；整套穿搭拆解、穿搭关系、参考图优先级、参考图片、中文正文、英文正文、备注 textarea 均显式关联。
+- 模块卡片增加原生 button 查看入口，带 aria-label，键盘 Enter/Space 可激活；事件停止冒泡，避免触发父卡片重复打开。
+- 全应用人工键盘/读屏审查仍未完成，后续需覆盖回收站、Prompt Vault、组合器、设置、扫描队列和模态窗口。
+- CI run 43544962496：165 项主回归（164 通过、1 项环境跳过），Windows 专项 22 项，三个 jobs 全部通过。

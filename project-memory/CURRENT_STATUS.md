@@ -5,10 +5,11 @@
 **生产分支：** main（保持不动）  
 **开发分支：** release/v0.6.5-stabilization  
 **候选版本：** 0.6.5  
-**最近代码提交：** 56d90569e447955a425a25acc4bfe12239325c3d  
+**最近代码提交：** 1619a9e78f4c28df656302d0a23d20ff74b58418  
 **状态：** V1.0 候选开发；不是正式发布。
 
 ## 最新 CI
+[GitHub Actions run 43544962496](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43544962496)：三个 job 全部成功。主回归 165 项（164 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
 [GitHub Actions run 43544594509](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43544594509)：三个 job 全部成功。主回归 164 项（163 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
 [GitHub Actions run 43544121145](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43544121145)：三个 job 全部成功。主回归 163 项（162 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
 [GitHub Actions run 43543289699](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43543289699)：三个 job 全部成功。主回归 162 项（161 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
@@ -21,6 +22,12 @@ CI 证明隔离环境中的代码和测试通过，不等于用户本人 Windows
 - **异步检索一致性：** 智能检索增加请求序号、DOM 节点身份和查询文本快照检查；较早返回的请求、页面已切换的请求或输入已变化的请求不会覆盖当前结果。Node 回归按“旧请求先发、新请求先返回”顺序验证。
 - **单品属性隔离：** 多单品完整穿搭在非整套查询且非精确款号查询时，逐件计算品类、颜色、材质和细节；不再把不同单品或父案例摘要的属性拼成一个虚假匹配。缺少专用字段时，仅用当前单品名称/子类别作为证据；结果返回并展示 matched_item。回归覆盖“黑色尼龙马甲 + 红色皮革裤”不得误命中“黑色皮革马甲”。
 - **验证：** CI run 43543289699，162 项主回归（161 通过、1 项环境跳过），Windows 专项 22 项，manifest 哈希和 release gate 均通过。
+
+## 2026-11-14 次级工作流与编辑器可访问性
+- 智能检索输入、模块批量标签、基础案例选择、组合结果、扫描文件夹路径、AI 接口/模型/API Key、本次生成备注均补充 aria-label。
+- 模块批量计数、智能检索状态、视觉检索状态和扫描状态加入 aria-live 播报。
+- 模块卡片增加原生键盘可激活“查看”按钮；动态编辑器字段 label 通过 for 与输入控件关联，穿搭拆解/关系/参考图优先级/正文/英文/备注字段均关联。
+- CI run 43544962496：165 项主回归（164 通过、1 项环境跳过），Windows 专项 22 项，三个 jobs 全部通过。全应用人工审查仍待完成。
 
 ## 2026-11-14 主资产库键盘与辅助技术可达性
 - 统一补充 button/input/select/textarea/link/chip/filter/close 的 `:focus-visible` 焦点样式，修复搜索框原先 outline:0 导致的键盘焦点不可见。
