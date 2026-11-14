@@ -121,6 +121,9 @@ function $(id){return fields[id]||null;}
 const pending=[];
 function scanApi(url){return new Promise(resolve=>pending.push({url,resolve}));}
 function esc(value){return String(value??"");}
+function composeNow(){}
+function saveDraft(){}
+function copyText(){}
 function image(){return "";}
 function renderMatchAttributeDetails(){return "";}
 function renderMatchConflicts(){return "";}
