@@ -41,7 +41,8 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(path.read_bytes(), before)
 
     def test_corrupt_json_does_not_create_empty_database(self):
-        path = self.write_legacy("{broken")
+        path = self.home / "prompt_library.json"
+        path.write_text("{broken", encoding="utf-8")
         with self.assertRaises(StorageError):
             Storage(self.home)
         self.assertFalse((self.home / "prompt_library.sqlite3").exists())
