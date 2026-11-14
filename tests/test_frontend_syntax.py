@@ -38,11 +38,11 @@ class FrontendSyntaxTests(unittest.TestCase):
 
     def test_gallery_status_and_model_filters_update_state_and_count(self):
         html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
-        self.assertIn('st.onchange=()=>{window.sf=st.value;window.mf=mf.value;render()}', html)
-        self.assertIn('mf.onchange=()=>{window.sf=st.value;window.mf=mf.value;render()}', html)
+        self.assertIn('st.onchange=()=>{window.sf=st.value;window.mf=mf.value;galleryPage=1;render()}', html)
+        self.assertIn('mf.onchange=()=>{window.sf=st.value;window.mf=mf.value;galleryPage=1;render()}', html)
         self.assertNotIn('id="statusF" onchange="render()"', html)
         self.assertNotIn('id="modelF" onchange="render()"', html)
-        self.assertIn('textContent=arr.length+" 条资产 · 图片优先的浏览方式"', html)
+        self.assertIn('textContent=arr.length+" 条资产 · 第 "+galleryPage+" / "+totalPages+" 页 · 每页 "+GALLERY_PAGE_SIZE+" 条"', html)
 
     def test_composed_prompt_preserves_whitespace_and_checks_category_scope(self):
         html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
