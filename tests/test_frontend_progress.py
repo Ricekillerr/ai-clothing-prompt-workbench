@@ -1,5 +1,6 @@
 import shutil
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -12,7 +13,15 @@ class FrontendProgressTests(unittest.TestCase):
     def run_node(self, script):
         if not self.node:
             self.skipTest("Node.js is not installed in this environment")
-        result = subprocess.run([self.node, "-e", script], capture_output=True, text=True, check=False)
+        script_path = None
+        try:
+            with tempfile.NamedTemporaryFile("w", suffix=".js", encoding="utf-8", delete=False) as script_file:
+                script_file.write(script)
+                script_path = Path(script_file.name)
+            result = subprocess.run([self.node, str(script_path)], capture_output=True, text=True, check=False)
+        finally:
+            if script_path is not None:
+                script_path.unlink()
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
     def test_scan_batch_reports_each_folder_and_restores_button_state(self):
@@ -332,6 +341,9 @@ function setTitle(){}
 const db={cases:[{id:"good",name:"Good",category:"上装",status:"已验证成功",body:"valid prompt"},{id:"pending",name:"Pending",status:"待验证",body:"pending prompt"},{id:"failed",name:"Failed",status:"失败案例",body:"failed prompt"}],modules};
 let lastCompositionSnapshot=null;
 function esc(value){return String(value??"");}
+function composeNow(){}
+function copyText(){}
+function saveDraft(){}
 """
         script += source
         script += r"""

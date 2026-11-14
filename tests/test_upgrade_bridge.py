@@ -1,5 +1,6 @@
 import ast
 import hashlib
+import importlib.util
 import json
 import unittest
 from pathlib import Path
@@ -19,6 +20,17 @@ class V065IntegrationTests(unittest.TestCase):
         for name in self.manifest["files"]:
             content = (self.root / name).read_bytes()
             self.assertEqual(hashlib.sha256(content).hexdigest(), self.manifest["sha256"][name], name)
+
+    def test_manifest_generator_matches_current_release_policy(self):
+        spec = importlib.util.spec_from_file_location(
+            "release_manifest_generator", self.root / "生成更新清单.py"
+        )
+        self.assertIsNotNone(spec)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertEqual(set(module.RELEASE_FILES), set(self.manifest["files"]))
+        for name in self.manifest["files"]:
+            self.assertEqual(module.sha256(self.root / name), self.manifest["sha256"][name], name)
 
     def test_client_and_updater_accept_all_v065_release_files(self):
         tree = ast.parse(self.app)

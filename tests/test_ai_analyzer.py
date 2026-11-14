@@ -133,7 +133,7 @@ class AIAnalyzerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             prompt = Path(tmp) / "prompt.txt"
             image = Path(tmp) / "image.png"
-            prompt.write_text(original_prompt, encoding="utf-8")
+            prompt.write_bytes(original_prompt.encode("utf-8"))
             image.write_bytes(b"image")
             response_payload = {
                 "choices": [{
