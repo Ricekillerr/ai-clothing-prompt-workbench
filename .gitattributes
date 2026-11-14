@@ -1,2 +1,10 @@
 # Preserve the byte-for-byte CRLF format required by Windows CMD, including raw downloads and updates.
 *.bat -text
+# Keep release hashes identical on Linux and Windows checkouts.
+*.py text eol=lf
+*.html text eol=lf
+*.json text eol=lf
+*.txt text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.ps1 text eol=lf
