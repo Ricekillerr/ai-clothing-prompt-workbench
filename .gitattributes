@@ -1,0 +1,2 @@
+# Preserve the byte-for-byte CRLF format required by Windows CMD, including raw downloads and updates.
+*.bat -text

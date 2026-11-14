@@ -12,19 +12,19 @@ RELEASE_FILES = [
     "index.html",
     "updater.py",
     "启动AI服装提示词工作台.bat",
-    "使用说明_AI服装提示词资产工作台_V0.4.3.txt",
     "storage.py",
+    "ai_analyzer.py",
     "collector.py",
     "case_matcher.py",
-    "ai_analyzer.py",
+    "使用说明_Prompt_Atelier_V1.0_候选版.txt",
 ]
 
 def sha256(path):
-    # Git checkouts may convert LF to CRLF on Windows. GitHub serves release files as LF,
-    # so normalize line endings before hashing to keep updater hashes cross-platform stable.
-    normalized = path.read_bytes().replace(b"\r\n", b"\n")
-    h = hashlib.sha256(normalized)
-    return h.hexdigest()
+    # Text checkouts may use CRLF on Windows. BAT files are intentionally
+    # stored as CRLF with -text so raw downloads and updates remain executable.
+    content = path.read_bytes()
+    normalized = content if path.suffix.lower() == ".bat" else content.replace(b"\r\n", b"\n")
+    return hashlib.sha256(normalized).hexdigest()
 
 def main():
     source = MAIN.read_text(encoding="utf-8-sig")
@@ -35,13 +35,18 @@ def main():
     missing = [name for name in RELEASE_FILES if not (ROOT / name).is_file()]
     if missing:
         raise SystemExit("错误：发布文件缺失：" + "、".join(missing))
+    manifest_path = ROOT / "update_manifest.json"
+    existing = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() else {}
+    hashes = {name: sha256(ROOT / name) for name in RELEASE_FILES}
+    hash_order = [name for name in existing.get("sha256", {}) if name in hashes]
+    hash_order.extend(name for name in RELEASE_FILES if name not in hash_order)
     manifest = {
         "version": version,
-        "notes": f"Prompt Atelier V{version}；发布清单由本地工具自动生成，包含文件完整性校验。",
+        "notes": existing.get("notes") or f"Prompt Atelier V{version}；发布清单由本地工具自动生成，包含文件完整性校验。",
         "files": RELEASE_FILES,
-        "sha256": {name: sha256(ROOT / name) for name in RELEASE_FILES},
+        "sha256": {name: hashes[name] for name in hash_order},
     }
-    (ROOT / "update_manifest.json").write_text(
+    manifest_path.write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     print(f"已生成更新清单：V{version}")

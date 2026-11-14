@@ -652,7 +652,8 @@ def main():
         AUTO_SCAN_WAKE.set()
     threading.Thread(target=auto_scan_loop, name="PromptAtelierAutoScan", daemon=True).start()
     threading.Thread(target=heartbeat_watchdog, args=(server,), name="PromptAtelierHeartbeat", daemon=True).start()
-    threading.Timer(0.8, lambda: webbrowser.open(url)).start()
+    if os.environ.get("PROMPT_ATELIER_NO_BROWSER") != "1":
+        threading.Timer(0.8, lambda: webbrowser.open(url)).start()
     print(f"Prompt Atelier V{APP_VERSION}：{url}")
     print("用户数据目录：" + str(HOME)); print("关闭工作台网页后，后台服务将在短暂等待后自动退出。")
     try: server.serve_forever()
