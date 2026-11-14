@@ -312,7 +312,46 @@ function vault(){setTitle("Prompt Vault","完整提示词保险库 · 原始版�
  if(next){next.disabled=vaultPage>=totalPages;next.addEventListener("click",()=>{if(vaultPage<totalPages){vaultPage++;render()}})}
 }
 let lastCompositionSnapshot=null;
-function compose(){lastCompositionSnapshot=null;setTitle("智能组合器","以完整成功案例为基础，叠加可复用模块");$("content").innerHTML=`<div class="section"><div><h2>组合工作台</h2><p>基础提示词 + 可选模块 → 新的组合草稿</p></div></div><div class="compose"><div class="pane"><h3>01 / 基础案例</h3><select id="base" aria-label="选择基础成功案例"><option value="">选择完整成功案例</option>${db.cases.map(x=>`<option value="${esc(x.id)}">${esc(x.name)} · ${esc(x.category||"")}</option>`).join("")}</select><h3 style="margin-top:18px">02 / 追加模块</h3><div>${db.modules.map(x=>`<label class="check"><input type="checkbox" value="${esc(x.id)}">${esc(x.name)} <small style="color:#8290a3">${esc(x.module_type||"")}</small></label>`).join("")||'<p style="font-size:10px;color:#8994a4">模块库为空，请先添加模块。</p>'}</div><button class="btn primary" style="width:100%;margin-top:14px" onclick="composeNow()">生成组合草稿 →</button></div><div class="pane"><h3>03 / 组合结果</h3><div id="composeWarnings" role="status" style="font-size:12px;margin:8px 0;color:var(--muted)">组合前将检查模型兼容性和明确的互斥约束。</div><label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin:10px 0"><input id="includeStructureGuide" type="checkbox" checked>附加结构化单品与参考图优先级说明</label><label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin:10px 0"><input id="includeBilingual" type="checkbox" checked>同时输出已保存的英文版本</label><label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin:10px 0"><input id="includeModelGuide" type="checkbox" checked>附加所选模型的通用适配提醒</label><textarea id="output" aria-label="组合提示词输出结果" placeholder="组合结果将在这里生成…"></textarea><div style="display:flex;gap:8px;margin-top:10px"><button class="btn" onclick="copyText($('output').value)">复制结果</button><button class="btn" onclick="saveDraft()">另存为待验证案例</button></div></div></div>`}
+let composeModulePage=1,composeModuleQuerySnapshot=null;
+const COMPOSE_MODULE_PAGE_SIZE=30;
+const composeSelectedModuleIds=new Set();
+function compose(){
+ lastCompositionSnapshot=null;
+ setTitle("智能组合器","以完整成功案例为基础，叠加可复用模块");
+ const validBaseCases=(Array.isArray(db.cases)?db.cases:[]).filter(x=>x&&x.status==="已验证成功"&&String(x.body||"").trim());
+ const baseOptions=validBaseCases.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+' · '+esc(x.category||"")+'</option>').join("");
+ $("content").innerHTML='<div class="section"><div><h2>组合工作台</h2><p>基础提示词 + 可选模块 → 新的组合草稿</p></div></div><div class="compose"><div class="pane"><h3>01 / 基础案例（仅显示已验证成功）</h3><p style="font-size:11px;color:var(--muted)">共 '+validBaseCases.length+' 条完整成功案例</p><select id="base" aria-label="选择已验证成功的基础案例"><option value="">选择完整成功案例</option>'+baseOptions+'</select><h3 style="margin-top:18px">02 / 追加模块</h3><input id="composeModuleSearch" aria-label="搜索可追加模块" placeholder="搜索模块名称、品类或面料…" style="width:100%;margin:6px 0 10px"><div id="composeModuleList" style="max-height:360px;overflow:auto"></div><div id="composeModulePagination" style="display:none;justify-content:center;align-items:center;gap:10px;margin:12px 0"><button class="btn" id="composeModulePrev" type="button">上一页</button><span id="composeModulePageLabel" aria-live="polite" style="font-size:12px;color:var(--muted)"></span><button class="btn" id="composeModuleNext" type="button">下一页</button></div><div id="composeModuleSelectionStatus" role="status" aria-live="polite" style="font-size:11px;color:var(--muted)">已选 0 个模块</div><button class="btn primary" style="width:100%;margin-top:14px" onclick="composeNow()">生成组合草稿 →</button></div><div class="pane"><h3>03 / 组合结果</h3><div id="composeWarnings" role="status" style="font-size:12px;margin:8px 0;color:var(--muted)">组合前将检查模型兼容性和明确的互斥约束。</div><label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin:10px 0"><input id="includeStructureGuide" type="checkbox" checked>附加结构化单品与参考图优先级说明</label><label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin:10px 0"><input id="includeBilingual" type="checkbox" checked>同时输出已保存的英文版本</label><label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin:10px 0"><input id="includeModelGuide" type="checkbox" checked>附加所选模型的通用适配提醒</label><textarea id="output" aria-label="组合提示词输出结果" placeholder="组合结果将在这里生成…"></textarea><div style="display:flex;gap:8px;margin-top:10px"><button class="btn" onclick="copyText($('output').value)">复制结果</button><button class="btn" onclick="saveDraft()">另存为待验证案例</button></div></div></div>';
+ renderComposeModuleList();
+ $("composeModuleSearch").addEventListener("input",()=>{composeModulePage=1;renderComposeModuleList()});
+}
+function renderComposeModuleList(){
+ const search=$("composeModuleSearch");
+ if(!search)return;
+ const q=search.value.trim().toLowerCase();
+ if(q!==composeModuleQuerySnapshot){composeModulePage=1;composeModuleQuerySnapshot=q}
+ const modules=Array.isArray(db.modules)?db.modules:[];
+ const validIds=new Set(modules.map(x=>x.id));
+ for(const id of composeSelectedModuleIds)if(!validIds.has(id))composeSelectedModuleIds.delete(id);
+ const filtered=modules.filter(x=>!q||[x.name,x.module_type,x.category_scope,x.material,x.body].join(" ").toLowerCase().includes(q));
+ const totalPages=Math.max(1,Math.ceil(filtered.length/COMPOSE_MODULE_PAGE_SIZE));
+ composeModulePage=Math.min(Math.max(1,composeModulePage),totalPages);
+ const pageItems=filtered.slice((composeModulePage-1)*COMPOSE_MODULE_PAGE_SIZE,composeModulePage*COMPOSE_MODULE_PAGE_SIZE);
+ const list=$("composeModuleList");
+ list.innerHTML=pageItems.length?pageItems.map(x=>'<label class="check"><input type="checkbox" class="composeModule" value="'+esc(x.id)+'" '+(composeSelectedModuleIds.has(x.id)?"checked":"")+' aria-label="选择模块：'+esc(x.name)+'">'+esc(x.name)+' <small style="color:#8290a3">'+esc(x.module_type||"")+'</small></label>').join(""):'<p style="font-size:10px;color:#8994a4">没有匹配的模块。</p>';
+ list.querySelectorAll(".composeModule").forEach(input=>input.addEventListener("change",()=>{
+  if(input.checked)composeSelectedModuleIds.add(input.value);else composeSelectedModuleIds.delete(input.value);
+  const status=$("composeModuleSelectionStatus");
+  if(status)status.textContent="已选 "+composeSelectedModuleIds.size+" 个模块";
+ }));
+ const pager=$("composeModulePagination"),prev=$("composeModulePrev"),next=$("composeModuleNext"),label=$("composeModulePageLabel");
+ if(pager)pager.style.display=totalPages>1?"flex":"none";
+ if(label)label.textContent="第 "+composeModulePage+" / "+totalPages+" 页 · "+filtered.length+" 个匹配";
+ if(prev){prev.disabled=composeModulePage<=1;prev.onclick=()=>{if(composeModulePage>1){composeModulePage--;renderComposeModuleList()}}}
+ if(next){next.disabled=composeModulePage>=totalPages;next.onclick=()=>{if(composeModulePage<totalPages){composeModulePage++;renderComposeModuleList()}}}
+ const status=$("composeModuleSelectionStatus");
+ if(status)status.textContent="已选 "+composeSelectedModuleIds.size+" 个模块";
+}
+
 let trashPageNum=1,trashQuerySnapshot=null;
 const TRASH_PAGE_SIZE=50;
 async function trashPage(){
@@ -542,8 +581,8 @@ function compositionForDraft(body,snapshot,createdAt=new Date().toISOString()){
  return {...snapshot.composition,preflight:unchanged?"passed":"passed_then_manually_edited",modified_after_generation:!unchanged};
 }
 function composeNow(){
- const b=db.cases.find(x=>x.id===$("base").value);if(!b)return toast("请先选择基础案例");
- const ids=[...document.querySelectorAll('.compose .pane:first-child input[type=checkbox]:checked')].map(x=>x.value),mods=ids.map(id=>db.modules.find(x=>x.id===id)).filter(Boolean);
+ const b=db.cases.find(x=>x.id===$("base").value&&x.status==="已验证成功"&&String(x.body||"").trim());if(!b){lastCompositionSnapshot=null;$("output").value="";return toast("请先选择已验证成功且包含完整提示词的基础案例");}
+ const mods=db.modules.filter(x=>composeSelectedModuleIds.has(x.id));
  const warnings=$("composeWarnings"),conflicts=findComposeConflicts(b,mods);
  if(conflicts.length){lastCompositionSnapshot=null;$("output").value="";warnings.style.color="#b45309";warnings.textContent="发现组合冲突，已阻止生成：\n"+conflicts.map(x=>"• "+x).join("\n")+"\n请取消冲突模块或修正模块内容后重试。";toast("发现提示词模块冲突，已阻止组合");return}
  warnings.style.color="var(--muted)";warnings.textContent="预检通过：未发现明确的模型或互斥约束冲突。请仍核对组合结果。";
