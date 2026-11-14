@@ -211,6 +211,7 @@ const content={innerHTML:""};
 const previous={disabled:false,addEventListener(type,fn){this.fn=fn;}};
 const next={disabled:false,addEventListener(type,fn){this.fn=fn;}};
 const fields={search:{value:""},content,modulePagination:{style:{}},modulePrev:previous,moduleNext:next,modulePageLabel:{textContent:""}};
+const pager=fields.modulePagination,pageLabel=fields.modulePageLabel;
 function $(id){return fields[id]||null;}
 function setTitle(){}
 const db={modules:items};
@@ -232,14 +233,10 @@ next.fn();
 if(count()!==36||!content.innerHTML.includes('data-open-module="module-36"')||!content.innerHTML.includes('data-open-module="module-71"'))throw new Error("Module page two boundaries are incorrect.");
 if(pageLabel.textContent!=="第 2 / 3 页")throw new Error("Module page label did not update.");
 previous.fn();
-fields.search.value="module 9";
+fields.search.value="module 7";
 modules();
 if(count()!==11||bulkCount!==11||pageLabel.textContent!=="第 1 / 1 页"||pager.style.display!=="none")throw new Error("Module search must reset page and bulk scope to filtered results.");
 """
-        script = script.replace("const fields=", "const fields=")
-        script = script.replace("modulePageLabel:{textContent:""}", "modulePageLabel:{textContent:""}")
-        script = script.replace("const document=", "const document=")
-        script = script.replace("let bulkCount=0;", "let bulkCount=0;const pager=fields.modulePagination,pageLabel=fields.modulePageLabel;")
         self.run_node(script)
 
     def test_prompt_vault_paginates_large_full_prompt_cards(self):
