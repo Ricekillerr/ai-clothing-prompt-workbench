@@ -1,162 +1,66 @@
-# Prompt Atelier V0.6.5 双环境验证记录
-
-验证日期：2026-11-14
+# Prompt Atelier V0.6.5 — 2026-11-14 验证报告
 
 ## 结论
 
-本轮在既有项目实际源码上完成稳定化修复，并在云主机 Linux 与 Windows 本机分别运行完整测试。结果均为 **0 失败、0 错误**。
+V0.6.5 候选版稳定化、双环境自动化验证和开发分支 CI 收尾已完成。以下结果均针对统一 `test_*.py` 全量发现口径；跳过项不计为通过。
 
-- 云主机：174 项，173 通过、1 项因 Linux 不执行真实 Windows BAT 测试而跳过，12.573 秒，整体 OK。
-- Windows：174 项，170 通过、4 项因符号链接权限跳过，23.906 秒，整体 OK。
-- Windows 专项：真实 BAT、浏览器默认/无界面行为及 6 个 upgrade bridge 测试，共 8 项通过，6.792 秒。
-- 测试结束后：Prompt Atelier 相关进程数为 0，8765 端口监听数为 0。
+| 环境 | 运行数 | 通过 | 跳过 | 失败 / 错误 | 结果 |
+|---|---:|---:|---:|---:|---|
+| 云主机 Linux | 176 | 174 | 2（真实 Windows BAT、Windows 短路径） | 0 / 0 | OK，12.674 秒 |
+| 用户 Windows / Python 3.13 | 176 | 172 | 4（本机符号链接权限/环境） | 0 / 0 | OK，24.234 秒 |
+| 用户 Windows / 便携 Python 3.12.10 | 176 | 172 | 4（本机符号链接权限/环境） | 0 / 0 | OK，23.820 秒 |
 
-这些结果说明当前候选版代码在双环境自动化回归中稳定，不等同于 V1.0 全部真实用户验收已完成。
+- 新增 Windows 8.3 短路径回归在用户 Windows 两种 Python 运行时中均实际执行并通过，不是跳过。
+- Windows 本机较早一次修复后调用因 `unittest discover -t` 要求起始目录可导入而在测试发现前终止，不计为项目测试失败；改为显式项目导入路径后得到上表结果。
+- 这些结果证明候选源码和隔离测试通过，不等于真实用户资料、真实模型服务或完整人工桌面验收已完成。
 
-## 本轮实际修复
+## GitHub Actions 最终证据
 
-### 1. 组合器分页 Node 测试夹具
+- **#573 / run 43572935991**：提交 `7527bd242f6868eff80d461ba88e7795946031b0`，Success，47 秒。Linux `validate` 21 秒、Windows 全量 job 44 秒、`Release source and channel gate` 6 秒，全部通过。该提交加入独立短路径回归，工作流按 `test_*.py` 发现当前 176 项套件。
+- **#572 / run 43572734163**：提交 `1061f1c7c3cb5364cbe5909c4ffb1efe38fe5d6c`，Success，49 秒。恢复后的统一全量工作流首次全绿，对应加入短路径回归前的 175 项口径。
+- **#571 / run 43572633057**：存储短路径定向用例已通过；清单定向用例仍失败，因为该运行早于 LF checkout 策略提交。
+- **#570 / run 43571636415**：两个定向用例的公开注解首次给出真实 traceback，分别定位短路径别名误判和 checkout 换行导致的清单哈希变化。
+- **#569 / run 43571359456**：8 个精确用例 job 中只剩上述两项失败。
+- **#568 / run 43571120135**：13 个测试文件 job 中只有 `test_storage.py` 和 `test_upgrade_bridge.py` 失败，其余 11 个文件通过。
+- **#567 / run 43570864671**：直接全量 UTF-8 Windows 仍失败，Linux 与 release gate 通过。
+- **#560 / run 43567340207**：曾将 Windows 唯一错误定位为 `test_main_browser_launch_respects_headless_environment`。
+- 中间迭代 #557–#559、#561–#566 属于手工同步和诊断过程，不作为最终通过证据。详细日志仍需登录，本报告只采用实际读取的公开运行摘要、公开注解和本地完整测试日志。
 
-补充 `composeNow`、`copyText`、`saveDraft` 三个模拟函数桩，解决 `composeNow is not defined`。只修测试环境，没有跳过测试或放宽断言。
+## 已验证修复
 
-验证覆盖：
+1. **组合器与 Windows 测试夹具**：Node 模拟环境补齐 `composeNow`、`copyText`、`saveDraft`；长 `node -e` 改临时 `.js`，避免 WinError 206；提示词按原始字节写入；SQLite 测试连接显式关闭。
+2. **BAT 与清单字节策略**：BAT 为 UTF-8 无 BOM、35 个 CRLF、0 个裸 LF；`.gitattributes` 保留 `*.bat -text`。清单生成器对 BAT 按原始字节哈希，非 BAT 文本归一化换行，保留 notes、发布文件及哈希顺序，连续生成字节一致。
+3. **浏览器自动化隔离**：`PROMPT_ATELIER_NO_BROWSER=1` 只抑制测试自动打开页面，正常双击 BAT 默认打开浏览器的行为不变。
+4. **Windows 控制台编码**：真实 ASCII strict 控制台回归复现全角冒号触发 `UnicodeEncodeError` 后，入口对支持 `reconfigure` 的 stdout/stderr 使用 UTF-8、`errors="replace"`；不支持时安全跳过。独立 `tests/test_console_output.py` 使用真实 `main()` 验证旧代码失败、修复后通过。
+5. **Windows 短路径来源等价**：GitHub Runner 的 8.3 临时路径别名曾被误判为“AI 分析来源文件路径已发生变化”。`_verified_ingest_source_path()` 现对已存在文件使用 `os.path.samefile(raw_path, resolved)` 判断同一文件；符号链接/junction 拒绝、来源边界、扫描记录、类型与 SHA-256 校验全部保留。独立 `tests/test_windows_short_path.py` 通过 `GetShortPathNameW` 覆盖真实别名。
+6. **跨平台 checkout 字节一致**：除 BAT 保持 `-text` 外，Python、HTML、JSON、TXT、YML、Markdown 和 PowerShell 文本固定 `text eol=lf`，避免 Windows checkout 的 CRLF 转换改变发布文件 SHA-256。
+7. **统一 CI 门禁**：诊断矩阵已移除；当前工作流运行 Linux 全量、Windows 全量、前端语法、清单哈希、PowerShell 语法和 release source/channel gate。
 
-- 80 个模块按 30/30/20 分页；
-- 第二页边界；
-- 跨页选择保留；
-- 搜索后 11 条及页码重置。
+## 完整性与同步证据
 
-### 2. Windows Node 临时文件
+- 远端开发分支：`release/v0.6.5-stabilization`。
+- 当前代码验证头：`7527bd242f6868eff80d461ba88e7795946031b0`。
+- 统一工作流提交：`1061f1c7c3cb5364cbe5909c4ffb1efe38fe5d6c`。
+- 存储与清单修复提交：`96aa27f3a3f466023bf2adb746da3aeb1bd02acf`。
+- `storage.py` SHA-256：`45c2ec08730be950e079474a9f83a7ccc8bf1d093cae08177875b8a495c243f6`；本地、远端原始字节与清单一致。
+- `update_manifest.json` SHA-256：`c1fe36d2e66156d99c5c88735211e26e0243e6c2f76fd9b21b9abd3f2aa1797e`。
+- `ai_prompt_workbench.py` SHA-256：`8229a079908804e224841b94067dace7ac43e8a4828ec2c6e66508b2742cd97f`。
+- BAT SHA-256：`9391f5e9afa52cc9e7b8e8c32bcea5ffc596a475061521c4ad990f911673e654`。
+- Windows 权威目录：`D:\豆-提示词工作台`，已同步存储、清单、checkout 策略、统一工作流和独立短路径测试；同步前文件备份在会话目录 `ci-fixes-backup`。
+- 两个原始本地提交与连接器产生的远端 SHA 不同；原始提交 bundle 已双环境验证并保留，不能把本地 `ahead 2` 描述为同一提交已同步。
 
-`test_frontend_progress.py` 从超长 `node -e` 命令行改为临时 `.js` 文件，避免 `WinError 206`。
+## 历史档案接续
 
-### 3. AI 提示词字节夹具
+2026-11-14 新增的“接近完全版”历史档案已完整读取，作为项目目标、早期版本、故障史、原始代码证据和 GitHub 固定提交索引的补充来源。档案中的旧组合器失败、168 项 CI 和旧 manifest 状态属于历史基线，不能覆盖当前源码与本报告的实际验证结果。
 
-AI/存储测试使用 `write_bytes()` 写入提示词，避免 Windows 将 LF 转为 CRLF 后改变原文和哈希。
+## 尚未完成
 
-### 4. SQLite 显式关闭
+- 未创建 PR、Release 或正式版本，生产 `main` 未修改；V1.0 门禁完成前不得合并或发布。
+- 用户真实 Windows 正常浏览器完整交互、重启、长时间运行、杀毒软件和网络权限验收未完成。
+- 用户真实 SQLite、参考图片、配置的备份/原位更新/恢复和真实大库性能测量未完成。
+- 全应用键盘/读屏审查、真实案例检索指标、真实视觉检索边界和真实模型/图片生成评估未完成。
+- 截图中的多模型/Agent 组合尚未接入；当前仍是单个 OpenAI 兼容分析入口，不是多模型路由器，也没有 Seedream 图片生成/编辑适配器。
 
-相关测试使用 `try/finally` 关闭连接，避免 WAL/数据库句柄占用导致 Windows 临时目录清理失败。
+## 下一步
 
-### 5. 中文 BAT 真实启动修复
-
-原始 BAT 为 UTF-8 无 BOM、35 个 LF、0 个 CRLF，CMD 对 LF-only 中文 BAT 解析异常。转换为 CRLF 后，服务启动、版本、心跳和关闭正常。
-
-新增 `.gitattributes`：
-
-```gitattributes
-*.bat -text
-```
-
-最终 BAT 为 UTF-8 无 BOM、35 个 CRLF、0 个裸 LF。
-
-BAT 原始 SHA-256：
-
-`9391f5e9afa52cc9e7b8e8c32bcea5ffc596a475061521c4ad990f911673e654`
-
-### 6. 更新清单生成器
-
-修复后：
-
-- 非 BAT 文本仍归一化换行；
-- BAT 按原始字节计算 SHA-256；
-- 保留既有 notes、9 个发布文件和哈希排列；
-- 新文件才按当前发布列表补入；
-- 连续两次生成字节一致。
-
-最终 `update_manifest.json` SHA-256：
-
-`b0564732c9cad23f09f1ca1456c3d03190624974091ec696e99937e45b97361e`
-
-### 7. 自动化无界面开关
-
-新增 `PROMPT_ATELIER_NO_BROWSER=1`，仅用于需要无界面的自动化测试。正常用户双击 BAT 时仍默认打开浏览器。
-
-单元测试分别验证：
-
-- 无界面模式不创建浏览器 Timer；
-- 默认模式仍创建并启动 Timer。
-
-## 双环境结果详情
-
-### 云主机
-
-```text
-Ran 174 tests in 12.573s
-OK (skipped=1)
-```
-
-跳过原因：真实 Windows BAT 测试要求 Windows `cmd.exe`。
-
-### Windows
-
-```text
-Ran 174 tests in 23.906s
-OK (skipped=4)
-```
-
-4 个跳过项均为符号链接权限测试：
-
-- collector 符号链接；
-- AI reference 重定向；
-- 完整备份符号链接；
-- media 符号链接防护。
-
-权限跳过没有计为通过。
-
-### Windows 专项
-
-```text
-Ran 8 tests in 6.792s
-OK
-```
-
-覆盖真实 BAT、默认/无界面浏览器行为和 6 个 upgrade bridge 测试。
-
-## 双环境同步核验
-
-- Windows 与云主机 tracked diff SHA-256 一致：`d8e045c114678d74187bf983ae78fba4b92e7917ffe692d63eb39da4a55f701a`。
-- 三个新增文件的 SHA-256 逐项一致。
-- 最终 BAT、manifest 和同步文件重新核验。
-- 未提交用户数据库、参考图片、API Key、密码或个人配置。
-
-## 本地 Git 提交与远端等价推送
-
-用户已明确确认提交并推送开发分支。
-
-- 本地修复提交：`aabb5d7018f40d13e923152e8ec77d4b8abba85d`，17 个文件，364 行新增、82 行删除。
-- 本地状态记录提交：`f38c98cf7c1f7f89b2ab0e6dc703a0af1467c0f8`，包含本报告、验收矩阵和三个项目记忆状态文件。
-- 两个本地提交已制成 bundle，SHA-256 为 `b3e470580e8387eb1a3bcefbdf360fcf6d53399ec1f54273c839020e78239191`；Windows 与云主机均通过 `git bundle verify`。
-- Windows 原生 Git 的只读查询和普通 push 多次被网络阻断；禁用凭据交互后，最后一次普通 push 明确返回 `Failed to connect to github.com:443`，退出码 128。
-- GitHub OAuth 随后已实际验证成功，账号为 `Ricekillerr`。
-- 为完成已授权的开发分支推送，改用 GitHub 连接器按文件创建等价远端提交；远端提交 SHA 与本地两个提交不同，不声称保留原哈希。
-- 代码/测试三组已推送：`d5a3858963bc62570610815af2f8d2f75c45f3a4`、`662c54841272b25998e6dccda8c7f2848007513c`、`cea9ef245a5816f6edbc88b489a0cdd04d5a61d0`。
-- 本报告随第四组文档提交；最终文档提交 SHA、逐文件一致性和修复后的完整 Actions 仍需推送后回读。
-- 本地原始两个提交、工作树和 bundle 仍是原哈希的权威备份。
-
-## GitHub 状态
-
-- 远端最初已确认基线为 `5bc19db3edb32f30cc9c834862d01da306a59fb6`。
-- 开发分支代码/测试三组已推送，第四组文档提交待最终回读；`main` 未修改。
-- 修复后的完整 GitHub Actions 尚未读取最终结果，不能称“完整 CI 通过”。
-- 历史最近完整成功 CI：`https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43546001379`，只代表旧的 168 项基线。
-- 未创建 PR、Release 或正式版本，也未合并 `main`。
-
-## 仍需完成的真实门禁
-
-- 回读第四组最终提交，核对关键文件与 BAT 字节，并运行/读取修复后的完整 GitHub Actions。
-- 记录本地原始两个提交与远端连接器提交的 SHA 差异；不得把本地 `ahead 2` 误写成“同一提交已同步”。
-- 用户真实 Windows 正常浏览器完整交互。
-- 用户真实 SQLite、参考图片和个人配置的原位更新与恢复。
-- 杀毒软件、网络权限、重启和长时间运行。
-- 真实案例检索指标与完整键盘/读屏审查。
-- 真实大库性能测量。
-- 模型 API、真实生成效果与人工评估。
-
-## 模型配置路线
-
-截图中的 Kimi Code、Kimi K3.1 Pro、DeepSeek V4.1 Flash、GPT-6、DeepSeek/GLM、Seedream 5.5 等属于后续规划，不是已接入能力。
-
-当前实际仍为单个 OpenAI 兼容 `/chat/completions` 分析入口，默认模型字段 `gpt-4o-mini`。多 Agent 路由和独立图片生成/编辑接口需要后续实现与真实验证。
-
-本轮未要求模型 API Key。
+先完成用户实机与真实资料门禁，再考虑 V1.0 发布。模型接入按 `docs/MODEL_CONFIGURATION_AND_AGENT_ROADMAP.md` 的阶段 A 开始：届时只集中引导用户配置一个视觉分析提供商的真实模型 ID、HTTPS API 地址、本人 API Key 和少量测试素材，不要求同时配置全部截图模型。
