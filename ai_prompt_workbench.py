@@ -131,7 +131,7 @@ def auto_scan_loop():
         if not auto_scan_is_enabled():
             continue
         for source in STORAGE.list_scan_sources():
-            if AUTO_SCAN_STOP.is_set() or not auto_scan_is_enabled():
+            if AUTO_SCAN_STOP.is_set() or AUTO_SCAN_WAKE.is_set():
                 break
             try:
                 scan_registered_source(source["id"])
@@ -644,7 +644,19 @@ class Handler(BaseHTTPRequestHandler):
             log_api_error(self.path, e)
             self.send_json(400, {"ok": False, "error": str(e)})
 
+def _configure_console_output():
+    """Keep Chinese startup messages from failing under non-UTF-8 Windows locales."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except (OSError, ValueError):
+                pass
+
+
 def main():
+    _configure_console_output()
     server = ThreadingHTTPServer(("127.0.0.1", 8765), Handler)
     url = "http://127.0.0.1:8765"
     AUTO_SCAN_STOP.clear()
