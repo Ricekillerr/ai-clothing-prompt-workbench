@@ -157,7 +157,8 @@ function recordCaseFeedback(){}
 const items=Array.from({length:100},(_,i)=>({id:"case-"+i,name:"Case "+i,status:"已验证成功",category:"上装",model:"通用",tags:[]}));
 const sectionText={textContent:""};
 const content={innerHTML:"",querySelector(){return sectionText;}};
-const grid={innerHTML:"",querySelectorAll(){return [];}};
+const openButton={dataset:{openCaseButton:"case-0"},addEventListener(type,fn){this.fn=fn;}};
+const grid={innerHTML:"",querySelectorAll(selector){return selector==="[data-open-case-button]"?[openButton]:[];}};
 const previous={disabled:false,addEventListener(type,fn){this.fn=fn;}};
 const next={disabled:false,addEventListener(type,fn){this.fn=fn;}};
 const pager={style:{}};
@@ -173,13 +174,16 @@ const window={sf:"",mf:""};
 function pruneSelectionToVisible(){}
 function esc(value){return String(value??"");}
 function image(){return "<img>";}
-let bulkCount=0;
+let bulkCount=0,openedCase=null;
+function openDetail(id){openedCase=id;}
 function bindBulkAssetControls(arr){bulkCount=arr.length;}
 function render(){gallery();}
 """
         script += source
         script += r"""
 gallery();
+let stopped=false;openButton.fn({stopPropagation(){stopped=true;}});
+if(openedCase!=="case-0"||!stopped)throw new Error("Keyboard-accessible open button must open the matching case without bubbling.");
 const count=()=> (grid.innerHTML.match(/data-open-case=/g)||[]).length;
 if(count()!==48)throw new Error("First page must render 48 cards; got "+count());
 if(bulkCount!==100)throw new Error("Bulk management must retain the full filtered result set.");
