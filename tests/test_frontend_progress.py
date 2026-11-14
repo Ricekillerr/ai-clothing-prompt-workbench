@@ -148,5 +148,54 @@ function recordCaseFeedback(){}
         self.run_node(script)
 
 
+    def test_gallery_paginates_large_results_and_keeps_bulk_scope_filtered(self):
+        self.assertIn('loading="lazy" decoding="async"', self.html)
+        start = self.html.index("let galleryPage=1;")
+        end = self.html.index("\\nfunction modules(", start)
+        source = self.html[start:end]
+        script = r"""
+const items=Array.from({length:100},(_,i)=>({id:"case-"+i,name:"Case "+i,status:"已验证成功",category:"上装",model:"通用",tags:[]}));
+const sectionText={textContent:""};
+const content={innerHTML:"",querySelector(){return sectionText;}};
+const grid={innerHTML:"",querySelectorAll(){return [];}};
+const previous={disabled:false,addEventListener(type,fn){this.fn=fn;}};
+const next={disabled:false,addEventListener(type,fn){this.fn=fn;}};
+const pager={style:{}};
+const pageLabel={textContent:""};
+const fields={search:{value:""},content,grid,statusF:{value:"",onchange:null},modelF:{value:"",onchange:null},galleryPrev:previous,galleryNext:next,galleryPagination:pager,galleryPageLabel:pageLabel};
+function $(id){return fields[id]||null;}
+function setTitle(){}
+const db={cases:items};
+let filter="全部";
+const selectedCaseIds=new Set();
+const CATS=["上装"],ST=["已验证成功","待验证","失败案例"],MODELS=["通用"];
+const window={sf:"",mf:""};
+function pruneSelectionToVisible(){}
+function esc(value){return String(value??"");}
+function image(){return "<img>";}
+let bulkCount=0;
+function bindBulkAssetControls(arr){bulkCount=arr.length;}
+function render(){gallery();}
+"""
+        script += source
+        script += r"""
+gallery();
+const count=()=> (grid.innerHTML.match(/data-open-case=/g)||[]).length;
+if(count()!==48)throw new Error("First page must render 48 cards; got "+count());
+if(bulkCount!==100)throw new Error("Bulk management must retain the full filtered result set.");
+if(!grid.innerHTML.includes('data-open-case="case-0"')||grid.innerHTML.includes('data-open-case="case-48"'))throw new Error("First page boundaries are incorrect.");
+if(!next.fn||!previous.disabled||next.disabled)throw new Error("Pagination controls must reflect the first page.");
+next.fn();
+if(count()!==48||!grid.innerHTML.includes('data-open-case="case-48"')||!grid.innerHTML.includes('data-open-case="case-95"'))throw new Error("Next page must render cases 48 through 95.");
+if(pageLabel.textContent!=="第 2 / 3 页")throw new Error("Page label did not update.");
+previous.fn();
+if(!grid.innerHTML.includes('data-open-case="case-0"'))throw new Error("Previous page did not return to page one.");
+fields.search.value="case 9";
+gallery();
+if(count()!==11||bulkCount!==11||pageLabel.textContent!=="第 1 / 1 页"||pager.style.display!=="none")throw new Error("Search must reset pagination and bulk scope to the filtered results.");
+"""
+        self.run_node(script)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
