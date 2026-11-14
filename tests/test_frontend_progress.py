@@ -31,7 +31,7 @@ const button = { disabled:false, textContent:"立即扫描", attrs:{},
   setAttribute(key,value){this.attrs[key]=value;},
   removeAttribute(key){delete this.attrs[key];}
 };
-function $(id){return id==="scanStatus"?status:null;}
+function $(id){return id==="scanStatus"?status:id==="scanQueue"?{}:null;}
 let calls=0,queueCalls=0,fail=false;
 async function scanApi(path){
   if(path==="/api/scan/sources")return {sources:[{id:"one"},{id:"two"}]};
