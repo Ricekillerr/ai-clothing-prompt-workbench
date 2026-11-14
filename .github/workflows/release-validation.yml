@@ -168,12 +168,14 @@ jobs:
           )
           print(completed.stdout)
           if completed.returncode:
-              markers = ["\nERROR: ", "\nFAIL: "]
-              positions = [completed.stdout.find(marker) for marker in markers]
-              positions = [position for position in positions if position >= 0]
-              details = completed.stdout[min(positions):] if positions else completed.stdout[-5000:]
-              escaped = details[-5000:].replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-              print(f"::error title=Windows regression failure::{escaped}")
+              lines = completed.stdout.splitlines()
+              starts = [index for index, line in enumerate(lines) if line.startswith(("ERROR: ", "FAIL: "))]
+              blocks = ["\n".join(lines[index:index + 28]) for index in starts]
+              if not blocks:
+                  blocks = [completed.stdout[-2200:]]
+              for index, block in enumerate(blocks[:8], 1):
+                  escaped = block[:1800].replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+                  print(f"::error title=Windows failure {index}::{escaped}")
           raise SystemExit(completed.returncode)
       - name: Parse PowerShell script without executing it
         shell: pwsh
