@@ -150,8 +150,8 @@ function recordCaseFeedback(){}
 
     def test_gallery_paginates_large_results_and_keeps_bulk_scope_filtered(self):
         self.assertIn('loading="lazy" decoding="async"', self.html)
-        start = self.html.index("let galleryPage=1;")
-        end = self.html.index("\\nfunction modules(", start)
+        start = self.html.index("let galleryPage=1,")
+        end = self.html.index("\nfunction updateBulkCount(", start)
         source = self.html[start:end]
         script = r"""
 const items=Array.from({length:100},(_,i)=>({id:"case-"+i,name:"Case "+i,status:"已验证成功",category:"上装",model:"通用",tags:[]}));
