@@ -201,5 +201,81 @@ if(count()!==11||bulkCount!==11||pageLabel.textContent!=="第 1 / 1 页"||pager.
         self.run_node(script)
 
 
+    def test_module_library_paginates_and_keeps_bulk_scope_filtered(self):
+        start = self.html.index("let modulePage=1,")
+        end = self.html.index("\\nlet vaultPage=1,", start)
+        source = self.html[start:end]
+        script = r"""
+const items=Array.from({length:80},(_,i)=>({id:"module-"+i,name:"Module "+i,module_type:"Fabric",category_scope:"上装",material:"nylon",body:"prompt "+i,body_en:"",tags:[],model:"WAN3.0"}));
+const content={innerHTML:""};
+const previous={disabled:false,addEventListener(type,fn){this.fn=fn;}};
+const next={disabled:false,addEventListener(type,fn){this.fn=fn;}};
+const fields={search:{value:""},content,modulePagination:{style:{}},modulePrev:previous,moduleNext:next,modulePageLabel:{textContent:""}};
+function $(id){return fields[id]||null;}
+function setTitle(){}
+const db={modules:items};
+const selectedModuleIds=new Set();
+function pruneSelectionToVisible(){}
+function esc(value){return String(value??"");}
+const document={querySelectorAll(){return [];}};
+let bulkCount=0;
+function bindBulkModuleControls(arr){bulkCount=arr.length;}
+function render(){modules();}
+"""
+        script += source
+        script += r"""
+modules();
+const count=()=> (content.innerHTML.match(/data-open-module="module-/g)||[]).length;
+if(count()!==36||bulkCount!==80)throw new Error("Module page one must render 36 cards while bulk scope keeps all 80.");
+if(!next.fn||!previous.disabled)throw new Error("Module pagination controls are not initialized.");
+next.fn();
+if(count()!==36||!content.innerHTML.includes('data-open-module="module-36"')||!content.innerHTML.includes('data-open-module="module-71"'))throw new Error("Module page two boundaries are incorrect.");
+if(pageLabel.textContent!=="第 2 / 3 页")throw new Error("Module page label did not update.");
+previous.fn();
+fields.search.value="module 9";
+modules();
+if(count()!==11||bulkCount!==11||pageLabel.textContent!=="第 1 / 1 页"||pager.style.display!=="none")throw new Error("Module search must reset page and bulk scope to filtered results.");
+"""
+        script = script.replace("const fields=", "const fields=")
+        script = script.replace("modulePageLabel:{textContent:""}", "modulePageLabel:{textContent:""}")
+        script = script.replace("const document=", "const document=")
+        script = script.replace("let bulkCount=0;", "let bulkCount=0;const pager=fields.modulePagination,pageLabel=fields.modulePageLabel;")
+        self.run_node(script)
+
+    def test_prompt_vault_paginates_large_full_prompt_cards(self):
+        start = self.html.index("let vaultPage=1,")
+        end = self.html.index("\\nlet lastCompositionSnapshot", start)
+        source = self.html[start:end]
+        script = r"""
+const items=Array.from({length:100},(_,i)=>({id:"case-"+i,name:"Case "+i,body:"Prompt body "+i,body_en:"",material:"nylon",tags:[],category:"上装",model:"WAN3.0"}));
+const content={innerHTML:"",querySelectorAll(){return [];}};
+const previous={disabled:false,addEventListener(type,fn){this.fn=fn;}};
+const next={disabled:false,addEventListener(type,fn){this.fn=fn;}};
+const pager={style:{}},pageLabel={textContent:""};
+const fields={search:{value:""},content,vaultPagination:pager,vaultPrev:previous,vaultNext:next,vaultPageLabel:pageLabel};
+function $(id){return fields[id]||null;}
+function setTitle(){}
+const db={cases:items};
+function esc(value){return String(value??"");}
+function copyText(){}
+function openDetail(){}
+function render(){vault();}
+"""
+        script += source
+        script += r"""
+vault();
+const count=()=> (content.innerHTML.match(/data-copy-body=/g)||[]).length;
+if(count()!==20)throw new Error("Prompt Vault must render 20 full-prompt cards per page.");
+if(!next.fn||!previous.disabled||pager.style.display!=="flex")throw new Error("Vault pagination controls are not initialized.");
+next.fn();
+if(count()!==20||!content.innerHTML.includes('data-copy-body="Prompt body 20"')||!content.innerHTML.includes('data-copy-body="Prompt body 39"'))throw new Error("Vault page two boundaries are incorrect.");
+if(pageLabel.textContent!=="第 2 / 5 页")throw new Error("Vault page label did not update.");
+fields.search.value="case 9";
+vault();
+if(count()!==11||pageLabel.textContent!=="第 1 / 1 页"||pager.style.display!=="none")throw new Error("Vault search must reset page and hide the one-page pager.");
+"""
+        self.run_node(script)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
