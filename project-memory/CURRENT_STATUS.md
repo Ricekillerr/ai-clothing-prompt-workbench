@@ -1,106 +1,117 @@
-# 项目记忆：当前状态
+# Prompt Atelier — 当前状态
 
-最后更新：2026-11-14
+**核对日期：** 2026-11-14（V0.6.5 双环境与远端 CI 全绿后）
+**仓库：** https://github.com/Ricekillerr/ai-clothing-prompt-workbench
+**生产分支：** main（保持不动）
+**开发分支：** release/v0.6.5-stabilization
+**候选版本：** 0.6.5
+**代码验证头：** `7527bd242f6868eff80d461ba88e7795946031b0`
+**状态：** V0.6.5 候选稳定化和统一 CI 已完成；V1.0 真实用户/资料/模型门禁仍未完成，不是正式发布。
 
-## 项目定位
+## 2026-11-14 最终验证与稳定化修复
+- 云主机 Linux：176 项，174 通过、2 项 Windows 环境跳过，0 失败、0 错误，12.674 秒。
+- 用户 Windows Python 3.13：176 项，172 通过、4 项权限/环境跳过，0 失败、0 错误，24.234 秒。
+- 用户 Windows 便携 Python 3.12.10：176 项，172 通过、4 项权限/环境跳过，0 失败、0 错误，23.820 秒。新增短路径回归在两种 Windows 运行时均实际执行通过。
+- GitHub Actions #573（run 43572935991）Success，47 秒；Linux 全量、Windows 全量和 release source/channel gate 全部通过。#572 已先证明恢复后的统一 175 项工作流全绿。
+- Windows 短路径根因是 GitHub Runner 临时目录的 8.3 别名与长路径被误判为不同来源；存储层使用 `os.path.samefile()` 接受同一已存在文件，同时保留链接拒绝、来源边界和 SHA-256 校验。
+- `.gitattributes` 保留 `*.bat -text`，其余发布相关文本固定 LF，解决 Windows checkout 换行转换造成的 manifest 哈希不一致。
+- Windows 控制台入口对支持 `reconfigure` 的 stdout/stderr 使用 UTF-8 与 `errors="replace"`；独立 ASCII strict 回归覆盖真实 `main()`。
+- 统一工作流已恢复，不再使用 13 文件或 8 用例诊断矩阵。BAT、浏览器隔离、组合器夹具、SQLite 关闭和清单生成策略均保留。
+- 当前 `storage.py` SHA-256 为 `45c2ec08730be950e079474a9f83a7ccc8bf1d093cae08177875b8a495c243f6`；manifest SHA-256 为 `c1fe36d2e66156d99c5c88735211e26e0243e6c2f76fd9b21b9abd3f2aa1797e`。
+- 新增 `docs/MODEL_CONFIGURATION_AND_AGENT_ROADMAP.md`，截图组合仍是后续规划；当前没有多模型/Agent 或 Seedream 生成链接入。
+- 未创建 PR/Release，未修改 main。原始两个本地提交与连接器远端 SHA 不同，bundle 备份仍可恢复。
 
-Prompt Atelier（AI 服装视觉资产与提示词智能生产工作台）。本地优先，HTML/CSS/JavaScript + Python + SQLite + GitHub。
+## 历史 CI 基线
+[GitHub Actions run 43546001379](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43546001379)：三个 job 全部成功。主回归 168 项（167 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
+[GitHub Actions run 43545588251](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43545588251)：三个 job 全部成功。主回归 167 项（166 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
+[GitHub Actions run 43544962496](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43544962496)：三个 job 全部成功。主回归 165 项（164 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
+[GitHub Actions run 43544594509](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43544594509)：三个 job 全部成功。主回归 164 项（163 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
+[GitHub Actions run 43544121145](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43544121145)：三个 job 全部成功。主回归 163 项（162 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
+[GitHub Actions run 43543289699](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43543289699)：三个 job 全部成功。主回归 162 项（161 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
+[GitHub Actions run 43540111339](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43540111339)：三个 job 全部成功。主回归 158 项（157 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
+[GitHub Actions run 43539256117](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43539256117)：三个 job 全部成功。主回归 153 项（152 通过、1 项环境跳过），Windows 专项 22 项通过。
+[GitHub Actions run 43408829441](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43408829441)：三个 job 全部成功。主回归 150 项（149 通过、1 项环境跳过），Windows 专项 22 项通过。
+CI 证明隔离环境中的代码和测试通过，不等于用户本人 Windows 桌面、现有真实资料、杀毒软件和网络环境已验收。
 
-当前候选版本：**0.6.5**。
+## 2026-11-14 检索一致性与单品级防误报修复
+- **异步检索一致性：** 智能检索增加请求序号、DOM 节点身份和查询文本快照检查；较早返回的请求、页面已切换的请求或输入已变化的请求不会覆盖当前结果。Node 回归按“旧请求先发、新请求先返回”顺序验证。
+- **单品属性隔离：** 多单品完整穿搭在非整套查询且非精确款号查询时，逐件计算品类、颜色、材质和细节；不再把不同单品或父案例摘要的属性拼成一个虚假匹配。缺少专用字段时，仅用当前单品名称/子类别作为证据；结果返回并展示 matched_item。回归覆盖“黑色尼龙马甲 + 红色皮革裤”不得误命中“黑色皮革马甲”。
+- **验证：** CI run 43543289699，162 项主回归（161 通过、1 项环境跳过），Windows 专项 22 项，manifest 哈希和 release gate 均通过。
 
-## 本轮代码稳定化已完成
+## 2026-11-14 次级工作流与编辑器可访问性
+- 智能检索输入、模块批量标签、基础案例选择、组合结果、扫描文件夹路径、AI 接口/模型/API Key、本次生成备注均补充 aria-label。
+- 模块批量计数、智能检索状态、视觉检索状态和扫描状态加入 aria-live 播报。
+- 模块卡片增加原生键盘可激活“查看”按钮；动态编辑器字段 label 通过 for 与输入控件关联，穿搭拆解/关系/参考图优先级/正文/英文/备注字段均关联。
+- CI run 43544962496：165 项主回归（164 通过、1 项环境跳过），Windows 专项 22 项，三个 jobs 全部通过。全应用人工审查仍待完成。
 
-- 修复组合器分页 Node 测试夹具缺少 `composeNow`、`copyText`、`saveDraft` 函数桩；业务组合器未改。
-- Windows Node 测试从超长 `node -e` 改为临时 `.js`，避免 `WinError 206`。
-- AI/存储提示词夹具改用 `write_bytes()`，保护原文和 SHA-256。
-- SQLite 测试显式关闭连接，避免 WAL/数据库文件占用。
-- 中文 BAT 固定 UTF-8 无 BOM + CRLF；新增 `.gitattributes` 的 `*.bat -text`。
-- 清单生成器保留 BAT 原始字节哈希、既有 notes、发布文件集合和哈希顺序。
-- 新增 `PROMPT_ATELIER_NO_BROWSER=1` 无界面开关；正常用户默认浏览器行为不变。
+## 2026-11-14 主资产库键盘与辅助技术可达性
+- 统一补充 button/input/select/textarea/link/chip/filter/close 的 `:focus-visible` 焦点样式，修复搜索框原先 outline:0 导致的键盘焦点不可见。
+- 搜索框、状态筛选、模型筛选、批量标签输入、批量状态选择和关闭编辑窗口按钮补充可访问名称；案例卡片增加原生 button“查看”，可通过 Enter/Space 打开，避免仅依赖鼠标点击 article。
+- toast 与批量选择计数使用 aria-live 状态播报；分页页码也使用 aria-live。
+- 主资产库的静态与行为回归通过。CI run 43544594509：164 项主回归（163 通过、1 项环境跳过），Windows 专项 22 项，三个 jobs 全部通过。全应用键盘/读屏审查仍未完成。
 
-## 最终自动化结果
+## 2026-11-14 回收站分页与恢复入口
+- 回收站最近删除列表改为每页 50 条；搜索变化回到第一页，结果减少时页码自动限制在有效范围。
+- 只为当前页恢复按钮绑定事件，恢复成功后重新读取缓存并保留当前查询，避免一次性创建最多 500 张删除资产卡片。
+- 105 条模拟删除资产验证 50/50/5 分页、上一页/下一页和搜索后 11 条过滤结果。CI run 43546001379：168 项主回归（167 通过、1 项环境跳过），Windows 专项 22 项，三个 jobs 全部通过。
 
-### 云主机 Linux
+## 2026-11-14 模块库与 Prompt Vault 分页
+- 提示词模块库每页 36 条；Prompt Vault 每页 20 条，避免大量模块/长提示词一次性进入 DOM。
+- 搜索变化时重置页码；模块批量管理仍接收全部筛选模块，不受当前页限制。
+- 用 80 条模块、100 条完整提示词验证分页边界、上一页/下一页、搜索后重置及全筛选数据范围。CI run 43545588251：167 项主回归（166 通过、1 项环境跳过），Windows 专项 22 项，三个 jobs 全部通过。
 
-- 174 项；173 通过、1 项 Windows BAT 环境跳过；0 失败、0 错误。
-- 12.573 秒，整体 OK。
+## 2026-11-14 视觉资产库分页与延迟加载
+- 资产库改为每页 48 条，只渲染当前页；图片增加 loading=lazy 和 decoding=async。
+- 搜索词、分类、状态或模型筛选变化时回到第一页；页码变化不会丢失跨页选择。
+- 批量选择、批量状态/标签、批量删除仍使用完整筛选结果集，不受当前页限制。
+- 用 100 条模拟案例验证 48/48/4 分页、上一页/下一页、筛选后页码重置和全筛选结果批量范围。CI run 43544121145：163 项主回归（162 通过、1 项环境跳过），Windows 专项 22 项，三个 jobs 全部通过。
 
-### Windows 本机
+## 2026-11-14 视觉检索与可解释检索改进
+- **视觉检索：** 本地 63 位 DCT 感知哈希排除 DC 系数；对系数做标准归一化；校验哈希格式与图片尺寸（上限 4000 万像素）；只检索已验证成功案例；每个案例只保留最佳图片；汉明差异≤12/63才显示；最多扫描 500 张并明确提示截断；旧请求不能覆盖新请求；每 5 张让出事件循环。明确哈希差异不是同款语义置信度。
+- **属性检索：** 英文服装术语采用整词匹配，防止“vest”误命中“investment”；扩展鞋靴、包袋、配饰、裙装等品类；移除已识别属性短语后再提取自由描述，避免中文跨属性 n-gram 人为拉低得分。
+- **计分规则：** 品类 25%、面料 20%、颜色 15%、细节 20%、场景/约束 20%；只对查询中实际出现的维度重新归一化；查询要求但案例缺失的属性按 0 覆盖计分；查询未提及的属性不扣分；残余自由描述额外按 0.10 权重参与归一化；款号精确匹配直接 100 分；明确品类/颜色/面料冲突默认排除。
+- **标注基准：** 14 个服装/鞋履/配饰案例、14 条查询，回归断言 P@1≥90%、Recall@5≥90%、P@5≥50%，并验证失败/待验证案例默认排除。该基准是代码侧小样本，不替代用户真实素材库评估。
+- **最新代码证据：** CI run 43540111339，158 项主回归（157 通过、1 项环境跳过），Windows 专项 22 项，三个 jobs 全部通过。
 
-- 174 项；170 通过、4 项符号链接权限跳过；0 失败、0 错误。
-- 23.906 秒，整体 OK。
-- 专项 8 项全部通过，6.792 秒。
-- 4 个权限跳过不算通过。
+## 已实现/已集成的候选能力
+- 本地案例库、提示词模块库、编辑/删除失败回滚。
+- SKU/款号字段及精确检索，兼容旧字段。
+- 结构化服装属性、材质/颜色别名、单品拆解和单品级检索。
+- 指定文件夹采集、自动扫描、手动强制重算 SHA-256、人工审核。
+- AI 多图分析、来源路径与 SHA-256 溯源、AI 结果人工确认。
+- 参考图用途角色、主次优先级、控制属性及人工修正。
+- 批量管理、版本历史、提示词修订比较与恢复；批量筛选后自动清理隐藏选择；恢复历史版本后刷新列表/统计并维持每资产 50 条历史上限；回收站恢复校验最新删除快照并拒绝覆盖重新创建的资产。
+- JSON 导入采用跨类别/批次 ID 去重、无效行跳过、读取失败提示与同文件重选。
+- 检索反馈和真实生成成功/失败结果记录。
+- 中英文提示词存储/输出（英文需已有内容，不自动翻译）。
+- WAN 3.0、MiniMax H3、Seedance 2.5 通用模型指导。
+- 完整 ZIP 备份、更新前快照、恢复校验。
+- 更新清单完整性、事务式更新、失败回滚、授权式空闲自动更新。
 
-### 清理状态
+## 2026-11-13 多轮代码侧安全审计与修复
+- **路径与采集安全：** 扫描拒绝符号链接、Windows 目录联接及逃逸源目录的路径；存储层再次验证扫描结果边界；手动扫描可强制重算 SHA-256；同一来源的自动/手动扫描串行化，避免旧快照覆盖新快照。
+- **AI 请求完整性：** AI 请求开始时校验原始提示词和素材的 SHA-256；模型不得改写原始提示词；API 地址拒绝 query/fragment，API Key 与模型名设长度上限。
+- **AI 审核入库：** 审核时重新核验提示词和素材仍属于原扫描目录且指纹未变化；保留提示词首尾空格与换行；图片复制期间再次计算哈希；数据库事务失败会清理本次复制文件；参考图片目录不允许被符号链接重定向。
+- **数据库恢复与生命周期：** 恢复操作使用独占操作门禁，等待在途写入/分析/扫描完成；浏览器心跳和关闭通知不被恢复锁阻塞；恢复期间空闲关闭监控不会提前终止服务。
+- **本地 API 与媒体：** 增加 Fetch Metadata 跨站请求限制；媒体接口仅提供 PNG/JPG/JPEG/WEBP/GIF/BMP 六类图片，拒绝 HTML、符号链接和目录联接，并添加 nosniff。
+- **前端安全与一致性：** 导入案例时间字段插入 HTML 前转义；更新设置文案与每 15 分钟检查及明确授权后安装的真实行为一致；批量筛选变化会清理隐藏选择；组合器保存生成时来源快照并标记手动修改；所有服务端刷新路径统一归一化旧版标签/时间/图片字段。
+- **日志：** 应用和更新器日志按大小轮转、保留 3 份；应用日志不记录异常原文或用户目录，更新器日志脱敏安装目录、用户目录、Bearer/API Key 模式。
+- **回归证据：** 最新 CI run 43407611642 三个 job 全部通过：主回归 146 项（145 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件哈希与 release gate 通过。
 
-- Prompt Atelier 进程数 0。
-- 8765 端口监听数 0。
+## 已知限制
+- 浏览器感知哈希检索只是粗略近重复/视觉结构候选，不是语义服装识别。
+- 英文提示词只保存和复用已有文本，不自动翻译。
+- 原提示词中的 @图片编号需人工映射到资产库图片编号。
+- 当前不承诺视频自动抽帧与语义分析。
+- 需要真实 WAN 3.0、MiniMax H3、Seedance 2.5 生成任务验证模型指导价值。
+- CI 使用 Windows Server 2025；仍需用户自己的 Windows 桌面和现有数据目录验收。
 
-## 关键校验值
+## 未完成的发布条件
+1. 用户本人 Windows 电脑安装/启动/关闭/重启与浏览器界面验收。
+2. 用现有 SQLite、参考图片和配置验证完整备份、原位更新与恢复。
+3. 检查杀毒软件、网络限制、路径权限和长时间运行。
+4. 完成剩余功能审计：代码侧案例编辑/删除、批量操作、导入、检索解释性、提示词组合与版本恢复已有回归覆盖；仍需用户真实素材及 Windows 界面验收。
+5. 真实模型生成评估与视觉检索边界验证。
+6. 发布前重新核对版本、分支、manifest、全部哈希、更新源和完整回归。
 
-- BAT 原始 SHA-256：`9391f5e9afa52cc9e7b8e8c32bcea5ffc596a475061521c4ad990f911673e654`
-- manifest SHA-256：`b0564732c9cad23f09f1ca1456c3d03190624974091ec696e99937e45b97361e`
-- 双环境 tracked diff SHA-256：`d8e045c114678d74187bf983ae78fba4b92e7917ffe692d63eb39da4a55f701a`
-
-## 本地提交与远端分支
-
-仓库：`https://github.com/Ricekillerr/ai-clothing-prompt-workbench`
-
-开发分支：`release/v0.6.5-stabilization`
-
-远端最初基线：`5bc19db3edb32f30cc9c834862d01da306a59fb6`
-
-本地原始提交：
-
-- `aabb5d7018f40d13e923152e8ec77d4b8abba85d`：17 个文件，364 行新增、82 行删除。
-- `f38c98cf7c1f7f89b2ab0e6dc703a0af1467c0f8`：本报告、验收矩阵及三个状态记忆文件。
-
-本地原始提交尚未以原 SHA 出现在远端。两个提交已制成 bundle，双环境 `git bundle verify` 通过：
-
-`b3e470580e8387eb1a3bcefbdf360fcf6d53399ec1f54273c839020e78239191`
-
-GitHub OAuth 已实际验证成功，账号为 `Ricekillerr`。代码/测试三组已经通过连接器推送：
-
-- `d5a3858963bc62570610815af2f8d2f75c45f3a4`
-- `662c54841272b25998e6dccda8c7f2848007513c`
-- `cea9ef245a5816f6edbc88b489a0cdd04d5a61d0`
-
-本文件随第四组文档提交，最终文档提交 SHA 和完整 CI 结果待回读。连接器提交与本地两个提交 SHA 不同，不得混称同一提交。
-
-## GitHub 与发布状态
-
-- `main` 未修改。
-- 代码/测试三组已推送；第四组文档提交和逐文件核验待完成。
-- 修复后的完整 GitHub Actions 最终结果尚未读取。
-- 历史最近完整成功 CI：`https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43546001379`。
-- 组合器改动后的历史失败 CI：`https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43547093573`。
-- 未创建 PR、Release 或正式版本。
-- V1.0 门禁完成前不合并 main、不发布正式版。
-
-## 本地 Git 网络
-
-- Windows 有 Git 作者配置和 Git Credential Manager，但没有 `gh`。
-- Windows 直接 push 多次被网络阻断；禁用凭据交互后的最后一次普通 push 明确为连接失败，退出码 128。
-- 云主机 HTTPS 只读 `ls-remote` 成功；SSH 因主机键验证失败不可用。
-- 云主机有 `gh`，此前未登录；本轮实际可用的是已授权 GitHub OAuth 连接器。
-- 连接器按文件创建远端提交，不能直接传输本地 Git 对象；bundle 保留原始提交。
-
-## 模型配置
-
-截图组合已登记为规划，未实际接入。当前仍是单个 OpenAI 兼容分析器，默认模型字段 `gpt-4o-mini`，不是多 Agent 路由器或 Seedream 图片生成接口。
-
-详见：`docs/MODEL_CONFIGURATION_AND_AGENT_ROADMAP.md`。
-
-本轮不需要用户配置模型 API Key。
-
-## 仍待完成
-
-- 回读第四组最终提交、核对关键文件与 BAT 字节，并运行/读取修复后的完整 GitHub Actions。
-- 记录本地原始提交与远端连接器提交的 SHA 差异，保留 bundle 恢复路径。
-- 用户真实 Windows 正常浏览器完整交互。
-- 用户真实资料库备份、原位更新和恢复。
-- 杀毒软件、网络权限、重启和长时间运行。
-- 真实检索指标、完整键盘/读屏审查和真实大库性能。
-- 真实模型生成与人工评估。
-- 所有 V1.0 门禁完成前，不合并 main、不发布正式版。
+**禁止：** 上述门禁完成前不合并 main、不发布正式版、不要求用户下载候选包。
