@@ -410,5 +410,14 @@ async function fetch(url,options){
             self.assertIn(marker, html)
 
 
+    def test_composer_uses_verified_base_cases_and_persistent_paged_modules(self):
+        html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
+        self.assertIn('x.status==="已验证成功"&&String(x.body||"").trim()', html)
+        self.assertIn('COMPOSE_MODULE_PAGE_SIZE=30', html)
+        self.assertIn('id="composeModuleSearch" aria-label="搜索可追加模块"', html)
+        self.assertIn('id="composeModuleSelectionStatus" role="status" aria-live="polite"', html)
+        self.assertIn('const mods=db.modules.filter(x=>composeSelectedModuleIds.has(x.id))', html)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
