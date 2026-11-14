@@ -153,13 +153,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Run Windows updater rollback and local server smoke tests
+      - name: Run full Windows regression suite
         shell: python
         run: |
           import subprocess
           import sys
           completed = subprocess.run(
-              [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_windows_runtime.py", "-v"],
+              [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py", "-v"],
               stdout=subprocess.PIPE,
               stderr=subprocess.STDOUT,
               text=True,
@@ -168,9 +168,12 @@ jobs:
           )
           print(completed.stdout)
           if completed.returncode:
-              details = completed.stdout[-6000:]
-              escaped = details.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-              print(f"::error title=Windows runtime test failure::{escaped}")
+              markers = ["\nERROR: ", "\nFAIL: "]
+              positions = [completed.stdout.find(marker) for marker in markers]
+              positions = [position for position in positions if position >= 0]
+              details = completed.stdout[min(positions):] if positions else completed.stdout[-5000:]
+              escaped = details[-5000:].replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error title=Windows regression failure::{escaped}")
           raise SystemExit(completed.returncode)
       - name: Parse PowerShell script without executing it
         shell: pwsh
