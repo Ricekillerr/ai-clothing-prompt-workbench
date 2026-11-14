@@ -5,10 +5,11 @@
 **生产分支：** main（保持不动）  
 **开发分支：** release/v0.6.5-stabilization  
 **候选版本：** 0.6.5  
-**最近代码提交：** 44c0d5e82c5efbc25d1622c53ec6adba292e6e6c  
+**最近代码提交：** 56d90569e447955a425a25acc4bfe12239325c3d  
 **状态：** V1.0 候选开发；不是正式发布。
 
 ## 最新 CI
+[GitHub Actions run 43544594509](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43544594509)：三个 job 全部成功。主回归 164 项（163 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
 [GitHub Actions run 43544121145](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43544121145)：三个 job 全部成功。主回归 163 项（162 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
 [GitHub Actions run 43543289699](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43543289699)：三个 job 全部成功。主回归 162 项（161 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
 [GitHub Actions run 43540111339](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43540111339)：三个 job 全部成功。主回归 158 项（157 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
@@ -20,6 +21,12 @@ CI 证明隔离环境中的代码和测试通过，不等于用户本人 Windows
 - **异步检索一致性：** 智能检索增加请求序号、DOM 节点身份和查询文本快照检查；较早返回的请求、页面已切换的请求或输入已变化的请求不会覆盖当前结果。Node 回归按“旧请求先发、新请求先返回”顺序验证。
 - **单品属性隔离：** 多单品完整穿搭在非整套查询且非精确款号查询时，逐件计算品类、颜色、材质和细节；不再把不同单品或父案例摘要的属性拼成一个虚假匹配。缺少专用字段时，仅用当前单品名称/子类别作为证据；结果返回并展示 matched_item。回归覆盖“黑色尼龙马甲 + 红色皮革裤”不得误命中“黑色皮革马甲”。
 - **验证：** CI run 43543289699，162 项主回归（161 通过、1 项环境跳过），Windows 专项 22 项，manifest 哈希和 release gate 均通过。
+
+## 2026-11-14 主资产库键盘与辅助技术可达性
+- 统一补充 button/input/select/textarea/link/chip/filter/close 的 `:focus-visible` 焦点样式，修复搜索框原先 outline:0 导致的键盘焦点不可见。
+- 搜索框、状态筛选、模型筛选、批量标签输入、批量状态选择和关闭编辑窗口按钮补充可访问名称；案例卡片增加原生 button“查看”，可通过 Enter/Space 打开，避免仅依赖鼠标点击 article。
+- toast 与批量选择计数使用 aria-live 状态播报；分页页码也使用 aria-live。
+- 主资产库的静态与行为回归通过。CI run 43544594509：164 项主回归（163 通过、1 项环境跳过），Windows 专项 22 项，三个 jobs 全部通过。全应用键盘/读屏审查仍未完成。
 
 ## 2026-11-14 视觉资产库分页与延迟加载
 - 资产库改为每页 48 条，只渲染当前页；图片增加 loading=lazy 和 decoding=async。
