@@ -12,14 +12,20 @@
 - 云主机 Linux：176 项，174 通过、2 项 Windows 环境跳过，0 失败、0 错误，12.674 秒。
 - 用户 Windows Python 3.13：176 项，172 通过、4 项权限/环境跳过，0 失败、0 错误，24.234 秒。
 - 用户 Windows 便携 Python 3.12.10：176 项，172 通过、4 项权限/环境跳过，0 失败、0 错误，23.820 秒。新增短路径回归在两种 Windows 运行时均实际执行通过。
-- GitHub Actions #573（run 43572935991）Success，47 秒；Linux 全量、Windows 全量和 release source/channel gate 全部通过。#572 已先证明恢复后的统一 175 项工作流全绿。
+- GitHub Actions #573（run 43572935991）Success，47 秒；Linux 全量、Windows 全量和 release source/channel gate 全部通过。最终文档头 #577（run 43574495341，提交 `e93343065226cedc652fcd667c176ab29ff670e4`）也全绿，耗时 1 分 1 秒。#572 已先证明恢复后的统一 175 项工作流全绿。
 - Windows 短路径根因是 GitHub Runner 临时目录的 8.3 别名与长路径被误判为不同来源；存储层使用 `os.path.samefile()` 接受同一已存在文件，同时保留链接拒绝、来源边界和 SHA-256 校验。
 - `.gitattributes` 保留 `*.bat -text`，其余发布相关文本固定 LF，解决 Windows checkout 换行转换造成的 manifest 哈希不一致。
 - Windows 控制台入口对支持 `reconfigure` 的 stdout/stderr 使用 UTF-8 与 `errors="replace"`；独立 ASCII strict 回归覆盖真实 `main()`。
 - 统一工作流已恢复，不再使用 13 文件或 8 用例诊断矩阵。BAT、浏览器隔离、组合器夹具、SQLite 关闭和清单生成策略均保留。
-- 当前 `storage.py` SHA-256 为 `45c2ec08730be950e079474a9f83a7ccc8bf1d093cae08177875b8a495c243f6`；manifest SHA-256 为 `c1fe36d2e66156d99c5c88735211e26e0243e6c2f76fd9b21b9abd3f2aa1797e`。
+- 当前 `storage.py` SHA-256 为 `45c2ec08730be950e079474a9f83a7ccc8bf1d093cae08177875b8a495c243f6`；重复实例修复后的 manifest SHA-256 为 `6a424277292f03a87beee2761ea2a8d0839f820e766becd53ff57eb3e296b18d`，运行文件 SHA-256 为 `bbade7d8d5d08a342e4df588c61c169396dcd81b82d1fc572645043e27b46813`，均已随 `ddf6630` 推送。
 - 新增 `docs/MODEL_CONFIGURATION_AND_AGENT_ROADMAP.md`，截图组合仍是后续规划；当前没有多模型/Agent 或 Seedream 生成链接入。
 - 未创建 PR/Release，未修改 main。原始两个本地提交与连接器远端 SHA 不同，bundle 备份仍可恢复。
+
+## 2026-11-14 隔离实机与 HTTP 验收（本地新增证据）
+- 真实 BAT 在隔离 `USERPROFILE` 下启动；案例/模块写入、原提示词逐字回读、0.8 阈值 SKU 检索、完整 ZIP 备份、修改后恢复和正常关闭均通过，进程退出且 8765 端口释放。未接触真实用户资料或模型 Key。
+- 九个清单运行文件在中文加空格的程序路径中启动通过，数据路径也同时包含中文和空格；BAT 哈希不变，正常关闭后进程与端口均清理。
+- 本地发现并修复 Windows 重复实例地址复用：旧代码允许两个实例都报告成功，首实例关闭后第二实例接管端口；现第二实例明确报错并返回 2，不接管端口、不终止已有实例。新增独立回归后，云主机 Linux 为 178 项、176 通过、2 跳过、0 失败、0 错误；Windows Python 3.13 与便携 3.12.10 均为 178 项、172 通过、4 跳过、0 失败、0 错误。
+- 桌面控制和 Browser Use 绑定均超时，因此正常浏览器 GUI 点击/布局/页面关闭仍未验收；不能把上述 API 结果写成完整桌面通过。重复实例修复代码已推送为 `ddf6630`，新提交的 CI 结果待核对。
 
 ## 历史 CI 基线
 [GitHub Actions run 43546001379](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43546001379)：三个 job 全部成功。主回归 168 项（167 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
