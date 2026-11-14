@@ -131,7 +131,7 @@ def auto_scan_loop():
         if not auto_scan_is_enabled():
             continue
         for source in STORAGE.list_scan_sources():
-            if AUTO_SCAN_STOP.is_set() or AUTO_SCAN_WAKE.is_set():
+            if AUTO_SCAN_STOP.is_set() or not auto_scan_is_enabled():
                 break
             try:
                 scan_registered_source(source["id"])
