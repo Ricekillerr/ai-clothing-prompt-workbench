@@ -733,9 +733,11 @@ class Storage:
             resolved = candidate.resolve(strict=True)
         except (OSError, RuntimeError) as exc:
             raise StorageError("AI 分析来源文件已不存在，请重新扫描并分析") from exc
-        if os.path.normcase(os.path.normpath(str(resolved))) != os.path.normcase(
-            os.path.normpath(raw_path)
-        ):
+        try:
+            same_file = os.path.samefile(raw_path, resolved)
+        except OSError as exc:
+            raise StorageError("AI 分析来源文件已不存在，请重新扫描并分析") from exc
+        if not same_file:
             raise StorageError("AI 分析来源文件路径已发生变化，请重新扫描并分析")
 
         record = con.execute(
