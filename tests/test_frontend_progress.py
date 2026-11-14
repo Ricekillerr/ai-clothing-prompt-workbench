@@ -276,7 +276,7 @@ if(count()!==11||pageLabel.textContent!=="第 1 / 1 页"||pager.style.display!==
 
     def test_trash_page_paginates_deleted_assets_and_resets_search(self):
         start = self.html.index("let trashPageNum=1,")
-        end = self.html.index("\\nasync function restoreDeletedAsset", start)
+        end = self.html.index("\nasync function restoreDeletedAsset", start)
         source = self.html[start:end]
         script = r"""
 const items=Array.from({length:105},(_,i)=>({asset_id:"asset-"+i,revision_id:"rev-"+i,kind:"case",category:"上装",name:"Case "+i,sku:"SKU"+i,deleted_at:"2026-11-14",summary:"summary "+i,image:"thumb.png"}));
