@@ -12,18 +12,19 @@
 - 候选版本：0.6.5
 - 代码验证头：`7527bd242f6868eff80d461ba88e7795946031b0`；统一工作流提交为 `1061f1c7c3cb5364cbe5909c4ffb1efe38fe5d6c`。
 - 最终本地验证：云主机 176 项（174 通过、2 跳过，12.674 秒）；Windows Python 3.13 为 176 项（172 通过、4 跳过，24.234 秒）；便携 Python 3.12.10 为 176 项（172 通过、4 跳过，23.820 秒）。
-- 最终 CI：run 43572935991 / #573 Success，47 秒，Linux 全量、Windows 全量和 release gate 全部通过；#572 是此前统一 175 项全绿记录。
+- 最终 CI：代码验证 run 43572935991 / #573 Success，47 秒；最终文档头 run 43574495341 / #577 Success，1 分 1 秒，提交 `e93343065226cedc652fcd667c176ab29ff670e4`；Linux 全量、Windows 全量和 release gate 全部通过。#572 是此前统一 175 项全绿记录。
 
 ## 2026-11-14 最终稳定化结果（优先于下文历史记录）
 1. 组合器、Windows Node、提示词原始字节和 SQLite 测试夹具已修复；BAT 保持 UTF-8 无 BOM、35 个 CRLF，`*.bat -text` 不变。
 2. `PROMPT_ATELIER_NO_BROWSER=1` 仅抑制自动化测试打开浏览器，正常用户启动行为不变。
 3. 控制台入口对支持 `reconfigure` 的 stdout/stderr 使用 UTF-8 与 `errors="replace"`，独立 ASCII strict 测试调用真实 `main()`。
 4. Windows 8.3 短路径别名曾导致同一来源文件被误判为路径变化；现以 `os.path.samefile()` 判断同一已存在文件，链接拒绝、来源边界和 SHA-256 校验未放宽。独立 `tests/test_windows_short_path.py` 在本机两种 Python 运行时实际执行通过。
-5. `.gitattributes` 为发布相关文本固定 LF，解决 Windows checkout 的 CRLF 转换导致 manifest 哈希变化；当前 manifest SHA-256 为 `c1fe36d2e66156d99c5c88735211e26e0243e6c2f76fd9b21b9abd3f2aa1797e`。
+5. `.gitattributes` 为发布相关文本固定 LF，解决 Windows checkout 的 CRLF 转换导致 manifest 哈希变化；重复实例修复后的 manifest SHA-256 为 `6a424277292f03a87beee2761ea2a8d0839f820e766becd53ff57eb3e296b18d`，代码已随 `ddf6630` 推送。
 6. 远端诊断矩阵已移除，统一工作流运行 Linux 全量、Windows 全量、前端/清单/PowerShell 与发布渠道门禁。
 7. 用户上传的“接近完全版”历史档案已读取；历史片段不能覆盖当前源码和最终测试证据。
 8. 模型组合说明见 `docs/MODEL_CONFIGURATION_AND_AGENT_ROADMAP.md`。当前没有多模型/Agent 或 Seedream 生成链接入，不需要用户现在配置 API Key。
 9. 用户已授权并完成开发分支推送；原始两个本地提交与连接器远端 SHA 不同，bundle 保留。未创建 PR/Release，main 未修改。
+10. 后续本地隔离验收：真实 BAT 下案例/模块写入、原提示词回读、SKU 检索、完整备份/恢复、正常关闭与端口释放通过；中文加空格的程序及数据路径也通过。另复现并修复 Windows 重复实例地址复用：旧代码首实例关闭后第二实例会接管端口；新代码第二实例明确报错返回 2，不接管端口。新增独立测试后云主机 Linux 为 178 项、176 通过、2 跳过、0 失败、0 错误，两种 Windows Python 均为 178 项、172 通过、4 跳过、0 失败、0 错误。桌面控制与 Browser Use 绑定超时，正常浏览器 GUI 仍未验收。修复代码已推送为 `ddf6630`，新提交的 CI 结果待核对。
 
 ## 历史修复记录（2026-11-14）
 - 智能检索并发保护：请求序号 + DOM 节点身份 + 查询文本快照；旧请求不能覆盖新请求，页面切换或输入变化后不渲染过期结果。
