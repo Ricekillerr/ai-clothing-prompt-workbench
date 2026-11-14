@@ -147,16 +147,9 @@ jobs:
     name: Windows ${{ matrix.test_id }}
     strategy:
       fail-fast: false
-      max-parallel: 4
       matrix:
         test_id:
           - tests.test_storage.StorageTests.test_ai_approval_rejects_a_redirected_reference_directory
-          - tests.test_storage.StorageTests.test_full_backup_does_not_follow_reference_symlinks_outside_root
-          - tests.test_upgrade_bridge.V065IntegrationTests.test_backend_connects_storage_and_exposes_ingestion_routes
-          - tests.test_upgrade_bridge.V065IntegrationTests.test_client_and_updater_accept_all_v065_release_files
-          - tests.test_upgrade_bridge.V065IntegrationTests.test_frontend_contains_scanner_review_and_ai_controls
-          - tests.test_upgrade_bridge.V065IntegrationTests.test_legacy_json_is_migrated_without_replacing_source
-          - tests.test_upgrade_bridge.V065IntegrationTests.test_manifest_generator_matches_current_release_policy
           - tests.test_upgrade_bridge.V065IntegrationTests.test_manifest_is_v065_and_all_release_files_are_hash_covered
     runs-on: windows-latest
     steps:
@@ -166,8 +159,26 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Run targeted Windows regression
+      - name: Capture targeted Windows regression
+        shell: python
         env:
+          TEST_ID: ${{ matrix.test_id }}
           PYTHONIOENCODING: "utf-8"
           PYTHONUTF8: "1"
-        run: python -m unittest "${{ matrix.test_id }}" -v
+        run: |
+          import os
+          import subprocess
+          import sys
+          completed = subprocess.run(
+              [sys.executable, "-m", "unittest", os.environ["TEST_ID"], "-v"],
+              stdout=subprocess.PIPE,
+              stderr=subprocess.STDOUT,
+              text=True,
+              encoding="utf-8",
+              errors="replace",
+          )
+          print(completed.stdout)
+          if completed.returncode:
+              escaped = completed.stdout[-4000:].replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error::{escaped}")
+          raise SystemExit(completed.returncode)
