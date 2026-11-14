@@ -371,13 +371,14 @@ async function fetch(url,options){
 
 
     def test_primary_gallery_controls_have_accessible_names_and_focus_states(self):
-        self.assertIn('button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible', self.html)
-        self.assertIn('id="search" aria-label="搜索案例、材质、款式和提示词标签"', self.html)
-        self.assertIn('id="statusF" aria-label="按案例状态筛选"', self.html)
-        self.assertIn('id="modelF" aria-label="按模型筛选"', self.html)
-        self.assertIn('data-open-case-button=', self.html)
-        self.assertIn('aria-label="打开案例：', self.html)
-        self.assertIn('id="toast" role="status" aria-live="polite"', self.html)
+        html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
+        self.assertIn('button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible', html)
+        self.assertIn('id="search" aria-label="搜索案例、材质、款式和提示词标签"', html)
+        self.assertIn('id="statusF" aria-label="按案例状态筛选"', html)
+        self.assertIn('id="modelF" aria-label="按模型筛选"', html)
+        self.assertIn('data-open-case-button=', html)
+        self.assertIn('aria-label="打开案例：', html)
+        self.assertIn('id="toast" role="status" aria-live="polite"', html)
 
 
 if __name__ == "__main__":
