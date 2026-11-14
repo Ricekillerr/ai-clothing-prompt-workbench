@@ -16,6 +16,7 @@ V0.6.5 候选版稳定化、双环境自动化验证和开发分支 CI 收尾已
 
 ## GitHub Actions 最终证据
 
+- **#580 / run 43581384210**：最终项目记忆头 `4b8ab3adb0de0b0f9308646dbfd2d6c4fc61c7e9`，Success，54 秒；Linux `validate` 19 秒、Windows 全量 job 49 秒、release gate 5 秒。#578（代码提交 `ddf6630`）与 #579（验收文档提交 `c1ae3a2`）也均为 Success。
 - **#577 / run 43574495341**：最终文档头 `e93343065226cedc652fcd667c176ab29ff670e4`，Success，1 分 1 秒；Linux `validate` 17 秒、Windows 全量 job 57 秒、release gate 5 秒，最终分支头完整工作流全绿。
 - **#573 / run 43572935991**：提交 `7527bd242f6868eff80d461ba88e7795946031b0`，Success，47 秒。Linux `validate` 21 秒、Windows 全量 job 44 秒、`Release source and channel gate` 6 秒，全部通过。该提交加入独立短路径回归，工作流按 `test_*.py` 发现当前 176 项套件。
 - **#572 / run 43572734163**：提交 `1061f1c7c3cb5364cbe5909c4ffb1efe38fe5d6c`，Success，49 秒。恢复后的统一全量工作流首次全绿，对应加入短路径回归前的 175 项口径。
@@ -40,7 +41,7 @@ V0.6.5 候选版稳定化、双环境自动化验证和开发分支 CI 收尾已
 ## 完整性与同步证据
 
 - 远端开发分支：`release/v0.6.5-stabilization`。
-- 重复实例修复代码提交：`ddf6630dfffd52a76aa41536cdfc0f5dc9e1d14e`（远端 CI 待核对）。
+- 重复实例修复代码提交：`ddf6630dfffd52a76aa41536cdfc0f5dc9e1d14e`；对应 #578 / run 43580779270 Success，53 秒。
 - 统一工作流提交：`1061f1c7c3cb5364cbe5909c4ffb1efe38fe5d6c`。
 - 存储与清单修复提交：`96aa27f3a3f466023bf2adb746da3aeb1bd02acf`。
 - `storage.py` SHA-256：`45c2ec08730be950e079474a9f83a7ccc8bf1d093cae08177875b8a495c243f6`；本地、远端原始字节与清单一致。
@@ -56,7 +57,7 @@ V0.6.5 候选版稳定化、双环境自动化验证和开发分支 CI 收尾已
 
 ## 2026-11-14 隔离实机与 HTTP 验收（本地新增证据）
 
-以下结果来自用户 Windows 上的真实 BAT 和 Python 服务进程，以及云主机 Linux 的交叉回归；Windows `USERPROFILE` 指向会话隔离目录，没有读取或改写真实用户 SQLite、参考图片或配置，也没有配置模型 Key。修复代码已推送为 `ddf6630`，新提交的 CI 结果仍需单独核对。
+以下结果来自用户 Windows 上的真实 BAT 和 Python 服务进程，以及云主机 Linux 的交叉回归；Windows `USERPROFILE` 指向会话隔离目录，没有读取或改写真实用户 SQLite、参考图片或配置，也没有配置模型 Key。修复代码 #578、验收文档 #579 和项目记忆 #580 的远端 CI 均为 Success。
 
 - **真实 BAT + 隔离 HTTP 主流程通过**：首页返回 200；`/api/version` 返回 0.6.5；写入一条明确标记的验收案例及模块后重新读取，105 字节原始提示词的首尾空格、换行和 `@图片1` 逐字一致；按 SKU 以 0.8 阈值检索命中 1 条已验证案例；完整备份 ZIP 为 5,494 字节；临时修改案例后经 `/api/backup/restore` 恢复，原提示词和“已验证成功”状态均还原。
 - **正常关闭通过**：`/api/client/close` 后启动进程退出，8765 端口监听数为 0。运行日志确认数据目录为会话隔离路径，不是真实用户目录。
