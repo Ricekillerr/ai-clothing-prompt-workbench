@@ -42,8 +42,8 @@ async function scanApi(path){
 async function loadScanQueue(){queueCalls++;}
 """
         script += source
-        script += "\\nasync function loadScanQueue(){queueCalls++;}\\n"
         script += r"""
+async function loadScanQueue(){queueCalls++;}
 (async()=>{
  await runAllScans(button);
  if(!history.some(x=>x.includes("1/2"))||!history.some(x=>x.includes("2/2")))throw new Error("Each folder must have a visible progress stage.");
