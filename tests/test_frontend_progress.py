@@ -323,7 +323,7 @@ const content={innerHTML:""};
 const list={innerHTML:"",querySelectorAll(){return [];}};
 const search={value:"",addEventListener(type,fn){this.oninput=fn;}};
 const pager={style:{}},previous={disabled:false},next={disabled:false},pageLabel={textContent:""},selectionStatus={textContent:""};
-const fields={content,base:{value:""},composeModuleSearch:search,composeModuleList:list,composeModulePagination:pager,composeModulePrev:previous,composeModuleNext:next,composeModulePageLabel:pageLabel,composeModuleSelectionStatus:selectionStatus};
+const fields={content,base:{value:""},composeModuleSearch:search,composeModuleList:list,composeModulePagination:pager,composeModulePrev:previous,composeModuleNext:next,composeModulePageLabel:pageLabel,composeModuleSelectionStatus:selectionStatus,composeNowBtn:{addEventListener(){}},copyCompositionBtn:{addEventListener(){}},saveCompositionBtn:{addEventListener(){}}};
 function $(id){return fields[id]||null;}
 function setTitle(){}
 const db={cases:[{id:"good",name:"Good",category:"上装",status:"已验证成功",body:"valid prompt"},{id:"pending",name:"Pending",status:"待验证",body:"pending prompt"},{id:"failed",name:"Failed",status:"失败案例",body:"failed prompt"}],modules};
