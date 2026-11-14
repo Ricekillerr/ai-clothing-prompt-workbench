@@ -61,6 +61,7 @@ class CaseMatcherTests(unittest.TestCase):
         result = rank_case_matches([case], "深灰灯芯绒微喇裤", threshold=0.8)
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["case"]["id"], "case-1")
+        self.assertEqual(result[0]["matched_item"], "深灰灯芯绒裤")
 
     def test_attribute_query_returns_verified_case_over_threshold(self):
         result=rank_case_matches([self.case],"黑色立领无袖马甲 柔软哑光面料 双拉头拉链"); self.assertEqual(len(result),1); self.assertGreaterEqual(result[0]["score"],0.8)
@@ -109,6 +110,7 @@ class CaseMatcherTests(unittest.TestCase):
         results = rank_case_matches([case], query, threshold=0.8)
         self.assertEqual(len(results), 1)
         self.assertGreaterEqual(results[0]["score"], 0.8)
+        self.assertEqual(results[0]["matched_item"], "深灰灯芯绒裤")
         self.assertIn("面料/材质匹配", results[0]["reasons"])
         self.assertIn("颜色匹配", results[0]["reasons"])
 
@@ -303,5 +305,34 @@ class CaseMatcherTests(unittest.TestCase):
         }
         self.assertNotIn("failed", result_ids)
         self.assertNotIn("untested", result_ids)
+
+
+    def test_full_outfit_does_not_mix_attributes_from_different_items(self):
+        case = dict(
+            self.case,
+            name="黑色尼龙马甲与红色皮革裤整套穿搭",
+            category="整套搭配",
+            subcategory="冬季穿搭",
+            material="尼龙",
+            color="黑色",
+            outfit_items=[
+                {
+                    "category": "上装",
+                    "subcategory": "无袖马甲",
+                    "name": "黑色尼龙马甲",
+                    "material": "尼龙",
+                    "color": "黑色",
+                },
+                {
+                    "category": "下装",
+                    "subcategory": "微喇裤",
+                    "name": "红色皮革裤",
+                    "material": "皮革",
+                    "color": "红色",
+                },
+            ],
+        )
+        results = rank_case_matches([case], "黑色皮革马甲", threshold=0.8)
+        self.assertEqual(results, [])
 
 if __name__=="__main__": unittest.main(verbosity=2)
