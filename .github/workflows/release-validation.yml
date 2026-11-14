@@ -156,7 +156,6 @@ jobs:
       - name: Run Windows updater rollback and local server smoke tests
         shell: python
         run: |
-          import os
           import subprocess
           import sys
           completed = subprocess.run(
@@ -169,12 +168,9 @@ jobs:
           )
           print(completed.stdout)
           if completed.returncode:
-              summary = os.environ.get("GITHUB_STEP_SUMMARY")
-              if summary:
-                  with open(summary, "a", encoding="utf-8") as handle:
-                      handle.write("### Windows runtime failure output\n\n```text\n")
-                      handle.write(completed.stdout[-16000:])
-                      handle.write("\n```\n")
+              details = completed.stdout[-6000:]
+              escaped = details.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error title=Windows runtime test failure::{escaped}")
           raise SystemExit(completed.returncode)
       - name: Parse PowerShell script without executing it
         shell: pwsh
