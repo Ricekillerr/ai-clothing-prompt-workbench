@@ -1,18 +1,25 @@
 # Prompt Atelier — 当前状态
 
-**核对日期：** 2026-11-13（多轮代码侧安全审计后）  
+**核对日期：** 2026-11-14（视觉检索与可解释检索验收后）  
 **仓库：** https://github.com/Ricekillerr/ai-clothing-prompt-workbench  
 **生产分支：** main（保持不动）  
 **开发分支：** release/v0.6.5-stabilization  
 **候选版本：** 0.6.5  
-**最近代码提交：** 787480f236580a09d5e21b95a86968d1f8285367  
+**最近代码提交：** cba1b37cac2a894d8b9a01684e2c5b66e0990ff0  
 **状态：** V1.0 候选开发；不是正式发布。
 
 ## 最新 CI
-[GitHub Actions run 43408829441](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43408829441)：三个 job 全部成功。主回归 150 项（149 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
-[GitHub Actions run 43408579766](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43408579766)：三个 job 全部成功。主回归 149 项（148 通过、1 项环境跳过），Windows 专项 22 项通过。
-[GitHub Actions run 43408370657](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43408370657)：三个 job 全部成功。主回归 148 项（147 通过、1 项环境跳过），Windows 专项 22 项通过。
+[GitHub Actions run 43540111339](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43540111339)：三个 job 全部成功。主回归 158 项（157 通过、1 项环境跳过），Windows 专项 22 项通过，9 个更新文件 SHA-256 和 release source/channel gate 通过。
+[GitHub Actions run 43539256117](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43539256117)：三个 job 全部成功。主回归 153 项（152 通过、1 项环境跳过），Windows 专项 22 项通过。
+[GitHub Actions run 43408829441](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/43408829441)：三个 job 全部成功。主回归 150 项（149 通过、1 项环境跳过），Windows 专项 22 项通过。
 CI 证明隔离环境中的代码和测试通过，不等于用户本人 Windows 桌面、现有真实资料、杀毒软件和网络环境已验收。
+
+## 2026-11-14 视觉检索与可解释检索改进
+- **视觉检索：** 本地 63 位 DCT 感知哈希排除 DC 系数；对系数做标准归一化；校验哈希格式与图片尺寸（上限 4000 万像素）；只检索已验证成功案例；每个案例只保留最佳图片；汉明差异≤12/63才显示；最多扫描 500 张并明确提示截断；旧请求不能覆盖新请求；每 5 张让出事件循环。明确哈希差异不是同款语义置信度。
+- **属性检索：** 英文服装术语采用整词匹配，防止“vest”误命中“investment”；扩展鞋靴、包袋、配饰、裙装等品类；移除已识别属性短语后再提取自由描述，避免中文跨属性 n-gram 人为拉低得分。
+- **计分规则：** 品类 25%、面料 20%、颜色 15%、细节 20%、场景/约束 20%；只对查询中实际出现的维度重新归一化；查询要求但案例缺失的属性按 0 覆盖计分；查询未提及的属性不扣分；残余自由描述额外按 0.10 权重参与归一化；款号精确匹配直接 100 分；明确品类/颜色/面料冲突默认排除。
+- **标注基准：** 14 个服装/鞋履/配饰案例、14 条查询，回归断言 P@1≥90%、Recall@5≥90%、P@5≥50%，并验证失败/待验证案例默认排除。该基准是代码侧小样本，不替代用户真实素材库评估。
+- **最新代码证据：** CI run 43540111339，158 项主回归（157 通过、1 项环境跳过），Windows 专项 22 项，三个 jobs 全部通过。
 
 ## 已实现/已集成的候选能力
 - 本地案例库、提示词模块库、编辑/删除失败回滚。
