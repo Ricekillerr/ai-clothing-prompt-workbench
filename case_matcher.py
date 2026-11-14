@@ -189,7 +189,7 @@ _EXCLUSIVE_CATEGORIES = {
     "accessory": ("配饰", "腰带", "帽子", "围巾", "包", "戒指", "眼镜", "手表",
                   "belt", "hat", "scarf", "bag", "ring", "glasses", "watch"),
     "onepiece": ("连体装", "连体裤", "连衣裙", "dress", "jumpsuit", "romper"),
-    "full_outfit": ("整套搭配", "全套穿搭", "整套服装", "full outfit"),
+    "full_outfit": ("整套搭配", "整套穿搭", "全套穿搭", "整套服装", "full outfit"),
 }
 _MIXTURE_MARKERS = ("混纺", "混合", "拼接", "复合", "blend", "mixed", "mix")
 
@@ -327,6 +327,49 @@ def explain_case_match(case, query):
     return details
 
 
+def _outfit_item_candidate(case, item):
+    """Build isolated garment evidence so attributes from sibling items cannot mix."""
+    return {
+        "name": item.get("name") or item.get("subcategory") or item.get("category") or "",
+        "category": item.get("category"),
+        "subcategory": item.get("subcategory"),
+        "silhouette": item.get("silhouette"),
+        "fit": item.get("fit"),
+        "material": item.get("material"),
+        "fabric": item.get("fabric"),
+        "texture": item.get("texture"),
+        "material_details": item.get("material_details"),
+        "color": item.get("color"),
+        "color_details": item.get("color_details"),
+        "details": item.get("details"),
+        "craftsmanship": item.get("craftsmanship"),
+        "features": item.get("features"),
+        "tags": item.get("tags") if isinstance(item.get("tags"), (list, tuple, set)) else [],
+        "model": case.get("model"),
+        "scene": case.get("scene"),
+        "constraints": case.get("constraints"),
+        "usage": case.get("usage"),
+        "notes": case.get("notes"),
+        "sku": case.get("sku") or case.get("style_number") or case.get("product_code"),
+    }
+
+
+def _case_match_candidates(case, query):
+    """Use one garment at a time for multi-item outfits, except whole-outfit/SKU searches."""
+    items = case.get("outfit_items") if isinstance(case.get("outfit_items"), list) else []
+    sku = _match_text(case.get("sku") or case.get("style_number") or case.get("product_code")).strip().casefold()
+    exact_sku = bool(sku and re.search(r"(?<![a-z0-9])" + re.escape(sku) + r"(?![a-z0-9])", str(query or "").casefold()))
+    requested_categories = _exclusive_values(query, _EXCLUSIVE_CATEGORIES)
+    if len(items) > 1 and "full_outfit" not in requested_categories and not exact_sku:
+        candidates = [
+            (_outfit_item_candidate(case, item), item)
+            for item in items if isinstance(item, dict)
+        ]
+        if candidates:
+            return candidates
+    return [(case, None)]
+
+
 def rank_case_matches(cases,query,threshold=0.80,limit=100,include_unverified=False,include_conflicts=False):
     try: threshold=min(1.0,max(0.0,float(threshold)))
     except (TypeError,ValueError): threshold=0.80
@@ -334,11 +377,33 @@ def rank_case_matches(cases,query,threshold=0.80,limit=100,include_unverified=Fa
     for case in cases:
         if not isinstance(case,dict): continue
         if not include_unverified and case.get("status")!="已验证成功": continue
-        conflicts = find_case_conflicts(case, query)
-        if conflicts and not include_conflicts:
+        evaluated=[]
+        for candidate,item in _case_match_candidates(case, query):
+            conflicts=find_case_conflicts(candidate,query)
+            scored=score_case_attributes(candidate,query)
+            evaluated.append((candidate,item,conflicts,scored))
+        if not evaluated:
             continue
-        scored=score_case_attributes(case,query)
+        if include_conflicts:
+            chosen=max(evaluated,key=lambda entry:entry[3]["score"])
+        else:
+            compatible=[entry for entry in evaluated if not entry[2]]
+            if not compatible:
+                continue
+            chosen=max(compatible,key=lambda entry:entry[3]["score"])
+        candidate,item,conflicts,scored=chosen
         if scored["score"]>=threshold:
-            results.append({"case":case,"score":scored["score"],"match_percent":round(scored["score"]*100),"reasons":scored["reasons"],"attribute_details":explain_case_match(case, query),"conflicts":conflicts})
+            item_label=None
+            if isinstance(item,dict):
+                item_label=str(item.get("name") or item.get("subcategory") or item.get("category") or "").strip() or None
+            results.append({
+                "case":case,
+                "score":scored["score"],
+                "match_percent":round(scored["score"]*100),
+                "reasons":scored["reasons"],
+                "attribute_details":explain_case_match(candidate,query),
+                "conflicts":conflicts,
+                "matched_item":item_label,
+            })
     results.sort(key=lambda x:(-x["score"],str(x["case"].get("name",""))))
     return results[:max(0,int(limit))]
