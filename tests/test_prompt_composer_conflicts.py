@@ -43,8 +43,8 @@ if (manual.source_snapshot_available !== false || manual.preflight !== "not_gene
         root = Path(__file__).resolve().parents[1]
         html = (root / "index.html").read_text(encoding="utf-8")
         compose = html.split("function composeNow(){", 1)[1].split("function saveDraft(){", 1)[0]
-        self.assertIn(".compose .pane:first-child input[type=checkbox]:checked", compose)
-        self.assertNotIn("#content input[type=checkbox]:checked", compose)
+        self.assertIn("composeSelectedModuleIds.has(x.id)", compose)
+        self.assertNotIn("document.querySelectorAll", compose)
         find_conflicts = html.split("function findComposeConflicts(base,mods){", 1)[1].split("function modelPromptGuide(model){", 1)[0]
         model_guide = html.split("function modelPromptGuide(model){", 1)[1].split("function buildCaseReferenceGuide(base){", 1)[0]
         reference_guide = html.split("function buildCaseReferenceGuide(base){", 1)[1].split("function buildCompositionSnapshot(", 1)[0]
@@ -54,13 +54,12 @@ if (manual.source_snapshot_available !== false || manual.preflight !== "not_gene
             self.skipTest("Node.js is not installed in this environment")
         script = r"""
 function $(id) { return elements[id]; }
-const base = {id:"base-1",name:"Base jacket",model:"WAN 3.0",category:"上装",body:"BASE PROMPT",updated_at:"v1"};
+const base = {id:"base-1",name:"Base jacket",model:"WAN 3.0",category:"上装",status:"已验证成功",body:"BASE PROMPT",updated_at:"v1"};
 const chosenModule = {id:"module-1",name:"Jacket fabric",model:"通用",category_scope:"上装",body:"SELECTED MODULE BODY",updated_at:"m1"};
 const accidental = {id:"on",name:"Must not be included",model:"通用",category_scope:"上装",body:"ACCIDENTAL OPTION BODY"};
 const db = {cases:[base],modules:[chosenModule,accidental]};
 let lastCompositionSnapshot = null;
-const moduleChecks = [{value:"module-1",checked:true},{value:"on",checked:false}];
-const rightPaneOptions = [{value:"on",checked:true},{value:"on",checked:true},{value:"on",checked:true}];
+const composeSelectedModuleIds = new Set(["module-1"]);
 const elements = {
   base:{value:"base-1"},
   composeWarnings:{style:{},textContent:""},
@@ -68,13 +67,6 @@ const elements = {
   includeModelGuide:{checked:true},
   includeBilingual:{checked:false},
   output:{value:""}
-};
-const document = {
-  querySelectorAll(selector) {
-    if (selector === ".compose .pane:first-child input[type=checkbox]:checked") return moduleChecks.filter(x=>x.checked);
-    if (selector === "#content input[type=checkbox]:checked") return [...moduleChecks,...rightPaneOptions].filter(x=>x.checked);
-    throw new Error("Unexpected selector: "+selector);
-  }
 };
 function toast(message) { throw new Error("Unexpected toast: "+message); }
 """
