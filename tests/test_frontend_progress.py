@@ -274,5 +274,44 @@ if(count()!==11||pageLabel.textContent!=="第 1 / 1 页"||pager.style.display!==
         self.run_node(script)
 
 
+    def test_trash_page_paginates_deleted_assets_and_resets_search(self):
+        start = self.html.index("let trashPageNum=1,")
+        end = self.html.index("\\nasync function restoreDeletedAsset", start)
+        source = self.html[start:end]
+        script = r"""
+const items=Array.from({length:105},(_,i)=>({asset_id:"asset-"+i,revision_id:"rev-"+i,kind:"case",category:"上装",name:"Case "+i,sku:"SKU"+i,deleted_at:"2026-11-14",summary:"summary "+i,image:"thumb.png"}));
+let deletedAssetsCache=items,trashLoading=false,page="trash";
+const content={innerHTML:""};
+const previous={disabled:false,addEventListener(type,fn){this.fn=fn;}};
+const next={disabled:false,addEventListener(type,fn){this.fn=fn;}};
+const pager={style:{}},pageLabel={textContent:""};
+const fields={search:{value:""},content,trashPagination:pager,trashPrev:previous,trashNext:next,trashPageLabel:pageLabel};
+function $(id){return fields[id]||null;}
+function setTitle(){}
+function image(){return "<img>";}
+function esc(value){return String(value??"");}
+function restoreDeletedAsset(){}
+const document={querySelectorAll(){return [];}};
+"""
+        script += source
+        script += r"""
+(async()=>{
+await trashPage();
+const count=()=> (content.innerHTML.match(/data-trash-restore=/g)||[]).length;
+if(count()!==50||pageLabel.textContent!=="第 1 / 3 页"||pager.style.display!=="flex")throw new Error("Trash page one must render 50 assets.");
+if(!next.fn||!previous.disabled)throw new Error("Trash pagination controls are not initialized.");
+await next.fn();
+if(count()!==50||!content.innerHTML.includes('data-trash-restore="asset-50"')||!content.innerHTML.includes('data-trash-restore="asset-99"'))throw new Error("Trash page two boundaries are incorrect.");
+if(pageLabel.textContent!=="第 2 / 3 页")throw new Error("Trash page label did not update.");
+await previous.fn();
+if(!content.innerHTML.includes('data-trash-restore="asset-0"'))throw new Error("Trash previous page did not return to page one.");
+fields.search.value="case 9";
+await trashPage();
+if(count()!==11||pageLabel.textContent!=="第 1 / 1 页"||pager.style.display!=="none")throw new Error("Trash search must reset pagination and hide the one-page pager.");
+})().catch(error=>{throw error;});
+"""
+        self.run_node(script)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
