@@ -3,7 +3,7 @@
 <style>
 :root{--bg:#11141a;--panel:#1b2029;--panel2:#222a36;--line:#ffffff12;--text:#edf0f5;--muted:#929baa;--blue:#91aaff;--green:#7bc5a2;--amber:#d9ae78}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 72% -20%,#34405666,transparent 40%),linear-gradient(135deg,#11141a,#171c25 58%,#11141a);color:var(--text);font:14px/1.5 "Segoe UI","Microsoft YaHei",sans-serif;min-height:100vh}button,input,select,textarea{font:inherit}button{cursor:pointer;color:inherit}
-.app{display:grid;grid-template-columns:205px 1fr;min-height:100vh}.side{position:sticky;top:0;height:100vh;padding:23px 14px;background:#11151dcc;border-right:1px solid var(--line);backdrop-filter:blur(24px);display:flex;flex-direction:column}.brand{display:flex;gap:10px;align-items:center;padding:0 8px 28px}.logo{width:35px;height:35px;border-radius:12px;background:linear-gradient(145deg,#dce5ff,#718bd0);display:grid;place-items:center;color:#1b2740;font-size:19px}.brand b{font-size:13px}.brand small{display:block;font-size:9px;color:var(--muted);letter-spacing:1px}.navhead{font-size:9px;color:#697384;letter-spacing:1.5px;padding:13px 12px 7px}.nav{display:flex;align-items:center;gap:11px;padding:10px 12px;margin:2px 0;border-radius:10px;color:#aeb7c5;cursor:pointer}.nav:hover{background:#ffffff0b;color:white}.nav.active{background:#8ca8ff20;color:#e3eaff;box-shadow:inset 2px 0 #9db4ff}.ico{width:17px;text-align:center;color:#b9c7e4}.sidefoot{margin-top:auto;border-top:1px solid var(--line);padding:15px 9px 0;color:#788293;font-size:9px}
+.app{display:grid;grid-template-columns:205px 1fr;min-height:100vh}.side{position:sticky;top:0;height:100vh;padding:23px 14px;background:#11151dcc;border-right:1px solid var(--line);backdrop-filter:blur(24px);display:flex;flex-direction:column}.brand{display:flex;gap:10px;align-items:center;padding:0 8px 28px}.logo{width:35px;height:35px;border-radius:12px;background:linear-gradient(145deg,#dce5ff,#718bd0);display:grid;place-items:center;color:#1b2740;font-size:19px}.brand b{font-size:13px}.brand small{display:block;font-size:9px;color:var(--muted);letter-spacing:1px}.navhead{font-size:9px;color:#697384;letter-spacing:1.5px;padding:13px 12px 7px}.nav{display:flex;align-items:center;gap:11px;width:100%;padding:10px 12px;margin:2px 0;border:0;border-radius:10px;background:transparent;color:#aeb7c5;cursor:pointer;text-align:left;font:inherit}.nav:hover{background:#ffffff0b;color:white}.nav.active{background:#8ca8ff20;color:#e3eaff;box-shadow:inset 2px 0 #9db4ff}.ico{width:17px;text-align:center;color:#b9c7e4}.sidefoot{margin-top:auto;border-top:1px solid var(--line);padding:15px 9px 0;color:#788293;font-size:9px}
 .main{padding:24px 28px 40px;max-width:1700px;width:100%;margin:auto;min-width:0}.top{display:flex;align-items:center;gap:15px;margin-bottom:23px}.heading{min-width:210px}.heading h1{font-size:20px;margin:0;font-weight:650}.heading p{font-size:10px;color:var(--muted);margin:4px 0 0}.search{height:41px;max-width:470px;flex:1;display:flex;align-items:center;gap:10px;padding:0 13px;border:1px solid var(--line);border-radius:12px;background:#ffffff09;backdrop-filter:blur(16px)}.search input{border:0;outline:0;background:none;color:white;width:100%}.search input::placeholder{color:#7d8796}.actions{margin-left:auto;display:flex;gap:8px}.btn{border:1px solid var(--line);border-radius:9px;padding:8px 12px;background:#ffffff09;color:#dce2ec}.btn:hover{background:#ffffff16}.btn:active:not(:disabled){transform:translateY(1px);background:#ffffff20}.btn:focus-visible{outline:2px solid #a5baff;outline-offset:2px}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible,.chip:focus-visible,.filter:focus-visible,.close:focus-visible{outline:2px solid #a5baff;outline-offset:2px}.btn:disabled{opacity:.48;cursor:not-allowed;filter:saturate(.55)}.btn[aria-busy=true]{opacity:.78;cursor:progress}.btn.primary{background:#dce5ff;color:#1b263c;border-color:#dce5ff;font-weight:650}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}.stat{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:linear-gradient(145deg,#ffffff0b,#ffffff04);backdrop-filter:blur(18px)}.stat label{color:var(--muted);font-size:10px}.stat strong{display:block;font-size:24px;margin-top:4px}.stat small{font-size:9px;color:#7f8998}
 .section{display:flex;justify-content:space-between;align-items:end;margin:3px 0 14px}.section h2{font-size:16px;margin:0}.section p{font-size:10px;color:var(--muted);margin:4px 0 0}.filters{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:16px}.chip,.filter{border:1px solid var(--line);border-radius:99px;background:#ffffff08;color:#aeb7c6;padding:7px 11px;font-size:10px}.chip.active{background:#dce5ff;color:#1b263c;border-color:#dce5ff}.filter{border-radius:8px}
@@ -14,7 +14,7 @@
 .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:20px;background:#070a10bb;backdrop-filter:blur(8px);z-index:20}.modal.open{display:flex}.modalbox{width:min(740px,96vw);max-height:92vh;overflow:auto;padding:21px;background:#1d232e;border:1px solid #ffffff20;border-radius:16px;box-shadow:0 25px 90px #0009}.modalhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.modalhead h2{font-size:16px;margin:0}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{display:flex;flex-direction:column;gap:5px}.field.full{grid-column:1/-1}.field label{font-size:10px;color:#9ca7b7}.field textarea{min-height:115px;resize:vertical}.modalactions{display:flex;justify-content:flex-end;gap:8px;margin-top:15px}.toast{position:fixed;bottom:20px;left:50%;transform:translate(-50%,15px);opacity:0;z-index:40;background:#e3eaff;color:#1a263d;border-radius:9px;padding:9px 15px;font-size:11px;transition:.2s}.toast.show{opacity:1;transform:translate(-50%,0)}
 @media(max-width:1150px){.gallery{grid-template-columns:repeat(3,1fr)}.main{padding:20px}.app{grid-template-columns:185px 1fr}.side{padding:20px 10px}}@media(max-width:850px){.app{grid-template-columns:62px 1fr}.side{width:62px;padding:18px 7px}.brand b,.brand small,.navhead,.nav span:not(.ico),.sidefoot{display:none}.brand{padding:0 5px 25px}.nav{justify-content:center;padding:12px 4px}.stats{grid-template-columns:repeat(2,1fr)}.gallery{grid-template-columns:repeat(2,1fr)}.top{flex-wrap:wrap}.heading{width:100%}.modulegrid,.vaultgrid{grid-template-columns:repeat(2,1fr)}}@media(max-width:570px){.main{padding:14px 10px}.gallery{gap:8px}.photo{height:135px}.stats{gap:7px}.stat{padding:10px}.stat strong{font-size:20px}.actions .btn{padding:7px}.modulegrid,.vaultgrid,.compose{grid-template-columns:1fr}.formgrid{grid-template-columns:1fr}.field.full{grid-column:auto}}
 </style></head><body>
-<div class="app"><aside class="side"><div class="brand"><div class="logo">⌂</div><div><b>Prompt Atelier</b><small>AI CLOTHING WORKSPACE</small></div></div><div class="navhead">WORKSPACE</div><div class="nav active" data-page="gallery"><span class="ico">▦</span><span>视觉资产库</span></div><div class="nav" data-page="modules"><span class="ico">◇</span><span>提示词模块</span></div><div class="nav" data-page="vault"><span class="ico">▤</span><span>Prompt Vault</span></div><div class="nav" data-page="smartsearch"><span class="ico">⌕</span><span>智能案例检索</span></div><div class="nav" data-page="compose"><span class="ico">✣</span><span>智能组合器</span></div><div class="navhead">CATEGORIES</div><div class="nav" data-cat="上装"><span class="ico">♧</span><span>上装</span></div><div class="nav" data-cat="下装"><span class="ico">⌑</span><span>下装</span></div><div class="nav" data-cat="鞋履"><span class="ico">◈</span><span>鞋履</span></div><div class="nav" data-cat="配饰"><span class="ico">◇</span><span>配饰</span></div><div class="navhead">LIBRARY</div><div class="nav" data-page="trash"><span class="ico">↶</span><span>回收站</span></div><div class="nav" data-page="settings"><span class="ico">⚙</span><span>数据与备份</span></div><div class="sidefoot">LOCAL WORKSPACE · V0.5.1<br>仅本机保存</div></aside>
+<div class="app"><aside class="side"><div class="brand"><div class="logo">⌂</div><div><b>Prompt Atelier</b><small>AI CLOTHING WORKSPACE</small></div></div><div class="navhead">WORKSPACE</div><button type="button" class="nav active" data-page="gallery" aria-label="视觉资产库"><span class="ico">▦</span><span>视觉资产库</span></button><button type="button" class="nav" data-page="modules" aria-label="提示词模块"><span class="ico">◇</span><span>提示词模块</span></button><button type="button" class="nav" data-page="vault" aria-label="Prompt Vault"><span class="ico">▤</span><span>Prompt Vault</span></button><button type="button" class="nav" data-page="smartsearch" aria-label="智能案例检索"><span class="ico">⌕</span><span>智能案例检索</span></button><button type="button" class="nav" data-page="compose" aria-label="智能组合器"><span class="ico">✣</span><span>智能组合器</span></button><div class="navhead">CATEGORIES</div><button type="button" class="nav" data-cat="上装" aria-label="按上装筛选"><span class="ico">♧</span><span>上装</span></button><button type="button" class="nav" data-cat="下装" aria-label="按下装筛选"><span class="ico">⌑</span><span>下装</span></button><button type="button" class="nav" data-cat="鞋履" aria-label="按鞋履筛选"><span class="ico">◈</span><span>鞋履</span></button><button type="button" class="nav" data-cat="配饰" aria-label="按配饰筛选"><span class="ico">◇</span><span>配饰</span></button><div class="navhead">LIBRARY</div><button type="button" class="nav" data-page="trash" aria-label="回收站"><span class="ico">↶</span><span>回收站</span></button><button type="button" class="nav" data-page="settings" aria-label="数据与备份"><span class="ico">⚙</span><span>数据与备份</span></button><div class="sidefoot">LOCAL WORKSPACE · V0.6.5<br>仅本机保存</div></aside>
 <main class="main"><header class="top"><div class="heading"><h1 id="pageTitle">视觉资产库</h1><p id="pageSub">把成功经验沉淀为可复用的视觉资产</p></div><div class="search"><span>⌕</span><input id="search" aria-label="搜索案例、材质、款式和提示词标签" placeholder="搜索案例、材质、款式、提示词标签…"></div><div class="actions"><button class="btn" id="importBtn">导入</button><button class="btn" id="exportBtn">备份</button><button class="btn" id="updateBtn">检查更新</button><button class="btn primary" id="addBtn">＋ 新增资产</button></div></header>
 <section class="stats"><div class="stat"><label>成功案例</label><strong id="caseCount">0</strong><small>完整提示词资产</small></div><div class="stat"><label>可复用模块</label><strong id="moduleCount">0</strong><small>跨品类调用</small></div><div class="stat"><label>已验证案例</label><strong id="verifiedCount">0</strong><small>经过实际生成验证</small></div><div class="stat"><label>关联图片</label><strong id="imageCount">0</strong><small>参考图与效果图</small></div></section><div id="content"></div></main></div>
 <div class="overlay" id="detailOverlay"><aside class="detail"><div class="dhead"><h2>资产详情</h2><button class="close" id="closeDetail">×</button></div><div id="detailContent"></div></aside></div>
@@ -498,435 +498,115 @@ async function saveEditor(){
   x.outfit_items=parseOutfitItems($("f_outfit_items")?.value||"",old.outfit_items);
   x.outfit_relations=parseOutfitRelations($("f_outfit_relations")?.value||"",x.outfit_items.length,old.outfit_relations);
   x.image_roles=parseImageRoles($("f_image_roles")?.value||"",old.image_roles,Math.max(1,Array.isArray(old.images)&&old.images.length?old.images.length:(imagePath||old.image?1:8)));
+  x.composition=old.composition||null;
+  try{const parsed=JSON.parse($("f_composition")?.value||"{}");if(parsed&&Object.keys(parsed).length)x.composition=parsed}catch(_){}
  }
- try{const provenance=JSON.parse($("f_composition")?.value||"{}");if(provenance&&Object.keys(provenance).length)x.composition=provenance;else if(editKind==="case"&&old.composition)x.composition=old.composition}catch{return toast("组合来源记录格式异常，未保存")}
- if(!x.name||!x.body.trim())return toast("名称和正文不能为空");
- x.id=old.id||crypto.randomUUID();x.created_at=old.created_at||new Date().toISOString();x.updated_at=new Date().toISOString();
- let i=list.findIndex(z=>z.id===x.id);if(i<0)list.unshift(x);else list[i]=x;
- try{await save();closeEditor();render();toast("资产已保存")}catch(e){const outcome=await reconcileSaveFailure(e,()=>{if(editKind==="case")db.cases=previous;else db.modules=previous});if(outcome==="server"){closeEditor();render()}toast(saveFailureMessage("保存资产",outcome,e))}
+ if(!x.body)return toast("请填写完整提示词或模块正文");
+ if(editId){const index=list.findIndex(item=>item.id===editId);if(index<0){toast("这条资产已不存在，未保存");return}list[index]=x}else{x.id=(crypto.randomUUID?crypto.randomUUID():Date.now()+"");x.created_at=new Date().toISOString();list.unshift(x)}
+ try{await save();closeEditor();render();toast("已保存到本地")}catch(e){const outcome=await reconcileSaveFailure(e,()=>{if(editKind==="case")db.cases=previous;else db.modules=previous});if(outcome==="server"){closeEditor();render()}toast(saveFailureMessage("保存",outcome,e))}
 }
-async function deleteCurrent(){
- if(!confirm("确定删除这条记录？"))return;
- const list=kind==="case"?db.cases:db.modules,previous=JSON.parse(JSON.stringify(list)),index=list.findIndex(x=>x.id===chosen);
- if(index<0)return toast("未找到要删除的资产");
- list.splice(index,1);
- try{await save();closeDetail();render();toast("已删除；可从回收站恢复")}catch(e){const outcome=await reconcileSaveFailure(e,()=>{if(kind==="case")db.cases=previous;else db.modules=previous});if(outcome==="server"){closeDetail();render()}toast(saveFailureMessage("删除资产",outcome,e))}
-}
-function findComposeConflicts(base,mods){
- const issues=[],specific=x=>String(x||"").trim().toLowerCase(),generic=new Set(["","通用","全部","不限","整套搭配","其他","all","any","runninghub","平台","platform"]);
- const scopeOf=x=>specific(x.category_scope||"通用");
- for(const m of mods){
-  const bm=specific(base.model),mm=specific(m.model);
-  if(!generic.has(bm)&&!generic.has(mm)&&bm!==mm)issues.push("模型不兼容："+m.name+"（案例："+base.model+"；模块："+m.model+"）");
-  const baseCategory=specific(base.category),moduleScope=scopeOf(m);
-  if(!generic.has(baseCategory)&&!generic.has(moduleScope)&&baseCategory!==moduleScope)
-   issues.push("适用品类不匹配："+m.name+"（基础案例："+base.category+"；模块适用："+m.category_scope+"）");
- }
- const rules=[{label:"拉链状态",yes:["拉链完全打开","拉链全开","拉链保持敞开","前襟完全打开"],no:["拉链完全闭合","拉链完全拉上","拉链闭合","前襟完全闭合"]},{label:"帽子结构",yes:["连帽","有帽"],no:["无帽","不带帽"]},{label:"袖型",yes:["无袖"],no:["长袖","短袖"]}];
- const textOf=x=>String(x.name||"")+" "+String(x.body||"");
- const checkPair=(a,b,label)=>{const ta=textOf(a),tb=textOf(b);for(const rule of rules){const ay=rule.yes.some(t=>ta.includes(t)),an=rule.no.some(t=>ta.includes(t)),by=rule.yes.some(t=>tb.includes(t)),bn=rule.no.some(t=>tb.includes(t));if((ay&&bn)||(an&&by))issues.push(rule.label+"互斥："+label)}};
- for(const m of mods)checkPair(base,m,"基础案例 / "+m.name);
- for(let i=0;i<mods.length;i++)for(let j=i+1;j<mods.length;j++){const a=mods[i],b=mods[j],sa=scopeOf(a),sb=scopeOf(b);if(!generic.has(sa)&&!generic.has(sb)&&sa!==sb)continue;checkPair(a,b,a.name+" / "+b.name)}
- return [...new Set(issues)]
-}
-function modelPromptGuide(model){
- const key=String(model||"通用").trim();
- const profiles={
-  "WAN 3.0":"以源视频作为人物身份、面部、身体动作、机位、背景与光影基准；只修改明确指定的服装区域。服装参考图分别约束整体结构、正反面和材质细节，未指定区域保持源视频原样。把拉链状态、衣长、袖型、口袋等关键结构写成可观察条件，避免模型扩大编辑范围。",
-  "MiniMax H3":"按时间顺序组织镜头与动作，每个时间段聚焦一个主要动作；明确主体位置、动作起止、镜头运动和转场依据。保持前后镜头的空间与动作连续，避免大量重复或互相矛盾的否定约束，以免画面僵化。",
-  "Seedance 2.5":"先区分源视频、人物参考、服装参考和场景参考各自负责的内容；按时间顺序描述动作进展与镜头变化，强调人物身份、服装结构和场景跨帧一致。避免让局部细节参考覆盖整套服装或整体构图。"
- };
- if(profiles[key])return profiles[key]+"\n以上为工作台通用创作建议，不代表模型官方参数或保证生成结果；请以当前模型版本和实际输入模式为准。";
- if(key==="RunningHub")return "RunningHub 是运行平台，不是具体视频模型。请先确认实际调用的模型名称与版本，再采用对应模型的提示词结构；不要将平台名称当作模型能力约束。";
- return "使用通用结构：明确参考素材职责、主体与服装约束、动作顺序、镜头变化及不可修改区域。";
-}
-function buildCaseReferenceGuide(base){
- const sections=[];
- const items=Array.isArray(base.outfit_items)?base.outfit_items:[];
- if(items.length){
-  sections.push("【结构化穿搭单品参考｜请以原始参考图为准】");
-  items.forEach(item=>{
-   const attributes=[item.color,item.material,item.silhouette,item.fit].filter(Boolean).join("、");
-   sections.push("第"+item.item_index+"件："+[item.category,item.name||item.subcategory,attributes,(item.details||[]).join("、")].filter(Boolean).join("；"));
-  });
-  const relations=Array.isArray(base.outfit_relations)?base.outfit_relations:[];
-  if(relations.length)sections.push("穿搭关系："+relations.map(r=>"第"+r.source_item+"件 "+({over:"覆盖于",under:"位于其下",paired_with:"搭配",worn_with:"穿着组合",attached_to:"连接于",unknown:"关系待确认"}[r.relation]||"关系待确认")+" 第"+r.target_item+"件").join("；"));
- }
- const roles=Array.isArray(base.image_roles)?base.image_roles:[];
- if(roles.length){
-  const priorityNames={primary:"主参考",secondary:"次参考",supporting:"辅助参考"};
-  sections.push("【参考图职责与优先级】");
-  roles.forEach(role=>{
-   sections.push("关联参考图"+role.asset_index+"（"+(role.role_label||role.role||"用途待确认")+"，"+(priorityNames[role.priority]||"辅助参考")+"）"+(role.governs?.length?"；主要控制："+role.governs.join("、"):"")+(role.observation?"；可见依据："+role.observation:""));
-  });
-  sections.push("发生属性冲突时，按主参考 > 次参考 > 辅助参考处理；面料或细节参考只约束其负责的局部属性，不得覆盖整体版型、比例和结构。");
-  sections.push("注意：以上编号对应案例中保存的关联图片顺序，不会自动改写原提示词中的 @图片编号，使用前请核对映射。");
- }
- return sections.length?"\n\n【案例结构化复用辅助说明】\n"+sections.join("\n"):"";
-}
-function buildCompositionSnapshot(base,mods,body,createdAt=new Date().toISOString()){
- return {body,composition:{
-  schema_version:1,created_at:createdAt,
-  base_case_id:base.id,base_case_name:base.name||"",
-  base_case_updated_at:base.updated_at||"",
-  module_ids:mods.map(x=>x.id),module_names:mods.map(x=>x.name||""),
-  module_versions:mods.map(x=>({id:x.id,updated_at:x.updated_at||""})),
-  preflight:"passed",source_snapshot_available:true,modified_after_generation:false
- }};
-}
-function compositionForDraft(body,snapshot,createdAt=new Date().toISOString()){
- if(!snapshot)return {
-  schema_version:1,created_at:createdAt,base_case_id:null,base_case_name:"",
-  module_ids:[],module_names:[],module_versions:[],
-  preflight:"not_generated_by_composer",source_snapshot_available:false,modified_after_generation:false
- };
- const unchanged=body===snapshot.body;
- return {...snapshot.composition,preflight:unchanged?"passed":"passed_then_manually_edited",modified_after_generation:!unchanged};
+async function deleteCurrent(){if(!confirm("确定删除这条记录？删除前会由本地版本历史保留可恢复记录。"))return;let list=kind==="case"?db.cases:db.modules,previous=list;list.splice(list.findIndex(x=>x.id===chosen),1);try{await save();closeDetail();render();toast("已删除")}catch(e){const outcome=await reconcileSaveFailure(e,()=>{if(kind==="case")db.cases=previous;else db.modules=previous});if(outcome==="server"){closeDetail();render()}toast(saveFailureMessage("删除",outcome,e))}}
+
+const MODEL_GUIDES={
+ "WAN 3.0":["保持中文/英文提示词语义一致；先验证人物、服装结构和参考图职责，再增加风格化修饰。","这是通用适配提醒，不是官方参数；实际采样、尺寸与参考图设置以你的工作流为准。"],
+ "MiniMax H3":["优先生成单张结构清晰的结果，再扩展角度和场景；出现服装结构漂移时减少无关修饰词。","这是通用适配提醒，不代表已接入 MiniMax API。"],
+ "Seedance 2.5":["图片任务先固定款式、面料与关键结构；视频任务另外明确动作、镜头和时间连续性。","这是通用适配提醒，不代表已接入 Seedance 图片或视频生成接口。"],
+ "RunningHub":["RunningHub 是工作流平台，不是单一模型；请在平台内核对实际模型、节点输入和参考图连接。","不要把平台名称当作模型能力承诺。"],
+ "通用":["先小批量验证，再保存真实结果；不同模型对参考图、文字约束和双语提示词的响应可能不同。"]
+};
+function composePreflight(base,selected){
+ const errors=[],warnings=[];
+ if(!base){return {errors:["请选择完整成功案例"],warnings}}
+ if(base.status!=="已验证成功"||!String(base.body||"").trim())errors.push("基础案例必须是含完整提示词的已验证成功案例");
+ const models=new Set([base.model,...selected.map(x=>x.model)].filter(x=>x&&x!=="通用"));
+ if(models.size>1)errors.push("基础案例与模块的指定模型不一致："+[...models].join("、")+"；请先人工统一适用模型");
+ const allTags=[base, ...selected].flatMap(x=>Array.isArray(x.tags)?x.tags:[]).map(x=>String(x).toLowerCase());
+ if(allTags.includes("黑白")&&allTags.includes("彩色"))errors.push("检测到明确的互斥标签：黑白 / 彩色");
+ const scopes=new Set(selected.map(x=>x.category_scope).filter(x=>x&&x!=="通用"&&x!=="全部"));
+ if(scopes.size&&base.category&&![...scopes].includes(base.category)&&![...scopes].includes("整套搭配"))errors.push("模块适用品类与基础案例不一致："+[...scopes].join("、")+" / "+base.category);
+ const bodies=[base.body,...selected.map(x=>x.body)].join("\n").toLowerCase();
+ const forbidden=["禁止改变裤装","不要修改鞋履","保持配饰不变"].filter(rule=>bodies.includes(rule));
+ if(forbidden.length&&selected.length)warnings.push("基础提示词含约束："+forbidden.join("、")+"；请确认追加模块没有要求修改这些部位。");
+ if(selected.some(x=>x.module_type==="人物与身体锁定"))warnings.push("人物锁定模块可能覆盖基础案例的人物描述，请人工检查先后关系。");
+ if(selected.some(x=>!String(x.body||"").trim()))errors.push("存在空正文模块，不能组合");
+ return {errors,warnings};
 }
 function composeNow(){
- const b=db.cases.find(x=>x.id===$("base").value&&x.status==="已验证成功"&&String(x.body||"").trim());if(!b){lastCompositionSnapshot=null;$("output").value="";return toast("请先选择已验证成功且包含完整提示词的基础案例");}
- const mods=db.modules.filter(x=>composeSelectedModuleIds.has(x.id));
- const warnings=$("composeWarnings"),conflicts=findComposeConflicts(b,mods);
- if(conflicts.length){lastCompositionSnapshot=null;$("output").value="";warnings.style.color="#b45309";warnings.textContent="发现组合冲突，已阻止生成：\n"+conflicts.map(x=>"• "+x).join("\n")+"\n请取消冲突模块或修正模块内容后重试。";toast("发现提示词模块冲突，已阻止组合");return}
- warnings.style.color="var(--muted)";warnings.textContent="预检通过：未发现明确的模型或互斥约束冲突。请仍核对组合结果。";
- const guide=$("includeStructureGuide")?.checked?buildCaseReferenceGuide(b):"";
- const modelGuide=$("includeModelGuide")?.checked?"\n\n【模型适配提醒｜"+(b.model||"通用")+"】\n"+modelPromptGuide(b.model):"";
- const chinese=`【基础成功案例：${b.name}】\n${b.body}\n`+guide+modelGuide+mods.map(m=>`\n【追加模块：${m.name}】\n${m.body}`).join("\n");
- const bilingual=$("includeBilingual")?.checked?[[b.name,b.body_en],...mods.map(m=>[m.name,m.body_en])].filter(x=>String(x[1]||"").trim()).map(x=>`\n【English: ${x[0]}】\n${x[1]}`).join("\n"):"";
- const generatedBody=chinese+(bilingual?"\n\n【Bilingual English Versions】\n"+bilingual:"");
- $("output").value=generatedBody;
- lastCompositionSnapshot=buildCompositionSnapshot(b,mods,generatedBody);
+ const base=db.cases.find(x=>x.id===$("base").value),selected=db.modules.filter(x=>composeSelectedModuleIds.has(x.id));
+ const check=composePreflight(base,selected),warnings=$("composeWarnings");
+ lastCompositionSnapshot=null;
+ if(check.errors.length){warnings.textContent="无法组合："+check.errors.join("；");$("output").value="";return}
+ warnings.textContent=check.warnings.length?check.warnings.join("；"):"预检通过：未发现明确的模型、品类或互斥约束冲突。仍须人工审核和实际生成验证。";
+ const includeStructure=$("includeStructureGuide")?.checked!==false;
+ const includeBilingual=$("includeBilingual")?.checked!==false;
+ const includeModelGuide=$("includeModelGuide")?.checked!==false;
+ const structure=includeStructure&&Array.isArray(base.outfit_items)&&base.outfit_items.length?"\n\n[整套单品结构 / 请逐件保持]\n"+base.outfit_items.map((part,index)=>(index+1)+". "+[part.category,part.name||part.subcategory,part.color,part.material,part.silhouette,part.fit,(part.details||[]).join("、")].filter(Boolean).join(" | ")).join("\n"):"";
+ const roleGuide=includeStructure&&Array.isArray(base.image_roles)&&base.image_roles.length?"\n\n[参考图职责与优先级]\n"+base.image_roles.map(r=>"图片 "+r.asset_index+"："+(r.role_label||r.role||"待确认")+"；优先级 "+(r.priority||"supporting")+"；控制 "+((r.governs||[]).join("、")||"待人工确认")+"。"+(r.observation||"")).join("\n")+"\n提示词中的 @image 编号沿用原始案例，不会因资产序号自动重排，请按实际上传顺序核对。":"";
+ const englishParts=includeBilingual?[base.body_en,...selected.map(x=>x.body_en)].filter(x=>String(x||"").trim()):[];
+ const english=englishParts.length?"\n\n[English / 已保存版本]\n"+englishParts.join("\n\n"):"";
+ const model=base.model||selected.find(x=>x.model&&x.model!=="通用")?.model||"通用";
+ const guide=includeModelGuide?"\n\n[模型适配提醒："+model+"]\n"+(MODEL_GUIDES[model]||MODEL_GUIDES["通用"]).join("\n"):"";
+ $("output").value=base.body+structure+roleGuide+"\n\n"+selected.map(x=>"["+(x.module_type||"模块")+" / "+x.name+"]\n"+x.body).join("\n\n")+english+guide;
+ lastCompositionSnapshot={base_case_id:base.id,base_case_name:base.name||"",module_ids:selected.map(x=>x.id),module_names:selected.map(x=>x.name||""),created_at:new Date().toISOString(),preflight:check.warnings.length?"passed_with_warnings":"passed",warnings:check.warnings,model,include_structure_guide:includeStructure,include_bilingual:includeBilingual,include_model_guide:includeModelGuide,source_snapshot_available:true,source_base_body:base.body,source_module_bodies:selected.map(x=>({id:x.id,body:x.body})),composed_body:$("output").value,modified_after_generation:false};
 }
-function saveDraft(){
- const body=$("output").value;if(!body.trim())return toast("先生成组合草稿");
- const composition=compositionForDraft(body,lastCompositionSnapshot);
- const notes=!composition.source_snapshot_available
-  ?"手动输入或编辑的提示词草稿，未记录组合器来源，尚待实际验证"
-  :composition.modified_after_generation
-   ?"组合器预检通过后，提示词内容被手动修改；保留原始来源快照，尚待实际验证"
-   :"智能组合器生成，尚待实际验证";
- openEditor("case",{name:"组合提示词草稿",category:"整套搭配",model:"通用",status:"待验证",tags:["组合草稿"],body,notes,composition});
-}
-async function exportJSON(){try{await save()}catch(error){toast("备份前保存失败："+error.message);return}let a=document.createElement("a"),u=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:"application/json"}));a.href=u;a.download="prompt_library_backup.json";a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);toast("备份已导出")}
-async function restoreFullBackup(file){
- const status=$("restoreStatus");
- if(!file||!file.name.toLowerCase().endsWith(".zip")){if(status)status.textContent="请选择完整 ZIP 备份文件";return}
- if(file.size>500*1024*1024){if(status)status.textContent="备份文件超过 500MB，无法恢复";return}
- if(!confirm("即将用此 ZIP 备份覆盖当前案例、模块和本地参考图片。恢复前系统会自动创建当前数据的安全备份。确定继续吗？"))return;
- if(status)status.textContent="正在完成待保存数据，再上传并验证备份；文件较大时可能需要几分钟，请勿关闭工作台…";
- try{await save()}catch(error){if(status)status.textContent="恢复已取消：当前工作台有未确认保存的数据。请先检查数据连接后重试。"+error.message;toast("恢复已取消，未覆盖现有数据");return}
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),600000);
- try{
-  const response=await fetch("/api/backup/restore",{method:"POST",headers:{"Content-Type":"application/zip"},body:file,signal:controller.signal});
-  const result=await response.json();
-  if(!response.ok||!result.ok)throw new Error(result.error||"备份恢复失败");
-  const loaded=await load();
-  if(!loaded){
-   if($("restoreStatus"))$("restoreStatus").textContent="服务器已确认恢复成功，但界面未能重新读取数据。请刷新工作台；不要重复执行恢复。";
-   toast("备份已恢复，但界面刷新失败");
-   return;
-  }
-  page="settings";render();
-  const message="恢复成功：案例 "+result.cases+" 条、模块 "+result.modules+" 条、参考图片 "+result.references+" 张。恢复前安全备份："+result.safety_backup;
-  if($("restoreStatus"))$("restoreStatus").textContent=message;
-  toast("完整备份恢复成功");
- }catch(error){
-  if($("restoreStatus"))$("restoreStatus").textContent=error.name==="AbortError"?"恢复请求超时，结果可能尚未确认；请重新打开工作台核对数据，勿立即重复恢复。":"恢复失败："+error.message;
-  toast("完整备份恢复未确认");
- }finally{clearTimeout(timer)}
-}
-async function downloadFullBackup(){
- const status=$("backupStatus");
- if(status)status.textContent="正在保存最新修改并创建数据库、JSON 和参考图片备份…";
- try{
-  await save();
-  const response=await fetch("/api/backup/full",{cache:"no-store"});
-  if(!response.ok){
-   let detail="服务器无法创建完整备份";
-   try{const error=await response.json();detail=error.error||detail}catch(_){}
-   throw new Error(detail);
-  }
-  const blob=await response.blob();
-  if(!blob.size)throw new Error("备份文件为空");
-  const url=URL.createObjectURL(blob),a=document.createElement("a");
-  a.href=url;a.download="PromptAtelier_full_backup.zip";
-  document.body.appendChild(a);a.click();a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),1500);
-  if(status)status.textContent="完整 ZIP 备份已生成并通过 SHA-256 校验；已开始下载。";
-  toast("完整备份已准备好");
- }catch(error){
-  if(status)status.textContent="备份失败："+error.message;
-  toast("完整备份失败");
+async function saveDraft(){
+ const output=$("output").value;
+ if(!output)return toast("请先生成组合结果");
+ if(lastCompositionSnapshot){
+  lastCompositionSnapshot.modified_after_generation=output!==lastCompositionSnapshot.composed_body;
+  delete lastCompositionSnapshot.source_base_body;
+  (lastCompositionSnapshot.source_module_bodies||[]).forEach(x=>delete x.body);
+  delete lastCompositionSnapshot.composed_body;
  }
-}
-function mergeImportedAssets(data,current){
- if(!data||!Array.isArray(data.cases)||!Array.isArray(data.modules))throw new Error("JSON 格式不正确");
- const ids=new Set([...current.cases,...current.modules].map(item=>String(item?.id??"").trim()).filter(Boolean));
- const merged={cases:[...current.cases],modules:[...current.modules]};
- let added=0,skipped=0;
- for(const [source,target] of [[data.cases,merged.cases],[data.modules,merged.modules]]){
-  for(const item of source){
-   if(!item||typeof item!=="object"||Array.isArray(item)||(typeof item.id!=="string"&&typeof item.id!=="number")||String(item.id).trim()===""){skipped++;continue}
-   const id=String(item.id).trim();
-   if(ids.has(id)){skipped++;continue}
-   ids.add(id);target.push({...item,id,tags:normalizeTags(item.tags),image:typeof item.image==="string"?item.image:""});added++;
-  }
- }
- return {data:merged,added,skipped};
-}
-function importJSON(f){
- if(!f||f.size>25*1024*1024){toast("JSON 备份不能超过 25MB");return}
- const reader=new FileReader();
- reader.onerror=()=>toast("JSON 文件读取失败，请检查文件是否可读后重试");
- reader.onabort=()=>toast("JSON 导入已取消");
- reader.onload=async()=>{
-  const previous=JSON.parse(JSON.stringify(db));
-  try{
-   const data=JSON.parse(reader.result);
-   const merged=mergeImportedAssets(data,db);
-   db=merged.data;
-   await save();render();toast("导入完成："+merged.added+" 条新增，"+merged.skipped+" 条重复或无效记录已跳过");
-  }catch(error){const outcome=await reconcileSaveFailure(error,()=>db=previous);if(outcome==="server")render();alert(saveFailureMessage("导入",outcome,error))}
- };
- reader.readAsText(f);
-}
-async function uploadImage(f){let data=await new Promise((res,rej)=>{let r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f)});let r=await fetch("/api/image",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:f.name,data})}),v=await r.json();if(v.path){imagePath=v.path;$("f_image").value=f.name;toast("图片已添加")}else toast("图片上传失败")}
-
-let updateInfo = null, autoUpdateInProgress = false;
-let autoUpdateAuthorized=false, autoUpdateIdleTimer=null, autoUpdateCountdownTimer=null;
-let autoUpdateLastActivity=Date.now(), autoUpdateSkippedVersion=null;
-const AUTO_UPDATE_IDLE_MS=15*60*1000, AUTO_UPDATE_COUNTDOWN_SECONDS=60;
-function clearAutoUpdateTimers(){
- if(autoUpdateIdleTimer!==null){clearTimeout(autoUpdateIdleTimer);autoUpdateIdleTimer=null}
- if(autoUpdateCountdownTimer!==null){clearTimeout(autoUpdateCountdownTimer);autoUpdateCountdownTimer=null}
- const cancel=$("cancelAutoUpdateBtn");if(cancel)cancel.style.display="none";
- const notice=$("autoUpdateNotice");if(notice)notice.style.display="none";
-}
-function scheduleAuthorizedAutoUpdate(){
- if(!autoUpdateAuthorized||!updateInfo?.update_available
-    ||autoUpdateSkippedVersion===updateInfo.latest_version||autoUpdateInProgress)return;
- if(autoUpdateIdleTimer!==null)clearTimeout(autoUpdateIdleTimer);
- const remaining=Math.max(1000,AUTO_UPDATE_IDLE_MS-(Date.now()-autoUpdateLastActivity));
- autoUpdateIdleTimer=setTimeout(()=>{
-  autoUpdateIdleTimer=null;
-  if(document.visibilityState!=="visible"||!document.hasFocus()){
-   autoUpdateIdleTimer=setTimeout(scheduleAuthorizedAutoUpdate,60000);return;
-  }
-  startAuthorizedAutoUpdateCountdown();
- },remaining);
-}
-function startAuthorizedAutoUpdateCountdown(){
- let seconds=AUTO_UPDATE_COUNTDOWN_SECONDS;
- toast("已连续空闲 15 分钟；60 秒后自动更新，任意操作可延期");
- const tick=()=>{
-  if(!autoUpdateAuthorized||!updateInfo?.update_available||autoUpdateInProgress){clearAutoUpdateTimers();return}
-  if(Date.now()-autoUpdateLastActivity<AUTO_UPDATE_IDLE_MS
-     ||document.visibilityState!=="visible"||!document.hasFocus()){
-   clearAutoUpdateTimers();scheduleAuthorizedAutoUpdate();return;
-  }
-  const status=$("updateStatus"),cancel=$("cancelAutoUpdateBtn");
-  const notice=$("autoUpdateNotice"),noticeText=$("autoUpdateNoticeText");
-  const message="已授权自动更新：连续空闲 15 分钟，"+seconds+" 秒后开始下载、校验和安装；任意操作可延期。更新前会创建完整备份。";
-  if(status)status.textContent=message;
-  if(cancel)cancel.style.display="inline-block";
-  if(notice)notice.style.display="flex";
-  if(noticeText)noticeText.textContent=message;
-  if(seconds<=0){clearAutoUpdateTimers();applyUpdate(true);return}
-  seconds--;autoUpdateCountdownTimer=setTimeout(tick,1000);
- };
- tick();
-}
-function markAutoUpdateActivity(){
- autoUpdateLastActivity=Date.now();
- if(autoUpdateCountdownTimer!==null){clearAutoUpdateTimers();scheduleAuthorizedAutoUpdate()}
- else if(autoUpdateAuthorized&&updateInfo?.update_available)scheduleAuthorizedAutoUpdate();
-}
-document.addEventListener("pointerdown",markAutoUpdateActivity,true);
-document.addEventListener("keydown",markAutoUpdateActivity,true);
-document.addEventListener("touchstart",markAutoUpdateActivity,true);
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")markAutoUpdateActivity()});
-async function cancelScheduledAutoUpdate(){
- autoUpdateSkippedVersion=updateInfo?.latest_version||null;
- clearAutoUpdateTimers();
- try{await scanApi("/api/update/auto/skip",{version:autoUpdateSkippedVersion||""})}catch(error){}
- const status=$("updateStatus");
- if(status)status.textContent="已取消 V"+(autoUpdateSkippedVersion||"当前")+" 的自动安装；仍可随时手动一键更新。只有出现更新版本时才会再次自动安排。";
- toast("已取消此版本的自动安装");
-}
-async function refreshAutoUpdateState(){
- try{
-  const state=await scanApi("/api/update/auto");
-  autoUpdateAuthorized=state.enabled===true;
-  autoUpdateSkippedVersion=state.skipped_version||null;
-  const button=$("autoUpdateToggle"),status=$("autoUpdateStatus");
-  if(button)button.textContent=state.enabled?"自动更新：已授权（点击关闭）":"自动更新：未授权（点击开启）";
-  if(status)status.textContent=state.enabled?"已授权自动下载、校验和安装；检测到新版本后等待连续空闲 15 分钟，再倒计时 60 秒。任意操作会延期，安装前自动创建完整备份。":"当前仅自动检查更新，不会自动安装；开启后无需每次手动下载或确认。";
-  if(autoUpdateAuthorized&&updateInfo?.update_available)scheduleAuthorizedAutoUpdate();
- }catch(error){if($("autoUpdateToggle"))$("autoUpdateToggle").textContent="自动更新状态不可用"}
-}
-async function toggleAutoUpdate(){
- try{
-  const current=await scanApi("/api/update/auto");
-  const result=await scanApi("/api/update/auto",{enabled:!current.enabled});
-  await refreshAutoUpdateState();
-  if(!result.enabled)clearAutoUpdateTimers();
-  else if(updateInfo?.update_available)scheduleAuthorizedAutoUpdate();
-  toast(result.enabled?"已授权自动更新（仅在空闲时安装）":"已关闭自动更新授权");
- }catch(error){toast("设置自动更新失败："+error.message)}
-}
-async function checkUpdate(showToast=true){
-  const status = document.getElementById("updateStatus");
-  if(status) status.textContent = "正在连接 GitHub 检查版本…";
-  try{
-    const r = await fetch("/api/update/check",{cache:"no-store"});
-    const d = await r.json();
-    updateInfo = d;
-    const apply = document.getElementById("applyUpdateBtn");
-    if(!d.ok){
-      if(status) status.textContent = "暂时无法检查更新：" + (d.error||"网络连接失败") + "。请检查 GitHub 网络连接。";
-      if(apply) apply.style.display="none";
-      if(showToast) toast("检查更新失败");
-      return;
-    }
-    if(d.update_available){
-      if(status) status.textContent = `发现新版本 V${d.latest_version}（当前 V${d.current_version}）。${d.notes||""} 更新不会覆盖你的提示词数据和图片。`;
-      if(apply) apply.style.display="inline-block";
-      const autoResponse=await fetch("/api/update/auto",{cache:"no-store"});
-      const autoState=await autoResponse.json();
-      autoUpdateAuthorized=autoState.enabled===true;
-      autoUpdateSkippedVersion=autoState.skipped_version||null;
-      if(autoUpdateSkippedVersion&&autoUpdateSkippedVersion!==d.latest_version){
-        await scanApi("/api/update/auto/skip",{version:""});
-        autoUpdateSkippedVersion=null;
-      }
-      if(autoUpdateAuthorized&&!autoUpdateInProgress&&autoUpdateSkippedVersion!==d.latest_version){
-        if(status)status.textContent="已授权自动更新：检测到 V"+d.latest_version+"，将在连续空闲 15 分钟并倒计时 60 秒后安装；任意操作可延期。";
-        scheduleAuthorizedAutoUpdate();
-      }else{
-        clearAutoUpdateTimers();
-        if(status&&autoUpdateSkippedVersion===d.latest_version)status.textContent="已取消 V"+d.latest_version+" 的自动安装；仍可手动更新。出现更新版本后会重新安排。";
-      }
-      if(showToast) toast("发现新版本 V"+d.latest_version);
-    }else{
-      if(status) status.textContent = `当前已是最新版本 V${d.current_version}。`;
-      if(apply) apply.style.display="none";
-      clearAutoUpdateTimers();
-      if(showToast) toast("当前已是最新版本");
-    }
-  }catch(e){
-    if(status) status.textContent = "检查更新失败：" + e.message;
-    if(showToast) toast("检查更新失败");
-  }
-}
-async function applyUpdate(automatic=false){
-  if(!updateInfo || !updateInfo.update_available) return toast("请先检查更新");
-  if(automatic&&autoUpdateInProgress)return;
-  if(!automatic&&!confirm(`确定更新到 V${updateInfo.latest_version} 吗？工作台将自动关闭、替换程序并重新启动。你的提示词数据和图片会保留。`)) return;
-  if(automatic)autoUpdateInProgress=true;
-  const status = document.getElementById("updateStatus");
-  if(status) status.textContent = "正在创建完整备份、下载并校验更新文件…";
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10*60*1000);
-  let responseReceived=false,updateRequestSent=false;
-  try{
-    await save();
-    updateRequestSent=true;
-    const r = await fetch("/api/update/apply",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}",signal:controller.signal});
-    responseReceived=true;
-    const d = await r.json();
-    if(!r.ok || !d.ok) throw new Error(d.error||"更新启动失败");
-    if(status) status.textContent = d.message || "更新已开始，工作台即将重启。";
-    if(!automatic)alert(d.message || "更新已开始，工作台即将重启。");
-  }catch(e){
-    if(!updateRequestSent&&automatic)autoUpdateInProgress=false;
-    if(responseReceived&&automatic)autoUpdateInProgress=false;
-    const message=!updateRequestSent
-      ? "更新已取消：待保存数据未能确认写入，因此没有启动更新。"+e.message
-      : responseReceived
-        ? "更新未能启动："+e.message
-        : "更新请求已发出，但连接中断，无法确认安装是否启动。请等待 1–2 分钟；若工作台未自动重启，再手动检查版本。请勿连续重复启动更新。";
-    if(status)status.textContent=message;
-    if(!automatic)alert(message);
-  }finally{clearTimeout(timer)}
+ const base=db.cases.find(x=>x.id===$("base").value);
+ db.cases.unshift({id:crypto.randomUUID(),name:"组合草稿 · "+(base?.name||""),category:base?.category||"其他",status:"待验证",body:output,body_en:"",composition:lastCompositionSnapshot,created_at:new Date().toISOString()});
+ try{await save();toast("已保存为待验证案例，请实际生成后再标记验证结果");gallery()}catch(e){toast("保存失败："+e.message)}
 }
 
-async function scanApi(path,body,timeoutMs){
- const timeout=Number(timeoutMs)|| (path==="/api/ai/analyze"?180000:30000),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeout);
+async function scanApi(path,payload){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),path==="/api/ai/review"?180000:30000);
  try{
-  const r=await fetch(path,{method:body?"POST":"GET",headers:{"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined,signal:controller.signal});
-  const d=await r.json();if(!r.ok)throw new Error(d.error||"请求失败");return d;
- }catch(error){if(error.name==="AbortError")throw new Error("请求超时（"+Math.round(timeout/1000)+" 秒），请检查工作台服务后重试");throw error}
+  const response=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload),signal:controller.signal});
+  const data=await response.json();if(!response.ok||data.ok===false)throw new Error(data.error||("HTTP "+response.status));return data;
+ }catch(error){if(error.name==="AbortError")throw new Error(path==="/api/ai/review"?"AI 分析超过 180 秒，请检查网络、模型服务或减少图片后重试":"本地请求超过 30 秒，请检查工作台状态后重试");throw error}
  finally{clearTimeout(timer)}
 }
-async function refreshAutoScanState(){try{const d=await scanApi("/api/scan/auto");const b=$("autoScanToggle");if(b)b.textContent=d.enabled?"自动监控：已开启（点击关闭）":"自动监控：已关闭（点击开启）";const s=$("autoScanStatus");if(s)s.textContent=d.enabled?"工作台运行期间每 60 秒扫描一次已添加文件夹。":"自动监控已关闭；可随时手动扫描。"}catch(e){const b=$("autoScanToggle");if(b)b.textContent="自动监控状态不可用"}}
-async function toggleAutoScan(){try{const d=await scanApi("/api/scan/auto");const r=await scanApi("/api/scan/auto",{enabled:!d.enabled});await refreshAutoScanState();toast(r.enabled?"已开启文件夹自动监控":"已关闭文件夹自动监控")}catch(e){toast("设置自动监控失败："+e.message)}}
-async function addScanSource(){const folder=$("scanFolder").value.trim();if(!folder){$("scanStatus").textContent="请先填写文件夹路径";return}try{await scanApi("/api/scan/source",{folder,recursive:true});$("scanStatus").textContent="文件夹已添加："+folder;$("scanFolder").value="";await loadScanQueue()}catch(e){$("scanStatus").textContent="添加失败："+e.message}}
-let scanBatchInProgress=false;
-async function runAllScans(button){
- const status=$("scanStatus"),setStatus=value=>{if(status)status.textContent=value};
- if(scanBatchInProgress){setStatus("已有扫描任务正在执行，请等待完成");return}
- scanBatchInProgress=true;
- const originalText=button?.textContent||"立即扫描";
- if(button){button.disabled=true;button.setAttribute("aria-busy","true");button.textContent="扫描中…"}
- setStatus("正在读取已添加的素材文件夹…");
- try{
-  const data=await scanApi("/api/scan/sources"),sources=Array.isArray(data.sources)?data.sources:[];
-  if(!sources.length){setStatus("请先添加一个历史素材文件夹");return}
-  const total={added:0,changed:0,unchanged:0};
-  for(let i=0;i<sources.length;i++){
-   setStatus("正在扫描素材文件夹 "+(i+1)+"/"+sources.length+"… 累计新增 "+total.added+"、变化 "+total.changed+"、未变化 "+total.unchanged);
-   const result=await scanApi("/api/scan/run",{source_id:sources[i].id}),summary=result.summary||{};
-   for(const key of Object.keys(total))total[key]+=Number(summary[key])||0;
-   setStatus("已完成 "+(i+1)+"/"+sources.length+" 个素材文件夹；新增 "+total.added+"、变化 "+total.changed+"、未变化 "+total.unchanged);
-  }
-  setStatus("扫描完成："+sources.length+" 个素材文件夹；新增 "+total.added+"，变化 "+total.changed+"，未变化 "+total.unchanged);
-  if($("scanQueue"))await loadScanQueue();
- }catch(error){setStatus("扫描失败："+error.message)}
- finally{
-  scanBatchInProgress=false;
-  if(button){button.disabled=false;button.removeAttribute("aria-busy");button.textContent=originalText}
- }
+async function loadScanQueue(){
+ const box=$("scanQueue");if(!box)return;box.innerHTML="正在读取待审核队列…";
+ try{const data=await scanApi("/api/scan/queue",{});if(!data.items.length){box.innerHTML="<p>暂无待审核记录。添加历史素材文件夹后点击立即扫描。</p>";return}box.innerHTML=data.items.slice(0,60).map(item=>`<div class="vault" style="margin-top:8px"><b>${esc(item.original_name||item.relative_path)}</b><p>${esc(item.relative_path||"")} · ${esc(item.media_type||"")} · ${esc(item.scan_status||"")}</p><p>${esc(item.prompt_preview||"尚未匹配提示词")}</p><button class="btn" data-scan-match="${esc(item.id)}">匹配提示词</button> <button class="btn" data-ai-review="${esc(item.id)}">AI 多图分析</button> <button class="btn" data-scan-reject="${esc(item.id)}">忽略</button><div id="aiReview_${esc(item.id)}"></div></div>`).join("");box.querySelectorAll("[data-scan-match]").forEach(button=>button.onclick=()=>matchScanItem(button.dataset.scanMatch));box.querySelectorAll("[data-scan-reject]").forEach(button=>button.onclick=()=>rejectScanItem(button.dataset.scanReject));box.querySelectorAll("[data-ai-review]").forEach(button=>button.onclick=()=>reviewScanItem(button.dataset.aiReview))}catch(e){box.textContent=e.message}
 }
-async function loadScanQueue(){try{const d=await scanApi("/api/scan/pending");const box=$("scanQueue");box.innerHTML="";if(!d.items.length){box.innerHTML='<p style="color:var(--muted)">暂无待审核文件</p>';return}d.items.slice(0,80).forEach(x=>{const row=document.createElement("div");row.style.cssText="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:9px 0;border-top:1px solid var(--line)";const info=document.createElement("div");info.style.minWidth="0";const name=document.createElement("b");name.textContent=x.name;const meta=document.createElement("div");meta.style.cssText="font-size:12px;color:var(--muted);overflow-wrap:anywhere";meta.textContent=x.relative_path+" · "+x.media_type;info.append(name,meta);const actions=document.createElement("div");actions.style.cssText="display:flex;gap:5px;flex-shrink:0";for(const [label,status] of [["保留","approved"],["忽略","ignored"]]){const btn=document.createElement("button");btn.className="btn";btn.textContent=label;btn.addEventListener("click",()=>reviewScanFile(x.path,status));actions.appendChild(btn)}row.append(info,actions);box.appendChild(row)})}catch(e){$("scanQueue").textContent="读取失败："+e.message}}
-async function loadScanMatches(){const box=$("scanQueue");try{const d=await scanApi("/api/scan/matches");if(!d.matches.length){$("scanStatus").textContent="暂未发现可靠的文件名关联候选";return}const grouped=new Map();for(const m of d.matches){if(!grouped.has(m.prompt_path))grouped.set(m.prompt_path,[]);if(m.asset_type==="image")grouped.get(m.prompt_path).push(m)}const panel=document.createElement("div");panel.style.cssText="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:10px";const title=document.createElement("b");title.textContent="按提示词组合多张图片（每组最多 8 张）";panel.appendChild(title);const note=document.createElement("p");note.style.cssText="font-size:12px;color:var(--muted)";note.textContent="请勾选属于同一套穿搭/同一成功案例的图片，例如整体图、正反面、领口、面料细节。文件名关联仅是建议，必须人工确认。";panel.appendChild(note);let groupNo=0;for(const [promptPath,items] of grouped){if(!items.length)continue;groupNo++;const group=document.createElement("div");group.style.cssText="padding:10px 0;border-top:1px solid var(--line)";const head=document.createElement("div");head.style.cssText="font-size:12px;overflow-wrap:anywhere;margin-bottom:7px";head.textContent="提示词："+promptPath;group.appendChild(head);items.slice(0,20).forEach((m,i)=>{const label=document.createElement("label");label.style.cssText="display:flex;gap:8px;align-items:flex-start;padding:5px 0;font-size:12px;overflow-wrap:anywhere";const cb=document.createElement("input");cb.type="checkbox";cb.className="bundleAsset";cb.value=m.asset_path;cb.dataset.prompt=promptPath;cb.checked=i===0;const txt=document.createElement("span");txt.textContent=m.asset_path+" · 文件名关联 "+Math.round(m.score*100)+"%";label.append(cb,txt);group.appendChild(label)});const btn=document.createElement("button");btn.className="btn primary";btn.style.marginTop="7px";btn.textContent="分析这组图片并提取案例";btn.onclick=()=>{const selected=[...group.querySelectorAll(".bundleAsset:checked")].map(x=>x.value);if(!selected.length){alert("请至少勾选一张图片");return}if(selected.length>8){alert("每组最多选择 8 张图片");return}runAiAnalysis({prompt_path:promptPath,asset_paths:selected},btn)};group.appendChild(btn);panel.appendChild(group)}box.prepend(panel);$("scanStatus").textContent="已按提示词整理图片候选组，请勾选同一套穿搭的多角度素材"}catch(e){$("scanStatus").textContent="匹配分析失败："+e.message}}
-let aiAnalysisInProgress=false;
-async function runAiAnalysis(match,button){
- const status=$("scanStatus"),setStatus=value=>{if(status)status.textContent=value};
- if(aiAnalysisInProgress){setStatus("已有 AI 分析任务正在进行，请等待完成");return}
- const key=$("aiKey")?.value?.trim()||"";
- if(!key){setStatus("请先填写 API Key");return}
- const paths=Array.isArray(match.asset_paths)?match.asset_paths:[match.asset_path].filter(Boolean);
- if(!paths.length){setStatus("没有可供分析的参考图片");return}
- if(!confirm("将原始提示词和选中的 "+paths.length+" 张图片发送到你填写的 AI 服务进行分析。密钥不会保存在工作台。继续吗？"))return;
- aiAnalysisInProgress=true;
- const originalText=button?.textContent||"分析这组图片并提取案例";
- if(button){button.disabled=true;button.setAttribute("aria-busy","true");button.textContent="AI 分析中…"}
- try{
-  setStatus("正在发送原始提示词和 "+paths.length+" 张参考图片；等待模型完成综合分析…");
-  await scanApi("/api/ai/analyze",{prompt_path:match.prompt_path,asset_paths:paths,api_key:key,endpoint:$("aiEndpoint").value.trim(),model:$("aiModel").value.trim()});
-  setStatus("模型分析完成，正在刷新人工审核队列…");
-  await loadAiReviews();
-  setStatus("AI 分析完成，结果已进入人工确认队列；原始提示词不会被改写。");
- }catch(error){setStatus("AI 分析失败："+error.message)}
- finally{
-  aiAnalysisInProgress=false;
-  if(button){button.disabled=false;button.removeAttribute("aria-busy");button.textContent=originalText}
- }
-}
-async function loadAiReviews(){try{const d=await scanApi("/api/ai/reviews");const box=$("scanQueue");box.innerHTML="";if(!d.reviews.length){box.textContent="暂无待确认的 AI 分析结果";return}d.reviews.forEach(x=>{const card=document.createElement("div");card.style.cssText="padding:12px;margin:8px 0;border:1px solid var(--line);border-radius:10px";const title=document.createElement("b");title.textContent=x.result.title||"未命名案例";const summary=document.createElement("p");summary.style.cssText="font-size:13px;white-space:pre-wrap";summary.textContent=(x.result.prompt_summary||"无摘要")+"\\n分类："+(x.result.category||"其他")+" · 置信度："+Math.round((Number(x.result.confidence)||0)*100)+"%";const source=document.createElement("div");source.style.cssText="font-size:11px;color:var(--muted);overflow-wrap:anywhere";source.textContent=x.prompt_path+" ↔ "+((x.result.asset_paths||[x.asset_path]).length)+" 张关联图片";const roles=document.createElement("p");roles.style.cssText="font-size:12px;color:var(--muted)";roles.textContent="图片分类："+(Array.isArray(x.result.asset_roles)&&x.result.asset_roles.length?x.result.asset_roles.map(r=>(r.asset_index||"?")+" · "+(r.role_label||"待确认")+" · "+({primary:"主参考",secondary:"次参考",supporting:"辅助参考"}[r.priority]||"辅助参考")).join("；"):"尚无可靠分类，入库后可人工核对");const outfit=document.createElement("p");outfit.style.cssText="font-size:12px;color:var(--muted)";outfit.textContent="穿搭拆解："+(Array.isArray(x.result.outfit_items)&&x.result.outfit_items.length?x.result.outfit_items.map(p=>(p.item_index||"?")+" · "+(p.category||"其他")+" "+(p.name||p.subcategory||"未命名")).join("；"):"未识别到可靠单品拆解");const risks=document.createElement("p");risks.style.cssText="font-size:12px;color:var(--muted)";risks.textContent="风险提示："+(Array.isArray(x.result.risk_notes)?x.result.risk_notes.join("；"):"无");const actions=document.createElement("div");actions.style.cssText="display:flex;gap:8px";const yes=document.createElement("button");yes.className="btn primary";yes.textContent="确认并入库";yes.onclick=()=>approveAiReview(x.id);const no=document.createElement("button");no.className="btn";no.textContent="拒绝";no.onclick=()=>rejectAiReview(x.id);actions.append(yes,no);card.append(title,summary,source,roles,outfit,risks,actions);box.append(card)})}catch(e){$("scanQueue").textContent="读取 AI 审核结果失败："+e.message}}
-async function approveAiReview(id){try{const d=await scanApi("/api/ai/approve",{analysis_id:id});db=normalizeAssetData(d.data);render();$("scanStatus").textContent="已确认入库，案例已加入成功案例库";await loadAiReviews()}catch(e){$("scanStatus").textContent="入库失败："+e.message}}
-async function rejectAiReview(id){try{await scanApi("/api/ai/reject",{analysis_id:id});await loadAiReviews()}catch(e){$("scanStatus").textContent="拒绝操作失败："+e.message}}
-async function reviewScanFile(path,status){try{await scanApi("/api/scan/review",{path,status});await loadScanQueue()}catch(e){alert("审核操作失败："+e.message)}}
+async function addScanSource(){const path=$("scanFolder").value.trim();if(!path)return toast("请输入本机历史素材文件夹路径");try{await scanApi("/api/scan/sources",{path});$("scanFolder").value="";toast("已添加扫描来源");loadScanQueue()}catch(e){toast(e.message)}}
+async function runAllScans(button){button.disabled=true;button.textContent="扫描中…";$("scanStatus").textContent="正在扫描明确授权的本地文件夹，原始文件不会被移动或删除…";try{const data=await scanApi("/api/scan/run",{});$("scanStatus").textContent=`扫描完成：新增 ${data.added||0}，更新 ${data.updated||0}，跳过 ${data.skipped||0}，错误 ${(data.errors||[]).length}`;loadScanQueue()}catch(e){$("scanStatus").textContent=e.message}finally{button.disabled=false;button.textContent="立即扫描"}}
+async function refreshAutoScanState(){const button=$("autoScanToggle");if(!button)return;try{const data=await scanApi("/api/scan/auto",{});button.textContent="自动监控："+(data.enabled?"已开启":"已关闭");button.setAttribute("aria-pressed",String(Boolean(data.enabled)));$("autoScanStatus").textContent=(data.enabled?"每 60 秒自动检查一次；":"当前不自动扫描；")+"仅扫描你明确添加的文件夹。"+(data.running?" 后台正在扫描。":"")}catch(e){$("autoScanStatus").textContent="自动监控状态读取失败："+e.message}}
+async function toggleAutoScan(){try{const data=await scanApi("/api/scan/auto",{toggle:true});toast(data.enabled?"已开启每 60 秒自动监控":"已关闭自动监控");refreshAutoScanState()}catch(e){toast(e.message)}}
+async function matchScanItem(id){try{const data=await scanApi("/api/scan/match",{item_id:id});toast(`已匹配 ${data.matches?.length||0} 条提示词`);loadScanQueue()}catch(e){toast(e.message)}}
+async function loadScanMatches(){try{const data=await scanApi("/api/scan/match",{});toast(`匹配完成：${data.matches?.length||0} 条结果`);loadScanQueue()}catch(e){toast(e.message)}}
+async function rejectScanItem(id){try{await scanApi("/api/scan/review",{item_id:id,action:"reject"});loadScanQueue()}catch(e){toast(e.message)}}
+async function reviewScanItem(id){const key=$("aiKey").value.trim(),endpoint=$("aiEndpoint").value.trim(),model=$("aiModel").value.trim(),box=$("aiReview_"+id);if(!key)return toast("请输入 API Key；它只随本次请求使用，不保存");box.textContent="AI 正在联合分析提示词和关联图片，可能需要几十秒…";try{const data=await scanApi("/api/ai/review",{item_id:id,api_key:key,endpoint,model});const r=data.review;box.innerHTML=`<div class="vault" style="margin-top:10px"><b>${esc(r.case_draft?.name||"AI 案例草稿")}</b><p>模型：${esc(r.model||model)} · 分析图片：${r.image_count||0} 张</p><p>${esc(r.reason||"")}</p><p>提示词：${esc(r.case_draft?.body||"")}</p><p>标签：${esc((r.case_draft?.tags||[]).join("、"))}</p><p>整套单品：${(r.case_draft?.outfit_items||[]).length} 件；参考图职责：${(r.case_draft?.image_roles||[]).length} 条</p><button class="btn primary" data-ai-approve="${esc(r.id)}">人工确认并入库</button><button class="btn" data-ai-reject="${esc(r.id)}">拒绝</button></div>`;box.querySelector("[data-ai-approve]").onclick=()=>approveAiReview(r.id);box.querySelector("[data-ai-reject]").onclick=()=>rejectAiReview(r.id)}catch(e){box.textContent="AI 分析失败："+e.message}}
+async function approveAiReview(id){try{await scanApi("/api/ai/approve",{review_id:id});toast("已人工审核入库");await load()}catch(e){toast(e.message)}}
+async function rejectAiReview(id){try{await scanApi("/api/ai/reject",{review_id:id});toast("已拒绝该 AI 草稿");loadScanQueue()}catch(e){toast(e.message)}}
+async function loadAiReviews(){const box=$("scanQueue");try{const data=await scanApi("/api/ai/reviews",{});box.innerHTML=data.items.length?data.items.map(r=>`<div class="vault" style="margin-top:8px"><b>${esc(r.case_draft?.name||"AI 审核记录")}</b><p>${esc(r.status)} · ${esc(r.model||"")}</p><p>${esc(r.case_draft?.body||"")}</p>${r.status==="pending"?`<button class="btn primary" data-ai-approve="${esc(r.id)}">确认入库</button> <button class="btn" data-ai-reject="${esc(r.id)}">拒绝</button>`:""}</div>`).join(""):"<p>暂无 AI 审核记录。</p>";box.querySelectorAll("[data-ai-approve]").forEach(b=>b.onclick=()=>approveAiReview(b.dataset.aiApprove));box.querySelectorAll("[data-ai-reject]").forEach(b=>b.onclick=()=>rejectAiReview(b.dataset.aiReject))}catch(e){box.textContent=e.message}}
 
-document.querySelectorAll(".nav").forEach(n=>n.onclick=()=>{if(n.dataset.cat){filter=n.dataset.cat;page="gallery"}else if(n.dataset.page){page=n.dataset.page;filter="全部";if(page==="trash")deletedAssetsCache=null}render()});$("search").oninput=render;$("addBtn").onclick=()=>openEditor(page==="modules"?"module":"case");$("importBtn").onclick=()=>$("jsonPicker").click();$("exportBtn").onclick=exportJSON;$("updateBtn").onclick=()=>{page="settings";render();checkUpdate(true)};$("jsonPicker").onchange=e=>{const file=e.target.files?.[0];e.target.value="";if(file)importJSON(file)};$("imagePicker").onchange=e=>e.target.files[0]&&uploadImage(e.target.files[0]);$("closeDetail").onclick=closeDetail;$("closeModal").onclick=closeEditor;$("detailOverlay").onclick=e=>{if(e.target===$("detailOverlay"))closeDetail()};$("editModal").onclick=e=>{if(e.target===$("editModal"))closeEditor()};
-// Keep the local server alive only while this workbench page is open.
-let heartbeatTimer=null;
-async function sendWorkbenchHeartbeat(){
- try{await fetch("/api/client/heartbeat",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store",keepalive:true})}catch(e){}
+async function exportJSON(){try{await saveQueue}catch(_){}const blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="prompt_library_backup.json";a.click();URL.revokeObjectURL(a.href)}
+async function downloadFullBackup(){const status=$("backupStatus");status.textContent="正在等待未完成的保存并打包数据库和参考图片…";try{await saveQueue;const response=await fetch("/api/backup/full",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"});if(!response.ok){let message="HTTP "+response.status;try{message=(await response.json()).error||message}catch(_){}throw new Error(message)}const blob=await response.blob(),disposition=response.headers.get("Content-Disposition")||"",match=disposition.match(/filename="([^"]+)"/),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=match?match[1]:"Prompt_Atelier_full_backup.zip";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);status.textContent="完整 ZIP 备份已生成并开始下载。"}catch(e){status.textContent="完整备份失败："+e.message}}
+async function restoreFullBackup(file){if(!confirm("确定使用这份完整 ZIP 备份恢复工作台吗？当前数据会先自动创建安全备份；恢复会替换当前数据库、案例、模块和参考图片。"))return;const status=$("restoreStatus");status.textContent="正在等待未完成的保存并上传备份，请保持本页面开启…";const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10*60*1000);try{await saveQueue;const response=await fetch("/api/backup/restore",{method:"POST",headers:{"Content-Type":"application/zip","X-Backup-Filename":encodeURIComponent(file.name)},body:file,signal:controller.signal});const payload=await response.json();if(!response.ok||!payload.ok)throw new Error(payload.error||("HTTP "+response.status));const restored=await load();render();status.textContent=restored?"恢复完成。恢复前安全备份："+(payload.safety_backup||"已创建"):"服务器已确认恢复，但页面重新读取失败。请刷新工作台后再继续操作。恢复前安全备份："+(payload.safety_backup||"已创建")}catch(e){status.textContent=e.name==="AbortError"?"恢复请求超过 10 分钟，结果尚未确认。请刷新页面核对，勿立即重复恢复。":"恢复失败："+e.message}finally{clearTimeout(timer)}}
+function importJSON(file){const reader=new FileReader();reader.onload=async()=>{try{const data=JSON.parse(reader.result),previous=db,seen=new Set([...db.cases,...db.modules].map(x=>x.id));let added=0;["cases","modules"].forEach(k=>{(data[k]||[]).forEach(x=>{if(!x.id||seen.has(x.id))return;seen.add(x.id);db[k].push(x);added++})});if(!added)return toast("没有可导入的新记录");await save();render();toast(`导入完成：${added} 条`)}catch(e){db=previous;render();toast("导入失败，已恢复原数据："+e.message)}};reader.readAsText(file)}
+async function checkUpdate(manual){const box=$("updateStatus");try{const data=await (await fetch("/api/update/check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({manual:Boolean(manual)}),cache:"no-store"})).json();if(data.error)throw new Error(data.error);if(box)box.textContent=data.message||`当前 V${data.current_version||"0.6.5"}；最新 V${data.latest_version||"未知"}`;const apply=$("applyUpdateBtn");if(apply)apply.style.display=data.available&&data.download_url?"":"none";window.updateCandidate=data;if(manual)toast(data.available?"发现新版本，可手动更新":"当前已是最新版本")}catch(e){if(box)box.textContent="检查更新失败："+e.message;if(manual)toast("检查更新失败："+e.message)}}
+async function refreshAutoUpdateState(){const button=$("autoUpdateToggle"),status=$("autoUpdateStatus"),cancel=$("cancelAutoUpdateBtn"),notice=$("autoUpdateNotice"),noticeText=$("autoUpdateNoticeText");if(!button)return;try{const data=await (await fetch("/api/update/auto",{cache:"no-store"})).json();button.textContent="空闲自动更新："+(data.enabled?"已授权":"未授权");button.setAttribute("aria-pressed",String(Boolean(data.enabled)));const countdown=Number(data.countdown_seconds||0),remaining=data.seconds_until_install==null?null:Math.max(0,Math.round(Number(data.seconds_until_install)));if(status)status.textContent=data.pending_install?(countdown>0?"将在 "+countdown+" 秒后自动安装；任何点击、输入、滚动或窗口失焦都会取消本次倒计时。":"已满足空闲条件，即将自动安装。"):remaining!==null?(data.deferred_reason?"自动安装已延期："+data.deferred_reason+"；剩余约 "+remaining+" 秒。":"持续空闲且窗口可见、聚焦后自动安装；剩余约 "+remaining+" 秒。"):(data.enabled?"已授权：发现新版本后，连续空闲 15 分钟、页面可见且聚焦，再倒计时 60 秒自动安装。":"未授权：只提示新版本，不会自动下载或安装。")+(data.last_error?" 上次错误："+data.last_error:"");if(cancel)cancel.style.display=data.pending_install?"":"none";if(notice)notice.style.display=data.pending_install&&countdown>0?"flex":"none";if(noticeText&&countdown>0)noticeText.textContent="将在 "+countdown+" 秒后自动安装 V"+(data.latest_version||"新版本")+"；操作页面可延期。";if(data.pending_install)setTimeout(refreshAutoUpdateState,1000)}catch(e){if(status)status.textContent="自动更新状态读取失败："+e.message}}
+async function toggleAutoUpdate(){try{const data=await scanApi("/api/update/auto",{toggle:true});toast(data.enabled?"已授权空闲自动更新":"已撤销自动更新授权");refreshAutoUpdateState()}catch(e){toast(e.message)}}
+async function cancelScheduledAutoUpdate(){try{const data=await scanApi("/api/update/cancel",{});toast(data.message||"已取消本次自动安装");refreshAutoUpdateState()}catch(e){toast(e.message)}}
+async function applyUpdate(){const data=window.updateCandidate;if(!data?.download_url)return toast("没有可安装的更新");if(!confirm("将先创建完整本地备份，再更新程序并重启。数据库和参考图片不会被替换。继续？"))return;try{await saveQueue}catch(e){toast("更新尚未发送：上一条保存失败，请先核对数据");return}const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10*60*1000);let requestSent=false;try{const response=await fetch("/api/update/apply",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data),signal:controller.signal});requestSent=true;const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||"更新失败");toast("更新已安装，工作台即将重启");setTimeout(()=>location.reload(),6000)}catch(e){if(!requestSent&&e.name==="AbortError")toast("更新请求超过 10 分钟，结果尚未确认。请刷新并核对版本，勿重复点击更新");else toast("更新失败："+e.message)}finally{clearTimeout(timer)}}
+
+function bindEvents(){
+ document.querySelectorAll(".nav").forEach(n=>n.onclick=()=>{if(n.dataset.cat){filter=n.dataset.cat;page="gallery"}else{page=n.dataset.page;if(page!=="trash")filter="全部"}render()});
+ $("search").oninput=()=>{if(!["trash","smartsearch","settings"].includes(page))render();else if(page==="trash")trashPage()};$("addBtn").onclick=()=>openEditor("case");$("importBtn").onclick=()=>$("jsonPicker").click();$("exportBtn").onclick=exportJSON;$("updateBtn").onclick=()=>checkUpdate(true);$("closeDetail").onclick=closeDetail;$("closeModal").onclick=closeEditor;$("detailOverlay").onclick=e=>{if(e.target===$("detailOverlay"))closeDetail()};$("editModal").onclick=e=>{if(e.target===$("editModal"))closeEditor()};$("imagePicker").onchange=async e=>{const file=e.target.files[0];if(!file)return;const fd=new FormData();fd.append("image",file);const response=await fetch("/api/upload",{method:"POST",body:fd}),data=await response.json();if(data.path){imagePath=data.path;$("f_image").value=file.name}};$("jsonPicker").onchange=e=>{if(e.target.files[0])importJSON(e.target.files[0]);e.target.value=""};
 }
-function startWorkbenchHeartbeat(){
- sendWorkbenchHeartbeat();
- if(heartbeatTimer===null) heartbeatTimer=setInterval(sendWorkbenchHeartbeat,5000);
+
+async function init(){
+ bindEvents();
+ const loaded=await load();
+ render();
+ if(!loaded)setTimeout(init,5000);
 }
-window.addEventListener("pagehide",()=>{if(heartbeatTimer!==null){clearInterval(heartbeatTimer);heartbeatTimer=null;}try{navigator.sendBeacon("/api/client/close",new Blob(["{}"],{type:"application/json"}));}catch(e){}});
-(async()=>{await load();render();startWorkbenchHeartbeat();checkUpdate(false);setInterval(()=>checkUpdate(false),15*60*1000)})();
+init();
 </script></body></html>
