@@ -1,1 +1,114 @@
-aW1wb3J0IGlvCmltcG9ydCBvcwppbXBvcnQgdGVtcGZpbGUKaW1wb3J0IHVuaXR0ZXN0CmZyb20gY29udGV4dGxpYiBpbXBvcnQgcmVkaXJlY3Rfc3Rkb3V0CmZyb20gcGF0aGxpYiBpbXBvcnQgUGF0aApmcm9tIHVuaXR0ZXN0Lm1vY2sgaW1wb3J0IHBhdGNoCgpmcm9tIHRvb2xzIGltcG9ydCByZXZpZXdfZ2F0ZQoKClBST0pFQ1QgPSBQYXRoKF9fZmlsZV9fKS5yZXNvbHZlKCkucGFyZW50c1sxXQoKCmNsYXNzIFJldmlld0dhdGVUZXN0cyh1bml0dGVzdC5UZXN0Q2FzZSk6CiAgICBkZWYgdGVzdF9kb2N1bWVudGF0aW9uX29ubHlfY2hhbmdlX3NraXBzX2NvbmRpdGlvbmFsX3NlY3VyaXR5X2pvYihzZWxmKToKICAgICAgICByZXBvcnQgPSByZXZpZXdfZ2F0ZS5idWlsZF9yZXBvcnQoWwogICAgICAgICAgICAiZG9jcy9BR0VOVElDX1JFVklFV19QT0xJQ1kubWQiLAogICAgICAgICAgICAiLmdpdGh1Yi9wdWxsX3JlcXVlc3RfdGVtcGxhdGUubWQiLAogICAgICAgIF0pCiAgICAgICAgc2VsZi5hc3NlcnRGYWxzZShyZXBvcnQuc2VjdXJpdHlfcmVxdWlyZWQpCiAgICAgICAgc2VsZi5hc3NlcnRFcXVhbChbXSwgbGlzdChyZXBvcnQucHJpdmF0ZV9wYXRocykpCgogICAgZGVmIHRlc3RfdHJ1c3RfYm91bmRhcmllc19zZWxlY3RfZXhwZWN0ZWRfc2VjdXJpdHlfYXhlcyhzZWxmKToKICAgICAgICBjYXNlcyA9IHsKICAgICAgICAgICAgIi5naXRodWIvd29ya2Zsb3dzL3Jldmlldy1nYXRlLnltbCI6ICJDSeOAgeW3peS9nOa1geS4juadg+mZkCIsCiAgICAgICAgICAgICJhaV9hbmFseXplci5weSI6ICLnvZHnu5zjgIHmqKHlnovlh63mja7kuI7ovpPlhaXlj43luo/liJfljJYiLAogICAgICAgICAgICAiaW5kZXguaHRtbCI6ICLmnKzlnLAgQVBJ44CB5rWP6KeI5Zmo5Lqk5LqS5LiO572R57uc6K+35rGCIiwKICAgICAgICAgICAgInN0b3JhZ2UucHkiOiAiU1FMaXRl44CB5paH5Lu26Lev5b6E44CB5aSH5Lu95LiO5oGi5aSNIiwKICAgICAgICAgICAgInVwZGF0ZXIucHkiOiAi5pu05paw5LqL5Yqh5LiO56iL5bqP5pu/5o2iIiwKICAgICAgICAgICAgInBhY2thZ2UtbG9jay5qc29uIjogIuS+nei1lua4heWNleS4juS+m+W6lOmTviIsCiAgICAgICAgICAgICLlkK/liqhBSeacjeijheaPkOekuuivjeW3peS9nOWPsC5iYXQiOiAiU2hlbGwg5LiO5pys5Zyw5ZG95Luk5omn6KGMIiwKICAgICAgICB9CiAgICAgICAgZm9yIHBhdGgsIHJlYXNvbiBpbiBjYXNlcy5pdGVtcygpOgogICAgICAgICAgICB3aXRoIHNlbGYuc3ViVGVzdChwYXRoPXBhdGgpOgogICAgICAgICAgICAgICAgcmVwb3J0ID0gcmV2aWV3X2dhdGUuYnVpbGRfcmVwb3J0KFtwYXRoXSkKICAgICAgICAgICAgICAgIHNlbGYuYXNzZXJ0VHJ1ZShyZXBvcnQuc2VjdXJpdHlfcmVxdWlyZWQpCiAgICAgICAgICAgICAgICBzZWxmLmFzc2VydEluKHJlYXNvbiwgcmVwb3J0LnRyaWdnZXJzKQoKICAgIGRlZiB0ZXN0X3ByaXZhdGVfZGF0YV9hbmRfY3JlZGVudGlhbF9wYXRoc19mYWlsX2Nsb3NlZChzZWxmKToKICAgICAgICBwYXRocyA9IFsKICAgICAgICAgICAgIkRhdGFIb21lL3dvcmtiZW5jaC5zcWxpdGUiLAogICAgICAgICAgICAicmVmZXJlbmNlcy9mcm9udC5wbmciLAogICAgICAgICAgICAiX2JhY2t1cC9pbmRleC1iZWZvcmUuaHRtbCIsCiAgICAgICAgICAgICIuZW52IiwKICAgICAgICAgICAgImNvbmZpZy9wcml2YXRlLnBlbSIsCiAgICAgICAgICAgICJ1c2VyX2NvbmZpZy5qc29uIiwKICAgICAgICBdCiAgICAgICAgcmVwb3J0ID0gcmV2aWV3X2dhdGUuYnVpbGRfcmVwb3J0KHBhdGhzKQogICAgICAgIHNlbGYuYXNzZXJ0RXF1YWwodHVwbGUocGF0aHMpLCByZXBvcnQucHJpdmF0ZV9wYXRocykKICAgICAgICBzZWxmLmFzc2VydEluKCLpmLvmraIiLCByZXZpZXdfZ2F0ZS5yZW5kZXJfbWFya2Rvd24ocmVwb3J0KSkKCiAgICBkZWYgdGVzdF9ub3JtYWxfcHJvamVjdF90ZXN0c19hbmRfZml4dHVyZXNfYXJlX25vdF9wcml2YXRlX2J5X3N1ZmZpeF9hbG9uZShzZWxmKToKICAgICAgICByZXBvcnQgPSByZXZpZXdfZ2F0ZS5idWlsZF9yZXBvcnQoWwogICAgICAgICAgICAidGVzdHMvdGVzdF9zdG9yYWdlLnB5IiwKICAgICAgICAgICAgInRlc3RzL2ZpeHR1cmVzL3JlZmVyZW5jZS5wbmciLAogICAgICAgICAgICAiZG9jcy9NT0RFTF9DT05GSUdVUkFUSU9OX0FORF9BR0VOVF9ST0FETUFQLm1kIiwKICAgICAgICBdKQogICAgICAgIHNlbGYuYXNzZXJ0RXF1YWwoW10sIGxpc3QocmVwb3J0LnByaXZhdGVfcGF0aHMpKQoKICAgIGRlZiB0ZXN0X3BhdGhfdHJhdmVyc2FsX2FuZF9hYnNvbHV0ZV9wYXRoc19hcmVfcmVqZWN0ZWQoc2VsZik6CiAgICAgICAgZm9yIHBhdGggaW4gWyIuLi9vdXRzaWRlLnR4dCIsICIvdG1wL3NlY3JldC50eHQiLCAiQzpcXHNlY3JldC50eHQiLCAiYS8uLi8uLi9iIl06CiAgICAgICAgICAgIHdpdGggc2VsZi5zdWJUZXN0KHBhdGg9cGF0aCk6CiAgICAgICAgICAgICAgICB3aXRoIHNlbGYuYXNzZXJ0UmFpc2VzKHJldmlld19nYXRlLlJldmlld0dhdGVFcnJvcik6CiAgICAgICAgICAgICAgICAgICAgcmV2aWV3X2dhdGUuYnVpbGRfcmVwb3J0KFtwYXRoXSkKCiAgICBkZWYgdGVzdF9zdW1tYXJ5X3ByZXNlcnZlc19sb29wX2NhcF9hbmRfaHVtYW5fbWVyZ2VfYm91bmRhcnkoc2VsZik6CiAgICAgICAgbWFya2Rvd24gPSByZXZpZXdfZ2F0ZS5yZW5kZXJfbWFya2Rvd24ocmV2aWV3X2dhdGUuYnVpbGRfcmVwb3J0KFsic3RvcmFnZS5weSJdKSkKICAgICAgICBzZWxmLmFzc2VydEluKCLoh6rliqjov5Tkv67kuIrpmZDvvJoyIOi9riIsIG1hcmtkb3duKQogICAgICAgIHNlbGYuYXNzZXJ0SW4oIuesrCAzIOasoeWuoeafpSIsIG1hcmtkb3duKQogICAgICAgIHNlbGYuYXNzZXJ0SW4oIue7tOaKpOiAheWni+e7iOaYr+WQiOW5tumXqOemgSIsIG1hcmtkb3duKQogICAgICAgIHNlbGYuYXNzZXJ0SW4oIuS4jeiHquWKqOivhOiuuuOAgeaOqOmAgeOAgeWQiOW5tuaIluWPkeW4gyIsIG1hcmtkb3duKQoKICAgIGRlZiB0ZXN0X2NsaV9hY2NlcHRzX2RvY3VtZW50YXRpb25fYW5kX3dyaXRlc19yZWFkX29ubHlfb3V0cHV0cyhzZWxmKToKICAgICAgICB3aXRoIHRlbXBmaWxlLlRlbXBvcmFyeURpcmVjdG9yeSgpIGFzIHRlbXA6CiAgICAgICAgICAgIHJvb3QgPSBQYXRoKHRlbXApCiAgICAgICAgICAgIHBhdGhzID0gcm9vdCAvICJwYXRocy50eHQiCiAgICAgICAgICAgIG91dHB1dCA9IHJvb3QgLyAib3V0cHV0LnR4dCIKICAgICAgICAgICAgc3VtbWFyeSA9IHJvb3QgLyAic3VtbWFyeS5tZCIKICAgICAgICAgICAgcGF0aHMud3JpdGVfdGV4dCgiZG9jcy9BR0VOVElDX1JFVklFV19QT0xJQ1kubWRcbiIsIGVuY29kaW5nPSJ1dGYtOCIpCiAgICAgICAgICAgIHdpdGggcGF0Y2guZGljdChvcy5lbnZpcm9uLCB7CiAgICAgICAgICAgICAgICAiR0lUSFVCX09VVFBVVCI6IHN0cihvdXRwdXQpLAogICAgICAgICAgICAgICAgIkdJVEhVQl9TVEVQX1NVTU1BUlkiOiBzdHIoc3VtbWFyeSksCiAgICAgICAgICAgIH0pOgogICAgICAgICAgICAgICAgc3Rkb3V0ID0gaW8uU3RyaW5nSU8oKQogICAgICAgICAgICAgICAgd2l0aCByZWRpcmVjdF9zdGRvdXQoc3Rkb3V0KToKICAgICAgICAgICAgICAgICAgICByZXN1bHQgPSByZXZpZXdfZ2F0ZS5tYWluKFsiLS1wYXRocy1maWxlIiwgc3RyKHBhdGhzKV0pCiAgICAgICAgICAgIHNlbGYuYXNzZXJ0RXF1YWwoMCwgcmVzdWx0KQogICAgICAgICAgICBzZWxmLmFzc2VydEluKCJzZWN1cml0eV9yZXF1aXJlZD1ubyIsIG91dHB1dC5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikpCiAgICAgICAgICAgIHNlbGYuYXNzZXJ0SW4oIuacquinpuWPiumihOWumuS5ieS/oeS7u+i+ueeVjCIsIHN1bW1hcnkucmVhZF90ZXh0KGVuY29kaW5nPSJ1dGYtOCIpKQoKICAgIGRlZiB0ZXN0X2NsaV9yZXR1cm5zX3R3b19mb3JfcHJpdmF0ZV9wYXRoKHNlbGYpOgogICAgICAgIHdpdGggdGVtcGZpbGUuVGVtcG9yYXJ5RGlyZWN0b3J5KCkgYXMgdGVtcDoKICAgICAgICAgICAgcGF0aHMgPSBQYXRoKHRlbXApIC8gInBhdGhzLnR4dCIKICAgICAgICAgICAgcGF0aHMud3JpdGVfdGV4dCgiRGF0YUhvbWUvcHJpdmF0ZS5zcWxpdGVcbiIsIGVuY29kaW5nPSJ1dGYtOCIpCiAgICAgICAgICAgIHN0ZG91dCA9IGlvLlN0cmluZ0lPKCkKICAgICAgICAgICAgd2l0aCByZWRpcmVjdF9zdGRvdXQoc3Rkb3V0KToKICAgICAgICAgICAgICAgIHJlc3VsdCA9IHJldmlld19nYXRlLm1haW4oWyItLXBhdGhzLWZpbGUiLCBzdHIocGF0aHMpXSkKICAgICAgICAgICAgc2VsZi5hc3NlcnRFcXVhbCgyLCByZXN1bHQpCgogICAgZGVmIHRlc3Rfd29ya2Zsb3dfaXNfcmVhZF9vbmx5X2FuZF9jb25kaXRpb25hbChzZWxmKToKICAgICAgICB3b3JrZmxvdyA9IChQUk9KRUNUIC8gIi5naXRodWIvd29ya2Zsb3dzL3Jldmlldy1nYXRlLnltbCIpLnJlYWRfdGV4dChlbmNvZGluZz0idXRmLTgiKQogICAgICAgIHNlbGYuYXNzZXJ0SW4oImNvbnRlbnRzOiByZWFkIiwgd29ya2Zsb3cpCiAgICAgICAgc2VsZi5hc3NlcnROb3RJbigicHVsbF9yZXF1ZXN0X3RhcmdldCIsIHdvcmtmbG93KQogICAgICAgIHNlbGYuYXNzZXJ0Tm90SW4oImNvbnRlbnRzOiB3cml0ZSIsIHdvcmtmbG93KQogICAgICAgIHNlbGYuYXNzZXJ0Tm90SW4oInB1bGwtcmVxdWVzdHM6IHdyaXRlIiwgd29ya2Zsb3cpCiAgICAgICAgc2VsZi5hc3NlcnROb3RJbigiZ2ggYXciLCB3b3JrZmxvdykKICAgICAgICBzZWxmLmFzc2VydE5vdEluKCJhdXRvLW1lcmdlIiwgd29ya2Zsb3cpCiAgICAgICAgc2VsZi5hc3NlcnRJbigibmVlZHMucmV2aWV3LWNvbnRleHQub3V0cHV0cy5zZWN1cml0eV9yZXF1aXJlZCA9PSAneWVzJyIsIHdvcmtmbG93KQogICAgICAgIHNlbGYuYXNzZXJ0SW4oInRpbWVvdXQtbWludXRlczogMTAiLCB3b3JrZmxvdykKCgppZiBfX25hbWVfXyA9PSAiX19tYWluX18iOgogICAgdW5pdHRlc3QubWFpbigpCg==
+import io
+import os
+import tempfile
+import unittest
+from contextlib import redirect_stdout
+from pathlib import Path
+from unittest.mock import patch
+
+from tools import review_gate
+
+
+PROJECT = Path(__file__).resolve().parents[1]
+
+
+class ReviewGateTests(unittest.TestCase):
+    def test_documentation_only_change_skips_conditional_security_job(self):
+        report = review_gate.build_report([
+            "docs/AGENTIC_REVIEW_POLICY.md",
+            ".github/pull_request_template.md",
+        ])
+        self.assertFalse(report.security_required)
+        self.assertEqual([], list(report.private_paths))
+
+    def test_trust_boundaries_select_expected_security_axes(self):
+        cases = {
+            ".github/workflows/review-gate.yml": "CI、工作流与权限",
+            "ai_analyzer.py": "网络、模型凭据与输入反序列化",
+            "index.html": "本地 API、浏览器交互与网络请求",
+            "storage.py": "SQLite、文件路径、备份与恢复",
+            "updater.py": "更新事务与程序替换",
+            "package-lock.json": "依赖清单与供应链",
+            "启动AI服装提示词工作台.bat": "Shell 与本地命令执行",
+        }
+        for path, reason in cases.items():
+            with self.subTest(path=path):
+                report = review_gate.build_report([path])
+                self.assertTrue(report.security_required)
+                self.assertIn(reason, report.triggers)
+
+    def test_private_data_and_credential_paths_fail_closed(self):
+        paths = [
+            "DataHome/workbench.sqlite",
+            "references/front.png",
+            "_backup/index-before.html",
+            ".env",
+            "config/private.pem",
+            "user_config.json",
+        ]
+        report = review_gate.build_report(paths)
+        self.assertEqual(tuple(paths), report.private_paths)
+        self.assertIn("阻止", review_gate.render_markdown(report))
+
+    def test_normal_project_tests_and_fixtures_are_not_private_by_suffix_alone(self):
+        report = review_gate.build_report([
+            "tests/test_storage.py",
+            "tests/fixtures/reference.png",
+            "docs/MODEL_CONFIGURATION_AND_AGENT_ROADMAP.md",
+        ])
+        self.assertEqual([], list(report.private_paths))
+
+    def test_path_traversal_and_absolute_paths_are_rejected(self):
+        for path in ["../outside.txt", "/tmp/secret.txt", "C:\\secret.txt", "a/../../b"]:
+            with self.subTest(path=path):
+                with self.assertRaises(review_gate.ReviewGateError):
+                    review_gate.build_report([path])
+
+    def test_summary_preserves_loop_cap_and_human_merge_boundary(self):
+        markdown = review_gate.render_markdown(review_gate.build_report(["storage.py"]))
+        self.assertIn("自动返修上限：2 轮", markdown)
+        self.assertIn("第 3 次审查", markdown)
+        self.assertIn("维护者始终是合并门禁", markdown)
+        self.assertIn("不自动评论、推送、合并或发布", markdown)
+
+    def test_cli_accepts_documentation_and_writes_read_only_outputs(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            paths = root / "paths.txt"
+            output = root / "output.txt"
+            summary = root / "summary.md"
+            paths.write_text("docs/AGENTIC_REVIEW_POLICY.md\n", encoding="utf-8")
+            with patch.dict(os.environ, {
+                "GITHUB_OUTPUT": str(output),
+                "GITHUB_STEP_SUMMARY": str(summary),
+            }):
+                stdout = io.StringIO()
+                with redirect_stdout(stdout):
+                    result = review_gate.main(["--paths-file", str(paths)])
+            self.assertEqual(0, result)
+            self.assertIn("security_required=no", output.read_text(encoding="utf-8"))
+            self.assertIn("未触及预定义信任边界", summary.read_text(encoding="utf-8"))
+
+    def test_cli_returns_two_for_private_path(self):
+        with tempfile.TemporaryDirectory() as temp:
+            paths = Path(temp) / "paths.txt"
+            paths.write_text("DataHome/private.sqlite\n", encoding="utf-8")
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                result = review_gate.main(["--paths-file", str(paths)])
+            self.assertEqual(2, result)
+
+    def test_workflow_is_read_only_and_conditional(self):
+        workflow = (PROJECT / ".github/workflows/review-gate.yml").read_text(encoding="utf-8")
+        self.assertIn("contents: read", workflow)
+        self.assertNotIn("pull_request_target", workflow)
+        self.assertNotIn("contents: write", workflow)
+        self.assertNotIn("pull-requests: write", workflow)
+        self.assertNotIn("gh aw", workflow)
+        self.assertNotIn("auto-merge", workflow)
+        self.assertIn("needs.review-context.outputs.security_required == 'yes'", workflow)
+        self.assertIn("timeout-minutes: 10", workflow)
+
+
+if __name__ == "__main__":
+    unittest.main()

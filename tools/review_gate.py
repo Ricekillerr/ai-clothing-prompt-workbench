@@ -1,1 +1,228 @@
-IiIiUmVhZC1vbmx5LCBwYXRoLWJhc2VkIHJldmlldyBnYXRlIGZvciBQcm9tcHQgQXRlbGllci4KClRoZSBnYXRlIG5ldmVyIGNhbGxzIGFuIEFJIG1vZGVsIGFuZCBuZXZlciB3cml0ZXMgdG8gR2l0SHViLiBJdCBjbGFzc2lmaWVzCnJlcG9zaXRvcnktcmVsYXRpdmUgY2hhbmdlZCBwYXRocywgcmVqZWN0cyBwcml2YXRlIGRhdGEgcGF0aHMsIGFuZCB0ZWxscyBDSQp3aGVuIHRoZSBzZWN1cml0eSByZWdyZXNzaW9uIGpvYiBzaG91bGQgcnVuLgoiIiIKCmZyb20gX19mdXR1cmVfXyBpbXBvcnQgYW5ub3RhdGlvbnMKCmltcG9ydCBhcmdwYXJzZQppbXBvcnQgb3MKaW1wb3J0IHN1YnByb2Nlc3MKaW1wb3J0IHN5cwpmcm9tIGRhdGFjbGFzc2VzIGltcG9ydCBkYXRhY2xhc3MKZnJvbSBwYXRobGliIGltcG9ydCBQYXRoLCBQdXJlUG9zaXhQYXRoCmZyb20gdHlwaW5nIGltcG9ydCBJdGVyYWJsZQoKCk1BWF9GSVhfUk9VTkRTID0gMgpNQVhfUkVWSUVXX1JPVU5EUyA9IDMKTUFYX0NIQU5HRURfUEFUSFMgPSA1MDAwCgpUUlVTVF9CT1VOREFSWV9SVUxFUyA9ICgKICAgICgiQ0njgIHlt6XkvZzmtYHkuI7mnYPpmZAiLCAoIi5naXRodWIvd29ya2Zsb3dzLyIsICJ0b29scy9yZXZpZXdfZ2F0ZS5weSIpKSwKICAgICgi572R57uc44CB5qih5Z6L5Yet5o2u5LiO6L6T5YWl5Y+N5bqP5YiX5YyWIiwgKCJhaV9hbmFseXplci5weSIsICJjb2xsZWN0b3IucHkiKSksCiAgICAoIuacrOWcsCBBUEnjgIHmtY/op4jlmajkuqTkupLkuI7nvZHnu5zor7fmsYIiLCAoImFpX3Byb21wdF93b3JrYmVuY2gucHkiLCAiaW5kZXguaHRtbCIpKSwKICAgICgiU1FMaXRl44CB5paH5Lu26Lev5b6E44CB5aSH5Lu95LiO5oGi5aSNIiwgKCJzdG9yYWdlLnB5IiwpKSwKICAgICgi5pu05paw5LqL5Yqh5LiO56iL5bqP5pu/5o2iIiwgKCJ1cGRhdGVyLnB5IiwgInRvb2xzL3N5bmNfdjA2NV9jYW5kaWRhdGUucHMxIiwgIueUn+aIkOabtOaWsOa4heWNlS5weSIpKSwKKQoKREVQRU5ERU5DWV9GSUxFUyA9IHsKICAgICJwYWNrYWdlLmpzb24iLAogICAgInBhY2thZ2UtbG9jay5qc29uIiwKICAgICJweXByb2plY3QudG9tbCIsCiAgICAicmVxdWlyZW1lbnRzLnR4dCIsCiAgICAicmVxdWlyZW1lbnRzLWRldi50eHQiLAogICAgInBvZXRyeS5sb2NrIiwKICAgICJ1di5sb2NrIiwKfQpTSEVMTF9TVUZGSVhFUyA9ICgiLmJhdCIsICIuY21kIiwgIi5wczEiLCAiLnNoIikKUFJJVkFURV9TVUZGSVhFUyA9ICgKICAgICIuc3FsaXRlIiwKICAgICIuc3FsaXRlMyIsCiAgICAiLmRiIiwKICAgICIucGVtIiwKICAgICIua2V5IiwKICAgICIucDEyIiwKICAgICIucGZ4IiwKKQpQUklWQVRFX1JPT1RTID0gewogICAgImRhdGFob21lIiwKICAgICJyZWZlcmVuY2VzIiwKICAgICJyZWZlcmVuY2VfaW1hZ2VzIiwKICAgICJ1c2VyX2RhdGEiLAogICAgImJhY2t1cHMiLAogICAgIl9iYWNrdXAiLAp9ClBSSVZBVEVfRklMRU5BTUVTID0gewogICAgIi5lbnYiLAogICAgIi5lbnYubG9jYWwiLAogICAgIi5lbnYucHJvZHVjdGlvbiIsCiAgICAicHJvbXB0X2F0ZWxpZXIuY29uZmlnLmpzb24iLAogICAgInBlcnNvbmFsX2NvbmZpZy5qc29uIiwKICAgICJ1c2VyX2NvbmZpZy5qc29uIiwKfQoKCmNsYXNzIFJldmlld0dhdGVFcnJvcihWYWx1ZUVycm9yKToKICAgICIiIlJhaXNlZCBmb3IgYW4gdW5zYWZlIG9yIHVudXNhYmxlIHJldmlldyBpbnB1dC4iIiIKCgpAZGF0YWNsYXNzKGZyb3plbj1UcnVlKQpjbGFzcyBSZXZpZXdSZXBvcnQ6CiAgICBwYXRoczogdHVwbGVbc3RyLCAuLi5dCiAgICB0cmlnZ2VyczogZGljdFtzdHIsIHR1cGxlW3N0ciwgLi4uXV0KICAgIHByaXZhdGVfcGF0aHM6IHR1cGxlW3N0ciwgLi4uXQoKICAgIEBwcm9wZXJ0eQogICAgZGVmIHNlY3VyaXR5X3JlcXVpcmVkKHNlbGYpIC0+IGJvb2w6CiAgICAgICAgcmV0dXJuIGJvb2woc2VsZi50cmlnZ2VycykKCgpkZWYgbm9ybWFsaXplX3JlcG9fcGF0aCh2YWx1ZTogc3RyKSAtPiBzdHI6CiAgICAiIiJSZXR1cm4gYSBzYWZlIHJlcG9zaXRvcnktcmVsYXRpdmUgUE9TSVggcGF0aCBvciByZWplY3QgaXQuIiIiCiAgICBjYW5kaWRhdGUgPSB2YWx1ZS5zdHJpcCgpLnJlcGxhY2UoIlxcIiwgIi8iKQogICAgaWYgbm90IGNhbmRpZGF0ZSBvciAiXHgwMCIgaW4gY2FuZGlkYXRlOgogICAgICAgIHJhaXNlIFJldmlld0dhdGVFcnJvcigi5Y+Y5pu06Lev5b6E5Li656m65oiW5YyF5ZCr6Z2e5rOV5a2X56ymIikKICAgIHdoaWxlIGNhbmRpZGF0ZS5zdGFydHN3aXRoKCIuLyIpOgogICAgICAgIGNhbmRpZGF0ZSA9IGNhbmRpZGF0ZVsyOl0KICAgIHBhdGggPSBQdXJlUG9zaXhQYXRoKGNhbmRpZGF0ZSkKICAgIGlmIHBhdGguaXNfYWJzb2x1dGUoKSBvciAiLi4iIGluIHBhdGgucGFydHM6CiAgICAgICAgcmFpc2UgUmV2aWV3R2F0ZUVycm9yKGYi5Y+Y5pu06Lev5b6E6LaK55WMOiB7dmFsdWUhcn0iKQogICAgaWYgbGVuKGNhbmRpZGF0ZSkgPj0gMiBhbmQgY2FuZGlkYXRlWzFdID09ICI6IiBhbmQgY2FuZGlkYXRlWzBdLmlzYWxwaGEoKToKICAgICAgICByYWlzZSBSZXZpZXdHYXRlRXJyb3IoZiLkuI3mlK/mjIHnu53lr7kgV2luZG93cyDot6/lvoQ6IHt2YWx1ZSFyfSIpCiAgICBub3JtYWxpemVkID0gcGF0aC5hc19wb3NpeCgpCiAgICBpZiBub3JtYWxpemVkIGluICgiIiwgIi4iKToKICAgICAgICByYWlzZSBSZXZpZXdHYXRlRXJyb3IoIuWPmOabtOi3r+W+hOW/hemhu+aMh+WQkeaWh+S7tiIpCiAgICByZXR1cm4gbm9ybWFsaXplZAoKCmRlZiBpc19wcml2YXRlX3BhdGgocGF0aDogc3RyKSAtPiBib29sOgogICAgcHVyZSA9IFB1cmVQb3NpeFBhdGgocGF0aCkKICAgIGxvd2VyZWQgPSBwYXRoLmxvd2VyKCkKICAgIGlmIHB1cmUucGFydHMgYW5kIHB1cmUucGFydHNbMF0ubG93ZXIoKSBpbiBQUklWQVRFX1JPT1RTOgogICAgICAgIHJldHVybiBUcnVlCiAgICBpZiBwdXJlLm5hbWUubG93ZXIoKSBpbiBQUklWQVRFX0ZJTEVOQU1FUzoKICAgICAgICByZXR1cm4gVHJ1ZQogICAgcmV0dXJuIGxvd2VyZWQuZW5kc3dpdGgoUFJJVkFURV9TVUZGSVhFUykKCgpkZWYgdHJ1c3RfcmVhc29ucyhwYXRoOiBzdHIpIC0+IGxpc3Rbc3RyXToKICAgIGxvd2VyZWQgPSBwYXRoLmxvd2VyKCkKICAgIHJlYXNvbnMgPSBbCiAgICAgICAgcmVhc29uCiAgICAgICAgZm9yIHJlYXNvbiwgcHJlZml4ZXMgaW4gVFJVU1RfQk9VTkRBUllfUlVMRVMKICAgICAgICBpZiBhbnkoCiAgICAgICAgICAgIGxvd2VyZWQuc3RhcnRzd2l0aChwcmVmaXgubG93ZXIoKSkgaWYgcHJlZml4LmVuZHN3aXRoKCIvIikgZWxzZSBsb3dlcmVkID09IHByZml4Lmxvd2VyKCkKICAgICAgICAgICAgZm9yIHByZWZpeCBpbiBwcmVmaXhlcwogICAgICAgICkKICAgIF0KICAgIGlmIFB1cmVQb3NpeFBhdGgocGF0aCkubmFtZS5sb3dlcigpIGluIERFUEVOREVOQ1lfRklMRVM6CiAgICAgICAgcmVhc29ucy5hcHBlbmQoIuS+nei1lua4heWNleS4juS+m+W6lOmTviIpCiAgICBpZiBsb3dlcmVkLmVuZHN3aXRoKFNIRUxMX1NVRkZJWEVTKToKICAgICAgICByZWFzb25zLmFwcGVuZCgiU2hlbGwg5LiO5pys5Zyw5ZG95Luk5omn6KGMIikKICAgIHJldHVybiByZWFzb25zCgoKZGVmIGJ1aWxkX3JlcG9ydChwYXRoczogSXRlcmFibGVbc3RyXSkgLT4gUmV2aWV3UmVwb3J0OgogICAgbm9ybWFsaXplZCA9IHR1cGxlKGRpY3QuZnJvbWtleXMobm9ybWFsaXplX3JlcG9fcGF0aChwYXRoKSBmb3IgcGF0aCBpbiBwYXRocyBpZiBwYXRoLnN0cmlwKCkpKQogICAgaWYgbGVuKG5vcm1hbGl6ZWQpID4gTUFYX0NIQU5HRURfUEFUSFM6CiAgICAgICAgcmFpc2UgUmV2aWV3R2F0ZUVycm9yKGYi5Y+Y5pu06Lev5b6E6LaK55WMOiB7TUFYX0NIQU5HRURfUEFUSFN9IOS4qu+8jOivt+aLhuWIhuWuoeafpeiMg+WbtCIpCiAgICBwcml2YXRlX3BhdGhzID0gdHVwbGUocGF0aCBmb3IgcGF0aCBpbiBub3JtYWxpemVkIGlmIGlzX3ByaXZhdGVfcGF0aChwYXRoKSkKICAgIHRyaWdnZXJfbWFwOiBkaWN0W3N0ciwgbGlzdFtzdHJdXSA9IHt9CiAgICBmb3IgcGF0aCBpbiBub3JtYWxpemVkOgogICAgICAgIGZvciByZWFzb24gaW4gdHJ1c3RfcmVhc29ucyhwYXRoKToKICAgICAgICAgICAgdHJpZ2dlcl9tYXAuc2V0ZGVmYXVsdChyZWFzb24sIFtdKS5hcHBlbmQocGF0aCkKICAgIHJldHVybiBSZXZpZXdSZXBvcnQoCiAgICAgICAgcGF0aHM9bm9ybWFsaXplZCwKICAgICAgICB0cmlnZ2Vycz17cmVhc29uOiB0dXBsZShwYXRocykgZm9yIHJlYXNvbiwgcGF0aHMgaW4gdHJpZ2dlcl9tYXAuaXRlbXMoKX0sCiAgICAgICAgcHJpdmF0ZV9wYXRocz1wcml2YXRlX3BhdGhzLAogICAgKQoKCmRlZiByZW5kZXJfbWFya2Rvd24ocmVwb3J0OiBSZXZpZXdSZXBvcnQpIC0+IHN0cjoKICAgIGxpbmVzID0gWwogICAgICAgICIjIyBQcm9tcHQgQXRlbGllciDlj6ror7vlrqHmn6Xpl6jnpoEiLAogICAgICAgICIiLAogICAgICAgIGYiLSDlj5jmm7Tmlofku7bvvJp7bGVuKHJlcG9ydC5wYXRocyl9IOS4qiIsCiAgICAgICAgZiItIOiHquWKqOi/lOS/ruS4iumZkO+8mntNQVhfRklYX1JPVU5EU30g6L2u77yb56ysIHtNQVhfUkVWSUVXX1JPVU5EU30g5qyh5a6h5p+l5LuN5pyJ5Y+R546w5pe26L2s5Lq65belIiwKICAgICAgICAiLSDlvZPliY3pmLbmrrXkuI3osIPnlKjmqKHlnovvvIzkuI3oh6rliqjor4TorrrjgIHmjqjpgIHjgIHlkIjlubbmiJblj5HluIMiLAogICAgICAgICItIOe7tOaKpOiAheWni+e7iOaYr+WQiOW5tumXqOemge+8m+acrOW3peS9nOa1geWPquaciSBjb250ZW50czogcmVhZCDmnYPpmZAiLAogICAgICAgICIiLAogICAgXQogICAgaWYgcmVwb3J0LnByaXZhdGVfcGF0aHM6CiAgICAgICAgbGluZXMuZXh0ZW5kKFsiIyMjIOmYu+atou+8mueWkeS8vOengeaciei1hOaWmeaIluWHreaNrui3r+W+hCIsICIiXSkKICAgICAgICBsaW5lcy5leHRlbmQoZiItIGB7cGF0aH1gIiBmb3IgcGF0aCBpbiByZXBvcnQucHJpdmF0ZV9wYXRoc1s6MTAwXSkKICAgICAgICBsaW5lcy5leHRlbmQoWyIiLCAi6K+35LuO5o+Q5Lqk5Lit56e76Zmk55yf5a6e5pWw5o2u5bqT44CB5Y+C6ICD5Zu+54mH44CB5Liq5Lq66YWN572u5ZKM5Yet5o2u77yb5LiN6KaB6YCa6L+H5pS55YaZ6Lev5b6E57uV6L+H44CCIiwgIiJdKQogICAgaWYgcmVwb3J0LnRyaWdnZXJzOgogICAgICAgIGxpbmVzLmV4dGVuZChbIiMjIyDpnIDopoHliqDlvLrlronlhajlm57lvZLnmoTkv6Hku7vovrnnlYwiLCAiIl0pCiAgICAgICAgZm9yIHJlYXNvbiwgcGF0aHMgaW4gcmVwb3J0LnRyaWdnZXJzLml0ZW1zKCk6CiAgICAgICAgICAgIGxpbmVzLmFwcGVuZChmIi0gKip7cmVhc29ufSoq77yaIiArICLjgIEiLmpvaW4oZiJge3BhdGh9YCIgZm9yIHBhdGggaW4gcGF0aHNbOjMwXSkpCiAgICAgICAgbGluZXMuZXh0ZW5kKFsiIiwgIkNJIOWwhui/kOihjOWuieWFqOWbnuW9ku+8m+a1i+ivlemAmui/h+S4jeabv+S7o+S6uuW3peWuoeafpeWSjCBXaW5kb3dzL+ecn+Wunui1hOaWmemqjOaUtuOAgiIsICIiXSkKICAgIGVsc2U6CiAgICAgICAgbGluZXMuZXh0ZW5kKFsiIyMjIOi3r+W+hOWuoeafpee7k+aenCIsICIiLCAi5pyq6Kem5Y+K6aKE5a6a5LmJ5L+h5Lu76L6555WM77yM5p2h5Lu25a6J5YWo5Zue5b2S6Lez6L+H77yb5a6M5pW0IFJlbGVhc2UgdmFsaWRhdGlvbiDku43ni6znq4vov5DooYzjgIIiLCAiIl0pCiAgICByZXR1cm4gIlxuIi5qb2luKGxpbmVzKQoKCmRlZiBjaGFuZ2VkX3BhdGhzX2Zyb21fZ2l0KHJlcG86IFBhdGgsIGJhc2U6IHN0ciwgaGVhZDogc3RyKSAtPiBsaXN0W3N0cl06CiAgICBpZiBub3QgYmFzZSBvciBub3QgaGVhZCBvciBiYXNlLnN0YXJ0c3dpdGgoIi0iKSBvciBoZWFkLnN0YXJ0c3dpdGgoIi0iKToKICAgICAgICByYWlzZSBSZXZpZXdHYXRlRXJyb3IoImJhc2UvaGVhZCDlv4XpobvmmK/pnZ7pgInpobnnmoQgR2l0IOW8leeUqCIpCiAgICB0cnk6CiAgICAgICAgcmVzdWx0ID0gc3VicHJvY2Vzcy5ydW4oCiAgICAgICAgICAgIFsiZ2l0IiwgImRpZmYiLCAiLS1uYW1lLW9ubHkiLCAiLS1kaWZmLWZpbHRlcj1BQ01SIiwgZiJ7YmFzZX0uLi57aGVhZH0iLCAiLS0iXSwKICAgICAgICAgICAgY3dkPXJlcG8sCiAgICAgICAgICAgIGNoZWNrPVRydWUsCiAgICAgICAgICAgIGNhcHR1cmVfb3V0cHV0PVRydWUsCiAgICAgICAgICAgIHRleHQ9VHJ1ZSwKICAgICAgICAgICAgZW5jb2Rpbmc9InV0Zi04IiwKICAgICAgICAgICAgZXJyb3JzPSJyZXBsYWNlIiwKICAgICAgICAgICAgdGltZW91dD0zMCwKICAgICAgICApCiAgICBleGNlcHQgKHN1YnByb2Nlc3MuQ2FsbGVkUHJvY2Vzc0Vycm9yLCBzdWJwcm9jZXNzLlRpbWVvdXRFeHBpcmVkKSBhcyBleGM6CiAgICAgICAgcmFpc2UgUmV2aWV3R2F0ZUVycm9yKCLml6Dms5XorqHnrpcgR2l0IOWPmOabtOiMg+WbtO+8jOivt+aguOWvuSBiYXNlL2hlYWQg5ZKMIGNoZWNrb3V0IOa3seW6piIpIGZyb20gZXhjCiAgICByZXR1cm4gcmVzdWx0LnN0ZG91dC5zcGxpdGxpbmVzKCkKCgpkZWYgd3JpdGVfY2lfb3V0cHV0cyhyZXBvcnQ6IFJldmlld1JlcG9ydCwgbWFya2Rvd246IHN0cikgLT4gTm9uZToKICAgIG91dHB1dCA9IG9zLmVudmlyb24uZ2V0KCJHSVRIVUJfT1VUUFVUIikKICAgIGlmIG91dHB1dDoKICAgICAgICB3aXRoIFBhdGgob3V0cHV0KS5vcGVuKCJhIiwgZW5jb2Rpbmc9InV0Zi04IiwgbmV3bGluZT0iXG4iKSBhcyBoYW5kbGU6CiAgICAgICAgICAgIGhhbmRsZS53cml0ZShmInNlY3VyaXR5X3JlcXVpcmVkPXsneWVzJyBpZiByZXBvcnQuc2VjdXJpdHlfcmVxdWlyZWQgZWxzZSAnbm8nfVxuIikKICAgICAgICAgICAgaGFuZGxlLndyaXRlKGYiY2hhbmdlZF9maWxlcz17bGVuKHJlcG9ydC5wYXRocyl9XG4iKQogICAgICAgICAgICBoYW5kbGUud3JpdGUoZiJwcml2YXRlX2ZpbGVzPXtsZW4ocmVwb3J0LnByaXZhdGVfcGF0aHMpfVxuIikKICAgIHN1bW1hcnkgPSBvcy5lbnZpcm9uLmdldCgiR0lUSFVCX1NURVBfU1VNTUFSWSIpCiAgICBpZiBzdW1tYXJ5OgogICAgICAgIHdpdGggUGF0aChzdW1tYXJ5KS5vcGVuKCJhIiwgZW5jb2Rpbmc9InV0Zi04IiwgbmV3bGluZT0iXG4iKSBhcyBoYW5kbGU6CiAgICAgICAgICAgIGhhbmRsZS53cml0ZShtYXJrZG93biArICJcbiIpCgoKZGVmIG1haW4oYXJndjogbGlzdFtzdHJdIHwgTm9uZSA9IE5vbmUpIC0+IGludDoKICAgIHBhcnNlciA9IGFyZ3BhcnNlLkFyZ3VtZW50UGFyc2VyKGRlc2NyaXB0aW9uPV9fZG9jX18pCiAgICBzb3VyY2UgPSBwYXJzZXIuYWRkX211dHVhbGx5X2V4Y2x1c2l2ZV9ncm91cChyZXF1aXJlZD1UcnVlKQogICAgc291cmNlLmFkZF9hcmd1bWVudCgiLS1wYXRocy1maWxlIiwgaGVscD0iVVRGLTggZmlsZSBjb250YWluaW5nIG9uZSBjaGFuZ2VkIHJlcG9zaXRvcnkgcGF0aCBwZXIgbGluZSIpCiAgICBzb3VyY2UuYWRkX2FyZ3VtZW50KCItLWJhc2UiLCBoZWxwPSJHaXQgYmFzZSByZWYgZm9yIGEgdGhyZWUtZG90IGRpZmYiKQogICAgcGFyc2VyLmFkZF9hcmd1bWVudCgiLS1oZWFkIiwgZGVmYXVsdD0iSEVBRCIsIGhlbHA9IkdpdCBoZWFkIHJlZiAoZGVmYXVsdDogSEVBRCkiKQogICAgcGFyc2VyLmFkZF9hcmd1bWVudCgiLS1yZXBvIiwgZGVmYXVsdD1zdHIoUGF0aChfX2ZpbGVfXykucmVzb2x2ZSgpLnBhcmVudHNbMV0pKQogICAgYXJncyA9IHBhcnNlci5wYXJzZV9hcmdzKGFyZ3YpCiAgICB0cnk6CiAgICAgICAgaWYgYXJncy5wYXRoc19maWxlOgogICAgICAgICAgICBwYXRocyA9IFBhdGgoYXJncy5wYXRoc19maWxlKS5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04Iikuc3BsaXRsaW5lcygpCiAgICAgICAgZWxzZToKICAgICAgICAgICAgcGF0aHMgPSBjaGFuZ2VkX3BhdGhzX2Zyb21fZ2l0KFBhdGgoYXJncy5yZXBvKS5yZXNvbHZlKCksIGFyZ3MuYmFzZSwgYXJncy5oZWFkKQogICAgICAgIHJlcG9ydCA9IGJ1aWxkX3JlcG9ydChwYXRocykKICAgICAgICBtYXJrZG93biA9IHJlbmRlcl9tYXJrZG93bihyZXBvcnQpCiAgICAgICAgd3JpdGVfY2lfb3V0cHV0cyhyZXBvcnQsIG1hcmtkb3duKQogICAgZXhjZXB0IChSZXZpZXdHYXRlRXJyb3IsIE9TRXJyb3IsIFVuaWNvZGVFcnJvcikgYXMgZXhjOgogICAgICAgIHByaW50KGYiUkVWSUVXX0dBVEVfRVJST1I6IHtleGN9IiwgZmlsZT1zeXMuc3RkZXJyKQogICAgICAgIHJldHVybiAyCiAgICBwcmludChtYXJrZG93bikKICAgIGlmIHJlcG9ydC5wcml2YXRlX3BhdGhzOgogICAgICAgIHByaW50KCJSRVZJRVdfR0FURV9CTE9DS0VEOiBwcml2YXRlIGRhdGEgb3IgY3JlZGVudGlhbCBwYXRocyBkZXRlY3RlZCIsIGZpbGU9c3lzLnN0ZGVycikKICAgICAgICByZXR1cm4gMgogICAgcHJpbnQoZiJTRUNVUklUWV9SRVZJRVdfUkVRVUlSRUQ9eyd5ZXMnIGlmIHJlcG9ydC5zZWN1cml0eV9yZXF1aXJlZCBlbHNlICdubyd9IikKICAgIHJldHVybiAwCgoKaWYgX19uYW1lX18gPT0gIl9fbWFpbl9fIjoKICAgIHJhaXNlIFN5c3RlbUV4aXQobWFpbigpKQo=
+"""Read-only, path-based review gate for Prompt Atelier.
+
+The gate never calls an AI model and never writes to GitHub. It classifies
+repository-relative changed paths, rejects private data paths, and tells CI
+when the security regression job should run.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path, PurePosixPath
+from typing import Iterable
+
+
+MAX_FIX_ROUNDS = 2
+MAX_REVIEW_ROUNDS = 3
+MAX_CHANGED_PATHS = 5000
+
+TRUST_BOUNDARY_RULES = (
+    ("CI、工作流与权限", (".github/workflows/", "tools/review_gate.py")),
+    ("网络、模型凭据与输入反序列化", ("ai_analyzer.py", "collector.py")),
+    ("本地 API、浏览器交互与网络请求", ("ai_prompt_workbench.py", "index.html")),
+    ("SQLite、文件路径、备份与恢复", ("storage.py",)),
+    ("更新事务与程序替换", ("updater.py", "tools/sync_v065_candidate.ps1", "生成更新清单.py")),
+)
+
+DEPENDENCY_FILES = {
+    "package.json",
+    "package-lock.json",
+    "pyproject.toml",
+    "requirements.txt",
+    "requirements-dev.txt",
+    "poetry.lock",
+    "uv.lock",
+}
+SHELL_SUFFIXES = (".bat", ".cmd", ".ps1", ".sh")
+PRIVATE_SUFFIXES = (
+    ".sqlite",
+    ".sqlite3",
+    ".db",
+    ".pem",
+    ".key",
+    ".p12",
+    ".pfx",
+)
+PRIVATE_ROOTS = {
+    "datahome",
+    "references",
+    "reference_images",
+    "user_data",
+    "backups",
+    "_backup",
+}
+PRIVATE_FILENAMES = {
+    ".env",
+    ".env.local",
+    ".env.production",
+    "prompt_atelier.config.json",
+    "personal_config.json",
+    "user_config.json",
+}
+
+
+class ReviewGateError(ValueError):
+    """Raised for an unsafe or unusable review input."""
+
+
+@dataclass(frozen=True)
+class ReviewReport:
+    paths: tuple[str, ...]
+    triggers: dict[str, tuple[str, ...]]
+    private_paths: tuple[str, ...]
+
+    @property
+    def security_required(self) -> bool:
+        return bool(self.triggers)
+
+
+def normalize_repo_path(value: str) -> str:
+    """Return a safe repository-relative POSIX path or reject it."""
+    candidate = value.strip().replace("\\", "/")
+    if not candidate or "\x00" in candidate:
+        raise ReviewGateError("变更路径为空或包含非法字符")
+    while candidate.startswith("./"):
+        candidate = candidate[2:]
+    path = PurePosixPath(candidate)
+    if path.is_absolute() or ".." in path.parts:
+        raise ReviewGateError(f"变更路径越界: {value!r}")
+    if len(candidate) >= 2 and candidate[1] == ":" and candidate[0].isalpha():
+        raise ReviewGateError(f"不支持绝对 Windows 路径: {value!r}")
+    normalized = path.as_posix()
+    if normalized in ("", "."):
+        raise ReviewGateError("变更路径必须指向文件")
+    return normalized
+
+
+def is_private_path(path: str) -> bool:
+    pure = PurePosixPath(path)
+    lowered = path.lower()
+    if pure.parts and pure.parts[0].lower() in PRIVATE_ROOTS:
+        return True
+    if pure.name.lower() in PRIVATE_FILENAMES:
+        return True
+    return lowered.endswith(PRIVATE_SUFFIXES)
+
+
+def trust_reasons(path: str) -> list[str]:
+    lowered = path.lower()
+    reasons = [
+        reason
+        for reason, prefixes in TRUST_BOUNDARY_RULES
+        if any(
+            lowered.startswith(prefix.lower()) if prefix.endswith("/") else lowered == prefix.lower()
+            for prefix in prefixes
+        )
+    ]
+    if PurePosixPath(path).name.lower() in DEPENDENCY_FILES:
+        reasons.append("依赖清单与供应链")
+    if lowered.endswith(SHELL_SUFFIXES):
+        reasons.append("Shell 与本地命令执行")
+    return reasons
+
+
+def build_report(paths: Iterable[str]) -> ReviewReport:
+    normalized = tuple(dict.fromkeys(normalize_repo_path(path) for path in paths if path.strip()))
+    if len(normalized) > MAX_CHANGED_PATHS:
+        raise ReviewGateError(f"变更文件超过 {MAX_CHANGED_PATHS} 个，请拆分审查范围")
+    private_paths = tuple(path for path in normalized if is_private_path(path))
+    trigger_map: dict[str, list[str]] = {}
+    for path in normalized:
+        for reason in trust_reasons(path):
+            trigger_map.setdefault(reason, []).append(path)
+    return ReviewReport(
+        paths=normalized,
+        triggers={reason: tuple(paths) for reason, paths in trigger_map.items()},
+        private_paths=private_paths,
+    )
+
+
+def render_markdown(report: ReviewReport) -> str:
+    lines = [
+        "## Prompt Atelier 只读审查门禁",
+        "",
+        f"- 变更文件：{len(report.paths)} 个",
+        f"- 自动返修上限：{MAX_FIX_ROUNDS} 轮；第 {MAX_REVIEW_ROUNDS} 次审查仍有发现时转人工",
+        "- 当前阶段不调用模型，不自动评论、推送、合并或发布",
+        "- 维护者始终是合并门禁；本工作流只有 contents: read 权限",
+        "",
+    ]
+    if report.private_paths:
+        lines.extend(["### 阻止：疑似私有资料或凭据路径", ""])
+        lines.extend(f"- `{path}`" for path in report.private_paths[:100])
+        lines.extend(["", "请从提交中移除真实数据库、参考图片、个人配置和凭据；不要通过改写路径绕过。", ""])
+    if report.triggers:
+        lines.extend(["### 需要加强安全回归的信任边界", ""])
+        for reason, paths in report.triggers.items():
+            lines.append(f"- **{reason}**：" + "、".join(f"`{path}`" for path in paths[:30]))
+        lines.extend(["", "CI 将运行安全回归；测试通过不替代人工审查和 Windows/真实资料验收。", ""])
+    else:
+        lines.extend(["### 路径审查结果", "", "未触及预定义信任边界，条件安全回归跳过；完整 Release validation 仍独立运行。", ""])
+    return "\n".join(lines)
+
+
+def changed_paths_from_git(repo: Path, base: str, head: str) -> list[str]:
+    if not base or not head or base.startswith("-") or head.startswith("-"):
+        raise ReviewGateError("base/head 必须是非选项的 Git 引用")
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--name-only", "--diff-filter=ACMR", f"{base}...{head}", "--"],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        raise ReviewGateError("无法计算 Git 变更范围，请核对 base/head 和 checkout 深度") from exc
+    return result.stdout.splitlines()
+
+
+def write_ci_outputs(report: ReviewReport, markdown: str) -> None:
+    output = os.environ.get("GITHUB_OUTPUT")
+    if output:
+        with Path(output).open("a", encoding="utf-8", newline="\n") as handle:
+            handle.write(f"security_required={'yes' if report.security_required else 'no'}\n")
+            handle.write(f"changed_files={len(report.paths)}\n")
+            handle.write(f"private_files={len(report.private_paths)}\n")
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary:
+        with Path(summary).open("a", encoding="utf-8", newline="\n") as handle:
+            handle.write(markdown + "\n")
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--paths-file", help="UTF-8 file containing one changed repository path per line")
+    source.add_argument("--base", help="Git base ref for a three-dot diff")
+    parser.add_argument("--head", default="HEAD", help="Git head ref (default: HEAD)")
+    parser.add_argument("--repo", default=str(Path(__file__).resolve().parents[1]))
+    args = parser.parse_args(argv)
+    try:
+        if args.paths_file:
+            paths = Path(args.paths_file).read_text(encoding="utf-8").splitlines()
+        else:
+            paths = changed_paths_from_git(Path(args.repo).resolve(), args.base, args.head)
+        report = build_report(paths)
+        markdown = render_markdown(report)
+        write_ci_outputs(report, markdown)
+    except (ReviewGateError, OSError, UnicodeError) as exc:
+        print(f"REVIEW_GATE_ERROR: {exc}", file=sys.stderr)
+        return 2
+    print(markdown)
+    if report.private_paths:
+        print("REVIEW_GATE_BLOCKED: private data or credential paths detected", file=sys.stderr)
+        return 2
+    print(f"SECURITY_REVIEW_REQUIRED={'yes' if report.security_required else 'no'}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
