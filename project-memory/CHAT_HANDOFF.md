@@ -14,6 +14,13 @@
 - 最终本地验证：云主机 176 项（174 通过、2 跳过，12.674 秒）；Windows Python 3.13 为 176 项（172 通过、4 跳过，24.234 秒）；便携 Python 3.12.10 为 176 项（172 通过、4 跳过，23.820 秒）。
 - 最终 CI：修复代码 #578 / run 43580779270、验收文档 #579 / run 43581200165 和项目记忆 #580 / run 43581384210 均为 Success；#580 用时 54 秒，Linux 全量、Windows 全量和 release gate 全部通过。此前 #573 与 #577 也均通过。
 
+## 2026-11-14 侧栏体验修复（最新本地状态，尚未推送）
+- 11 个侧栏页面/分类入口已从 `div.nav` 改为带 `type="button"`、`aria-label` 的原生按钮，支持键盘聚焦和 Enter/Space 激活；既有 click handler 保留。
+- 侧栏版本从 `V0.5.1` 修正为 `V0.6.5`；新增 `tests/test_navigation_accessibility.py` 三项回归，并与后端 `APP_VERSION` 比对。
+- Windows Python 3.13.18：181 项、177 通过、4 跳过、0 失败、0 错误。云主机 Linux：181 项、179 通过、2 跳过、0 失败、0 错误，12.303 秒。
+- 新哈希：`index.html` 为 `33a6efff8ba18f1bad2a8f72aba6a8d1f5f1b2bd4ce754bcb7ddf737957cf064`；`update_manifest.json` 为 `6c84b5762fef32ff225607aec0f71a5b3efcae7e9676684255462986bd9ad59f`。
+- 上次 GUI 隔离实例已退出且 8765 端口释放；正常 GUI 验收仍未完成。此次改动和对应文档目前仅在本地，后续推送必须另行取得确认。
+
 ## 2026-11-14 最终稳定化结果（优先于下文历史记录）
 1. 组合器、Windows Node、提示词原始字节和 SQLite 测试夹具已修复；BAT 保持 UTF-8 无 BOM、35 个 CRLF，`*.bat -text` 不变。
 2. `PROMPT_ATELIER_NO_BROWSER=1` 仅抑制自动化测试打开浏览器，正常用户启动行为不变。
