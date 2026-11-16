@@ -91,11 +91,16 @@ class ReviewGateTests(unittest.TestCase):
 
     def test_cli_returns_two_for_private_path(self):
         with tempfile.TemporaryDirectory() as temp:
-            paths = Path(temp) / "paths.txt"
+            root = Path(temp)
+            paths = root / "paths.txt"
             paths.write_text("DataHome/private.sqlite\n", encoding="utf-8")
-            stdout = io.StringIO()
-            with redirect_stdout(stdout):
-                result = review_gate.main(["--paths-file", str(paths)])
+            with patch.dict(os.environ, {
+                "GITHUB_OUTPUT": str(root / "output.txt"),
+                "GITHUB_STEP_SUMMARY": str(root / "summary.md"),
+            }):
+                stdout = io.StringIO()
+                with redirect_stdout(stdout):
+                    result = review_gate.main(["--paths-file", str(paths)])
             self.assertEqual(2, result)
 
     def test_workflow_is_read_only_and_conditional(self):
