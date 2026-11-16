@@ -14,6 +14,13 @@
 - 最终本地验证：云主机 176 项（174 通过、2 跳过，12.674 秒）；Windows Python 3.13 为 176 项（172 通过、4 跳过，24.234 秒）；便携 Python 3.12.10 为 176 项（172 通过、4 跳过，23.820 秒）。
 - 最终 CI：修复代码 #578 / run 43580779270、验收文档 #579 / run 43581200165 和项目记忆 #580 / run 43581384210 均为 Success；#580 用时 54 秒，Linux 全量、Windows 全量和 release gate 全部通过。此前 #573 与 #577 也均通过。
 
+## 2026-11-16 轻量审查门禁（已推送，最终代码 CI 通过）
+- 按用户确认的方案，仅整合只读路径审查、两轮返修规则、按路径条件安全回归和人工合并边界；没有接入完整 Agentic Workflows 自动构建闭环。
+- 新增 `tools/review_gate.py`、`tests/test_review_gate.py`、`.github/workflows/review-gate.yml`、PR 模板和 `docs/AGENTIC_REVIEW_POLICY.md`。私有数据库、参考图目录、个人配置和凭据路径会 fail-closed；高风险路径触发 129 项条件安全回归。
+- 新工作流只有 `contents: read`，不调用模型、不自动评论、推送、合并或发布；Runner 尚未自动统计审查轮次，两轮返修目前由 PR 模板与维护者执行。
+- Linux 全量 190 项（188 通过、2 跳过，0 失败、0 错误，11.656 秒）；Windows Python 3.13.18 全量 190 项（186 通过、4 跳过，0 失败、0 错误，24.107 秒）。九个发布运行文件和 manifest 未改，GUI/真实资料/真实模型门禁仍未完成。
+- 最终代码头 `bbfee9d11bf4d0d978ea460eb4a1d4dc20e97273`；Review gate #5 / run 43794412378 Success，9 秒；Release validation #597 / run 43794412376 Success，53 秒。核心提交 `27b1625` 的 Review gate #4 两个 jobs 和 Release #596 均通过。首次连接器 Base64 编码导致 #593–#595 中间失败，已纠正并按 RAW URL 逐字核验，不能将中间失败误写为最终分支失败。
+
 ## 2026-11-14 侧栏体验修复（已推送，最终 CI 通过）
 - 11 个侧栏页面/分类入口已从 `div.nav` 改为带 `type="button"`、`aria-label` 的原生按钮，支持键盘聚焦和 Enter/Space 激活；既有 click handler 保留。
 - 侧栏版本从 `V0.5.1` 修正为 `V0.6.5`；新增 `tests/test_navigation_accessibility.py` 三项回归，并与后端 `APP_VERSION` 比对。
