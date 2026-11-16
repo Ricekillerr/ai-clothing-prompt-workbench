@@ -65,6 +65,16 @@ V0.6.5 候选版稳定化、双环境自动化验证和开发分支 CI 收尾已
 - **Windows 重复实例修复通过**：修复前两个真实 BAT/Python 实例同时存活且都报告启动成功；首实例正常关闭后，第二实例接管 8765，证明 Windows 地址复用会隐藏重复实例。`WorkbenchHTTPServer` 现仅在 Windows 禁用地址复用；第二实例返回错误码 2 和明确端口占用提示，不再虚假报告成功或接管端口，也不终止已有实例。新增 `tests/test_duplicate_instance.py` 覆盖真实端口冲突和 `main()` 错误路径；云主机 Linux 为 178 项、176 通过、2 项环境跳过、0 失败、0 错误（12.553 秒），Windows Python 3.13 为 178 项、172 通过、4 跳过、0 失败、0 错误（23.706 秒），便携 3.12.10 为 178 项、172 通过、4 跳过、0 失败、0 错误（24.137 秒）。
 - **GUI 仍未验收**：桌面控制连续超时，Browser Use 随后发生 window binding timeout；本轮没有取得正常浏览器点击、布局或关闭页面证据，不能把 HTTP/API 通过描述为浏览器界面验收通过。
 
+## 2026-11-14 侧栏导航与版本标识补充验证（本地待推送）
+
+- 侧栏 11 个页面/分类入口由仅绑定 `onclick` 的 `div.nav` 改为带 `type="button"` 和 `aria-label` 的原生按钮，保留既有 click handler、布局、响应式图标和激活样式；原生按钮可由键盘聚焦并通过 Enter/Space 激活。
+- 侧栏版本标识由 `V0.5.1` 修正为与 `APP_VERSION` 一致的 `V0.6.5`，新增测试直接比对运行入口版本，防止再次漂移。
+- 新增 `tests/test_navigation_accessibility.py` 三项回归，覆盖 11 个命名原生按钮、无残余非按钮导航、版本一致性及既有事件绑定/按钮样式。
+- Windows Python 3.13.18：181 项，177 通过、4 项环境跳过、0 失败、0 错误；日志为 `C:\Users\PC\Doubao\chats\2026-11-14\new-chat-9\windows-full-181-navigation.log`。
+- 云主机 Linux：181 项，179 通过、2 项 Windows 环境跳过、0 失败、0 错误，12.303 秒；日志为云主机工作目录下的 `cloud-full-181-navigation.log`。首次从错误工作目录启动出现模块导入错误，随后从项目根目录重跑成功，该发现阶段错误不计为项目断言失败。
+- `index.html` SHA-256：`33a6efff8ba18f1bad2a8f72aba6a8d1f5f1b2bd4ce754bcb7ddf737957cf064`；`update_manifest.json` SHA-256：`6c84b5762fef32ff225607aec0f71a5b3efcae7e9676684255462986bd9ad59f`。
+- 上次 GUI 隔离实例已复查退出，8765 端口监听数为 0。此次没有取得新的正常浏览器 GUI 证据，以上结果不替代完整桌面、真实资料或全应用读屏验收。
+
 ## 尚未完成
 
 - 未创建 PR、Release 或正式版本，生产 `main` 未修改；V1.0 门禁完成前不得合并或发布。
