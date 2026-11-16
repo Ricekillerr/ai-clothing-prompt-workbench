@@ -1,1 +1,49 @@
-PCEtLSBQcm9tcHQgQXRlbGllcjogcmV2aWV3LW9ubHkgaW50ZWdyYXRpb24uIE5vIGF1dG9tYXRpYyBtZXJnZSBvciByZWxlYXNlLiAtLT4KCiMjIOWPmOabtOivtOaYjgoKLSDnm67moIcgSXNzdWUgLyDpnIDmsYLvvJoKLSDlj5jmm7TojIPlm7TvvJoKLSDmmI7noa7mnKrljIXlkKvnmoTojIPlm7TvvJoKCiMjIOmqjOaUtuivgeaNrgoKLSBbIF0g5bey5YiX5Ye65a6e6ZmF5omn6KGM55qE5rWL6K+V44CB5pWw6YeP5ZKM57uT5p6c77yM5LiN5Y+q5YaZ4oCc5bqU6K+l6YCa6L+H4oCd44CCCi0gWyBdIOW3sumZhOebuOWFsyBDSSDov5DooYzpk77mjqXvvJvlpLHotKXlkozkuK3pl7Tmj5DkuqTmsqHmnInooqvpmpDol4/jgIIKLSBbIF0g5bey5Yy65YiG6Ieq5Yqo5YyW5rWL6K+V44CBV2luZG93cyDlrp7mnLrjgIHmraPluLjmtY/op4jlmaggR1VJ44CB55yf5a6e6LWE5paZ5ZKM55yf5a6e5qih5Z6L6K+B5o2u44CCCi0gWyBdIOacquaKiiA4MCUg562b6YCJ6Zeo5qeb5o+P6L+w5Li66K+G5Yir5YeG56Gu546H5oiW55Sf5oiQ5oiQ5Yqf546H44CCCgojIyDlm5vnu7TlrqHmn6UKCi0gWyBdICoq6KeE6IyD77yaKiog6YG15b6q546w5pyJ6aG555uu57uT5p6E44CB57yW56CB44CB5a2X6IqC5ZKM5rWL6K+V57qm5a6a44CCCi0gWyBdICoq6ZyA5rGC77yaKiog5q+P5Liq5pS55Yqo6YO96IO95a+55bqU6ZyA5rGC5LiO6aqM5pS25p2h5Lu277yM5rKh5pyJ5aS55bim5peg5YWz5L+u5pS544CCCi0gWyBdICoq6LSo6YeP77yaKiog5rKh5pyJ6YeN5aSN5a6e546w44CB5peg5pWI5oyJ6ZKu44CB6Z2Z6buY6ZSZ6K+v5oiW5LiN5Y+v6aqM6K+B55qE5a6M5oiQ5aOw5piO44CCCi0gWyBdICoq5b2x5ZON6IyD5Zu077yaKiog5bey5qOA5p+l5ZCv5Yqo44CB5YWz6Zet44CB5qOA57Si44CB5aSH5Lu944CB5oGi5aSN44CB5pu05paw5Y+K5pen5pWw5o2u5YW85a655oCn44CCCgojIyDop6blj4rkv6Hku7vovrnnlYzml7blv4XloasKCua2ieWPiiBgLmdpdGh1Yi93b3JrZmxvd3MvKmDjgIHnvZHnu5zjgIFBUEkgS2V544CB5p2D6ZmQ44CBU1FMaXRl44CB5paH5Lu26Lev5b6E44CB5aSH5Lu95oGi5aSN44CB5pu05paw5Zmo44CBU2hlbGzjgIHkvp3otZbmuIXljZXmiJblj43luo/liJfljJbml7bvvJoKCi0gWyBdIOW3sui/kOihjOadoeS7tuWuieWFqOWbnuW9ku+8jOW5tuS6uuW3peWkjeaguCBgcGF0aDpsaW5lYCDor4Hmja7jgIIKLSBbIF0g5pyq5paw5aKe6ZW/5pyf5L+d5a2YIEFQSSBLZXnjgIHlr4bnoIHmiJbkuKrkurrphY3nva7nmoTooYzkuLrjgIIKLSBbIF0g6L+c56iL5qih5Z6L56uv54K55LuN6KaB5rGCIEhUVFBT77yM6YeN5a6a5ZCR5LiN5Lya6L2s5Y+R5Yet5o2u44CCCi0gWyBdIOacquaUvuWuveespuWPt+mTvuaOpeOAgeebruW9leiBlOaOpeOAgeadpea6kOebruW9leOAgei3r+W+hOi2iueVjOaIliBTSEEtMjU2IOagoemqjOOAggotIFsgXSDmnKrpgJrov4cgYHB1bGxfcmVxdWVzdF90YXJnZXRg44CB5a695rOb5YaZ5p2D6ZmQ5oiW56ys5LiJ5pa56ISa5pys5omp5aSn5L6b5bqU6ZO+6aOO6Zmp44CCCgojIyDnp4HmnInotYTmlpnovrnnlYwKCi0gWyBdIOacrCBQUiDkuI3ljIXlkKvnnJ/lrp4gU1FMaXRl44CB5Y+C6ICD5Zu+54mH44CBQVBJIEtleeOAgeWvhueggeOAgeS4quS6uumFjee9ruaIlumalOemu+mqjOaUtuaVsOaNruOAggotIFsgXSBgRGF0YUhvbWUvYOOAgWByZWZlcmVuY2VzL2DjgIFgcmVmZXJlbmNlX2ltYWdlcy9g44CBYF9iYWNrdXAvYCDnrYnmnKzlnLDotYTmlpnmnKrooqvmj5DkuqTjgIIKLSBbIF0g5pel5b+X44CB5oiq5Zu+5ZKM5rWL6K+V5aS55YW35Z2H5bey5Y675pWP77yM5Y+q5L2/55So5ZCI5oiQ5pWw5o2u44CCCgojIyDov5Tkv67ova7mrKHkuI7kurrlt6Xpl6jnpoEKCi0g5b2T5YmN6L+U5L+u6L2u5qyh77yIMCAvIDEgLyAy77yJ77yaCi0gWyBdIOiHquWKqOaIluWNiuiHquWKqOi/lOS/ruacgOWkmuS4pOi9ru+8m+esrCAzIOasoeWuoeafpeS7jeacieWPkeeOsOaXtuW3suWBnOatouW5tui9rOS6uuW3pe+8jOayoeaciemAmui/h+mHjee9rui+k+WFpee7lei/h+iuoeaVsOOAggotIFsgXSDlrqHmn6XmhI/op4Hlj6rkvZzkuLror4Torrrlkozlu7rorq7vvIzmnKroh6rliqjmibnlh4bjgIHlkIjlubbjgIHmjqjpgIHmiJblj5HluIPjgIIKLSBbIF0g57u05oqk6ICF5bey56Gu6K6kIFYxLjAg6Zeo56aB54q25oCB77yb5pyq5a6M5oiQ5YmN5LiN5ZCI5bm2IGBtYWluYOOAggoKIyMg5Zue6YCA5LiO5ZCO57utCgotIOWbnumAgOaWueW8j++8mgotIOS7jemcgOS6uuW3peaIluecn+WunueOr+Wig+WujOaIkOeahOS6i+mhue+8mgo=
+<!-- Prompt Atelier: review-only integration. No automatic merge or release. -->
+
+## 变更说明
+
+- 关联 Issue / 背景：
+- 变更摘要：
+- 未包含的内容：
+
+## 验证证据
+
+- [ ] 已列出实际执行的测试、数据和结果，不只写“应该通过”。
+- [ ] 已附必要的 CI 运行链接；正常浏览器 GUI、隔离 HTTP、真实模型评估分别陈述。
+- [ ] 已区分 Linux/Windows 环境、正常浏览器 GUI、真实模型和真实资料验证。
+- [ ] 若写 80%，明确其为检索入库筛选阈值，不是识别或生成成功率。
+
+## 四维审查
+
+- [ ] **规范：** 命名、格式、结构、注释和测试覆盖明确。
+- [ ] **需求：** 逐项对应本次需求与验收条件，没有隐藏扩大范围。
+- [ ] **质量：** 没有重复死代码、临时硬编码、吞异常或无意义复杂实现。
+- [ ] **影响范围：** 已评估调用、导入、配置、权限、备份、更新及用户数据兼容性。
+
+## 信任边界（按需勾选）
+
+若触及 `.github/workflows/*`、网络、API Key、凭据、SQLite、备份恢复、权限/更新、更新器、Shell、依赖清单或反序列化：
+
+- [ ] 已运行条件安全回归，不只依赖 `path:line` 评论。
+- [ ] 没有新增或转发真实 API Key、密码、个人令牌或运行配置。
+- [ ] 远程模型端点仍为 HTTPS，重定向不会转发凭据。
+- [ ] 备份字节、覆盖清单、回滚、原路径与目标 SHA-256 已核对。
+- [ ] 未使用 `pull_request_target`、过宽凭据或第三方脚本扩大供应链风险。
+
+## 私有资料声明
+
+- [ ] 本 PR 不包含真实 SQLite、参考图片、API Key、密码、个人令牌或数据备份。
+- [ ] `DataHome/`、`references/`、`reference_images/`、`_backup/` 等真实目录未被程序更新覆盖。
+- [ ] 日志、诊断和测试输出已检查，只使用合成数据。
+
+## 返修轮次与人工门禁
+
+- 当前返修轮次（0 / 1 / 2）：
+- [ ] 自动审查或人工审查最多两轮返修；第 3 次审查仍有发现即停止自动修复，交维护者人工处理。
+- [ ] 审查者只负责发现问题和说明，没有批准、合并、发布或推送权限。
+- [ ] 维护者已确认 V1.0 门禁范围；未完成项不合并 `main`。
+
+## 来源与后续
+
+- 来源链接：
+- 外部依赖或脚本的新增/更新成本与风险：
