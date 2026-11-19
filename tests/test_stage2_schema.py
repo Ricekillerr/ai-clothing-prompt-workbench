@@ -145,7 +145,7 @@ class Stage2SchemaTests(unittest.TestCase):
 
     def test_ddl_failure_rolls_back(self):
         original = list(stage2_schema.SCHEMA)
-        with patch.object(stage2_schema, "SCHEMA", original + ["invalid sql"]):
+        with patch("storage.SCHEMA", original + ["invalid sql"]):
             with self.assertRaises(sqlite3.Error):
                 stage2_schema.migrate(self.store)
         with self.store._session() as con:

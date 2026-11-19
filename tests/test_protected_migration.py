@@ -183,7 +183,7 @@ class ProtectedCopyTests(unittest.TestCase):
             source = Storage(root / "legacy")
             source.save_data({"cases": [{"id": "c1", "body": "原始"}], "modules": []})
             destination = root / "protected"
-            with patch("protected_migration.os.rename", side_effect=OSError("injected interruption")):
+            with patch("storage.os.rename", side_effect=OSError("injected interruption")):
                 with self.assertRaisesRegex(OSError, "injected interruption"):
                     create_protected_copy(source, destination)
             self.assertTrue(destination.is_dir())
@@ -204,7 +204,7 @@ class ProtectedCopyTests(unittest.TestCase):
             source = Storage(root / "legacy")
             source.save_data({"cases": [{"id": "c1", "body": "原始"}], "modules": []})
             destination = root / "protected"
-            with patch("protected_migration._write_ready_marker", side_effect=OSError("marker interruption")):
+            with patch("storage._write_ready_marker", side_effect=OSError("marker interruption")):
                 with self.assertRaisesRegex(OSError, "marker interruption"):
                     create_protected_copy(source, destination)
             self.assertTrue((destination / "data" / "prompt_library.sqlite3").is_file())
@@ -220,7 +220,7 @@ class ProtectedCopyTests(unittest.TestCase):
             source.save_data({"cases": [{"id": "c1", "body": "原始"}], "modules": []})
             old_backup = source.create_full_backup(source.home / "references")
             digest = hashlib.sha256(old_backup.read_bytes()).hexdigest()
-            with patch("protected_migration.migrate", side_effect=RuntimeError("fault")):
+            with patch("storage.migrate", side_effect=RuntimeError("fault")):
                 with self.assertRaisesRegex(RuntimeError, "fault"):
                     create_protected_copy(source, root / "protected")
             self.assertFalse((root / "protected").exists())
