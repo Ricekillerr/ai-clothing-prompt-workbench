@@ -38,5 +38,6 @@ def create_protected_copy(source, destination):
         if destination.exists():
             raise StorageError("目标目录已出现，副本已保留")
         os.rename(work, destination)
+        migration["backup"] = str(destination / Path(migration["backup"]).relative_to(work))
         return {"status": "created", "source_backup": str(backup),
                 "destination": str(destination), "migration": migration, "report": after}

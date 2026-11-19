@@ -23,7 +23,8 @@ class ProtectedCopyTests(unittest.TestCase):
             old_backup = old.create_full_backup(refs, app_version="0.6.5")
             old_backup_hash = hashlib.sha256(old_backup.read_bytes()).hexdigest()
             new_dir = parent / "protected"
-            create_protected_copy(old, new_dir)
+            result = create_protected_copy(old, new_dir)
+            self.assertTrue(Path(result["migration"]["backup"]).is_file())
             v2 = Storage(new_dir)
             image = new_dir / "references" / "v2.png"
             image.write_bytes(b"v2-only")
