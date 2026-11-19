@@ -33,7 +33,7 @@ class NavigationAccessibilityTests(unittest.TestCase):
 
     def test_sidebar_uses_named_native_buttons(self):
         self.assertEqual([], self.parser.non_button_nav)
-        self.assertEqual(11, len(self.parser.nav_buttons))
+        self.assertEqual(12, len(self.parser.nav_buttons))
         for button in self.parser.nav_buttons:
             self.assertEqual("button", button.get("type"))
             self.assertTrue(button.get("aria-label", "").strip())

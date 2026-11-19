@@ -1853,6 +1853,16 @@ class KnowledgeStore:
             ).fetchall()
             return [dict(row) for row in rows]
 
+    def list_attachments(self, case_id, offset=0, limit=50):
+        limit = max(1, min(int(limit), 100))
+        offset = max(0, int(offset))
+        with self.store._session() as con:
+            rows = con.execute(
+                "SELECT id,relative_path,media_type,role FROM attachments WHERE asset_id=? "
+                "ORDER BY id LIMIT ? OFFSET ?", (case_id, limit, offset)
+            ).fetchall()
+            return [dict(row) for row in rows]
+
     def list_ps_notes(self, case_id, offset=0, limit=50):
         limit = max(1, min(int(limit), 100))
         offset = max(0, int(offset))
@@ -1861,7 +1871,17 @@ class KnowledgeStore:
                 "SELECT * FROM ps_notes WHERE case_id=? ORDER BY id LIMIT ? OFFSET ?",
                 (case_id, limit, offset),
             ).fetchall()
-            return [dict(row) for row in rows]
+            notes = []
+            for row in rows:
+                note = dict(row)
+                assets = con.execute(
+                    "SELECT p.attachment_id,p.role,a.relative_path,a.media_type "
+                    "FROM ps_note_assets p JOIN attachments a ON a.id=p.attachment_id "
+                    "WHERE p.note_id=? ORDER BY p.position,a.id", (note["id"],)
+                ).fetchall()
+                note["assets"] = [dict(asset) for asset in assets]
+                notes.append(note)
+            return notes
 
     def append_source(self, case_id, body):
         if not isinstance(body, str):
@@ -1935,7 +1955,8 @@ class KnowledgeStore:
                 (note_id, attachment_id, role),
             )
 
-    def add_ps_note(self, case_id, area, problem, case_garment_id=None):
+    def add_ps_note(self, case_id, area, problem, case_garment_id=None,
+                    desired="", operation="", suggestion="", before_id=None, after_id=None):
         if not str(area).strip() or not str(problem).strip():
             raise StorageError("修改区域和原始问题不能为空")
         with self.store._session() as con:
@@ -1946,7 +1967,24 @@ class KnowledgeStore:
                 link = con.execute("SELECT case_id FROM case_garments WHERE id=?", (case_garment_id,)).fetchone()
                 if link is None or link["case_id"] != case_id:
                     raise StorageError("单品和修改记录不属于同一案例")
+            for attachment_id in (before_id, after_id):
+                if attachment_id is not None:
+                    asset = con.execute(
+                        "SELECT asset_id FROM attachments WHERE id=?", (attachment_id,)
+                    ).fetchone()
+                    if asset is None or asset["asset_id"] != case_id:
+                        raise StorageError("修改前后素材必须属于该案例")
             note_id = _id()
-            con.execute("INSERT INTO ps_notes(id,case_id,case_garment_id,area,problem) VALUES(?,?,?,?,?)",
-                        (note_id, case_id, case_garment_id, str(area), str(problem)))
+            con.execute(
+                "INSERT INTO ps_notes(id,case_id,case_garment_id,area,problem,desired,operation,suggestion) "
+                "VALUES(?,?,?,?,?,?,?,?)",
+                (note_id, case_id, case_garment_id, str(area), str(problem),
+                 str(desired), str(operation), str(suggestion)),
+            )
+            for role, attachment_id in (("before", before_id), ("after", after_id)):
+                if attachment_id is not None:
+                    con.execute(
+                        "INSERT INTO ps_note_assets(note_id,attachment_id,role) VALUES(?,?,?)",
+                        (note_id, attachment_id, role),
+                    )
             return note_id

@@ -414,6 +414,7 @@ class Handler(BaseHTTPRequestHandler):
                     "sources": lambda: knowledge.list_sources(identifier, offset, limit),
                     "reviews": lambda: knowledge.list_reviews(offset, limit),
                     "notes": lambda: knowledge.list_ps_notes(identifier, offset, limit),
+                    "attachments": lambda: knowledge.list_attachments(identifier, offset, limit),
                 }
                 if action not in readers:
                     raise ValueError("未知查询")
@@ -566,7 +567,7 @@ class Handler(BaseHTTPRequestHandler):
                     elif action == "add_reference":
                         result = knowledge.add_segment_reference(d.get("segment_id", ""), d.get("attachment_id"), d.get("marker", ""))
                     elif action == "add_ps_note":
-                        result = knowledge.add_ps_note(d.get("case_id", ""), d.get("area", ""), d.get("problem", ""), d.get("case_garment_id"))
+                        result = knowledge.add_ps_note(d.get("case_id", ""), d.get("area", ""), d.get("problem", ""), d.get("case_garment_id"), d.get("desired", ""), d.get("operation", ""), d.get("suggestion", ""), d.get("before_id"), d.get("after_id"))
                     elif action == "add_ps_asset":
                         knowledge.add_ps_asset(d.get("note_id", ""), d.get("attachment_id"), d.get("role", ""))
                         result = d.get("note_id", "")
