@@ -167,8 +167,10 @@ jobs:
           uv python install 3.12.14
           $pythonPath = (uv python find --managed-python 3.12.14).Trim()
           if (-not (Test-Path -LiteralPath $pythonPath)) { throw "Python not found" }
-          (Split-Path -Parent $pythonPath) | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          & $pythonPath --version
+          $venvPath = Join-Path $env:RUNNER_TEMP "prompt-atelier-python"
+          uv venv --seed --python $pythonPath $venvPath
+          (Join-Path $venvPath "Scripts") | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          & (Join-Path $venvPath "Scripts/python.exe") --version
       - name: Install image decoder
         run: python -m pip install -r requirements.txt
       - name: Run full Windows regression suite
