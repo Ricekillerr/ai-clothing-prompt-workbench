@@ -607,7 +607,7 @@ function saveDraft(){
    :"智能组合器生成，尚待实际验证";
  openEditor("case",{name:"组合提示词草稿",category:"整套搭配",model:"通用",status:"待验证",tags:["组合草稿"],body,notes,composition});
 }
-async function exportJSON(){try{await save()}catch(error){toast("备份前保存失败："+error.message);return}let a=document.createElement("a"),u=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:"application/json"}));a.href=u;a.download="prompt_library_backup.json";a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);toast("备份已导出")}
+async function exportJSON(){try{await save()}catch(error){toast("备份前保存失败："+error.message);return}try{const r=await fetch("/api/version"),v=await r.json();if(!r.ok)throw new Error("无法读取数据库版本");if(v.schema_version==="2"&&!confirm("此 JSON 仅包含案例和模块，不包含单品关系、提示词版本、PS 记录及图片。完整备份请使用“数据与备份”中的完整 ZIP。仍要导出吗？"))return}catch(error){toast("无法确认导出范围："+error.message);return}let a=document.createElement("a"),u=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:"application/json"}));a.href=u;a.download="prompt_library_backup.json";a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);toast("案例与模块 JSON 已导出")}
 async function restoreFullBackup(file){
  const status=$("restoreStatus");
  if(!file||!file.name.toLowerCase().endsWith(".zip")){if(status)status.textContent="请选择完整 ZIP 备份文件";return}

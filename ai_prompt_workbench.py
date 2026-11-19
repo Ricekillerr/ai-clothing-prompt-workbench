@@ -422,7 +422,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(200, {"ok": True, "data": readers[action]()})
             except Exception as exc:
                 self.send_json(400, {"ok": False, "error": str(exc)})
-        elif path == "/api/version": self.send_json(200, {"version": APP_VERSION})
+        elif path == "/api/version": self.send_json(200, {"version": APP_VERSION, "schema_version": STORAGE.get_setting("schema_version")})
         elif path == "/api/settings/auto-update":
             self.send_json(200, {
                 "enabled": STORAGE.get_setting("auto_update_enabled", "0") == "1",
