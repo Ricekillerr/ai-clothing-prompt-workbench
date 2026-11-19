@@ -2355,11 +2355,12 @@ SCHEMA = [
 ]
 
 
-def migrate(store):
-    """Migrate an isolated store after verified backup; never deletes old records."""
+def migrate(store, _protected_stage=False):
+    """Migrate an isolated or explicitly created protected staging store."""
     temp_root = Path(tempfile.gettempdir()).resolve()
-    if not store.home.resolve().is_relative_to(temp_root):
-        raise StorageError("当前实验迁移仅允许操作临时测试目录")
+    protected = _protected_stage and store.home.name.startswith(".stage2-copy-")
+    if not store.home.resolve().is_relative_to(temp_root) and not protected:
+        raise StorageError("迁移仅允许对受保护暂存副本操作")
     with store.exclusive_operation():
         before = inspect_database(store.db_path, store.home / "references")
         if before["schema_version"] not in {"1", "2"} or (before["integrity"] != ["ok"] or before["quick_check"] != ["ok"]):
@@ -2481,7 +2482,7 @@ def create_protected_copy(source, destination):
     destination = Path(destination)
     temp_root = Path(tempfile.gettempdir()).resolve()
     if not source.home.resolve().is_relative_to(temp_root):
-        raise StorageError("隔离迁移实验仅支持临时目录")
+        raise StorageError("文件级恢复门禁未完成，当前仅允许隔离测试目录")
     if destination.exists() or destination.parent.resolve() != source.home.resolve().parent:
         raise StorageError("目标必须是与来源同级且不存在的目录")
     with source.exclusive_operation():
@@ -2495,7 +2496,7 @@ def create_protected_copy(source, destination):
         work = Path(tempfile.mkdtemp(prefix=".stage2-copy-", dir=destination.parent))
         target = Storage(work)
         target.restore_full_backup(backup)
-        migration = migrate(target)
+        migration = migrate(target, _protected_stage=True)
         after = inspect_database(target.db_path, work / "references")
         if (after["schema_version"] != "2" or after["schema_errors"]
                 or after["quick_check"] != ["ok"] or after["integrity"] != ["ok"]
