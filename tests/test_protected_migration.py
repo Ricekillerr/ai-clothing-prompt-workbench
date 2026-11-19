@@ -3,7 +3,7 @@ import json
 import sys
 import os
 import time
-from urllib.request import build_opener, ProxyHandler
+from urllib.request import Request, build_opener, ProxyHandler
 import updater
 import importlib.util
 import subprocess
@@ -141,6 +141,17 @@ class ProtectedCopyTests(unittest.TestCase):
                 with opener.open("http://127.0.0.1:8765/api/data", timeout=2) as response:
                     after = json.loads(response.read())
                 self.assertEqual(after["cases"][0]["body"], "V2 新原文")
+                request = Request("http://127.0.0.1:8765/api/knowledge",
+                                  data=json.dumps({"action": "create_garment", "name": "马甲",
+                                                   "category": "上装"}).encode(),
+                                  headers={"Content-Type": "application/json"}, method="POST")
+                with opener.open(request, timeout=2) as response:
+                    garment_id = json.loads(response.read())["result"]
+                with opener.open("http://127.0.0.1:8765/api/knowledge?action=garment&id=" + garment_id,
+                                 timeout=2) as response:
+                    self.assertEqual(json.loads(response.read())["data"]["garment"]["name"], "马甲")
+                with opener.open("http://127.0.0.1:8765/index.html", timeout=2) as response:
+                    self.assertIn(b'data-page="garments"', response.read())
             finally:
                 process.terminate()
                 process.wait(timeout=10)
