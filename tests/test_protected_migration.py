@@ -1,6 +1,9 @@
 import hashlib
 import json
 import sys
+import os
+import time
+from urllib.request import build_opener, ProxyHandler
 import updater
 import importlib.util
 import subprocess
@@ -96,6 +99,51 @@ class ProtectedCopyTests(unittest.TestCase):
             self.assertTrue(stage.exists())
             with v2._session() as con:
                 self.assertEqual(con.execute("SELECT name FROM garments").fetchone()[0], "外套")
+
+    def test_running_workbench_reads_protected_v2_after_old_restore(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = Path(tmp)
+            legacy_dir = profile / "AI_Prompt_Asset_Workbench"
+            old = Storage(legacy_dir)
+            old.save_data({"cases": [{"id": "c1", "body": "旧原文"}], "modules": []})
+            old_backup = old.create_full_backup(legacy_dir / "references")
+            protected = profile / "AI_Prompt_Asset_Workbench_v2"
+            create_protected_copy(old, protected)
+            v2 = Storage(protected / "data")
+            v2.save_data({"cases": [{"id": "c1", "body": "V2 新原文"}], "modules": []})
+            root = Path(__file__).resolve().parents[1]
+            previous = subprocess.check_output(["git", "show", "74c9c28:storage.py"], cwd=root)
+            path = profile / "legacy_storage.py"
+            path.write_bytes(previous)
+            spec = importlib.util.spec_from_file_location("old_storage_running_test", path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            env = dict(os.environ, HOME=str(profile), USERPROFILE=str(profile),
+                       PROMPT_ATELIER_NO_BROWSER="1", PYTHONDONTWRITEBYTECODE="1")
+            process = subprocess.Popen([sys.executable, str(root / "ai_prompt_workbench.py")],
+                                       cwd=root, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            opener = build_opener(ProxyHandler({}))
+            try:
+                deadline = time.monotonic() + 15
+                while True:
+                    if process.poll() is not None:
+                        self.fail("隔离工作台未能启动")
+                    try:
+                        with opener.open("http://127.0.0.1:8765/api/data", timeout=1) as response:
+                            data = json.loads(response.read())
+                        break
+                    except OSError:
+                        if time.monotonic() >= deadline:
+                            self.fail("隔离工作台启动超时")
+                        time.sleep(0.1)
+                self.assertEqual(data["cases"][0]["body"], "V2 新原文")
+                module.Storage(legacy_dir).restore_full_backup(old_backup)
+                with opener.open("http://127.0.0.1:8765/api/data", timeout=2) as response:
+                    after = json.loads(response.read())
+                self.assertEqual(after["cases"][0]["body"], "V2 新原文")
+            finally:
+                process.terminate()
+                process.wait(timeout=10)
 
     def test_previous_updater_recovery_cannot_replace_v2_directory(self):
         with tempfile.TemporaryDirectory() as tmp:
