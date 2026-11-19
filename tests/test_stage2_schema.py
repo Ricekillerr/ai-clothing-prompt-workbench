@@ -91,6 +91,14 @@ class Stage2SchemaTests(unittest.TestCase):
         self.assertEqual(image.read_bytes(), b"current image")
         self.assertEqual(self.store.load_data()["cases"][0]["body"], "原始提示词")
 
+    def test_unknown_future_schema_is_rejected_before_writes(self):
+        with self.store._session() as con:
+            con.execute("UPDATE metadata SET value='999' WHERE key='schema_version'")
+        before = self.store.db_path.read_bytes()
+        with self.assertRaisesRegex(Exception, "版本不受"):
+            Storage(self.store.home)
+        self.assertEqual(self.store.db_path.read_bytes(), before)
+
     def test_ddl_failure_rolls_back(self):
         original = list(stage2_schema.SCHEMA)
         with patch.object(stage2_schema, "SCHEMA", original + ["invalid sql"]):

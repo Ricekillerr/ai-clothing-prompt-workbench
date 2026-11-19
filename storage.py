@@ -20,6 +20,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 SCHEMA_VERSION = 1
+MAX_SUPPORTED_SCHEMA_VERSION = 2
 
 
 def _is_link_or_junction(path: Path) -> bool:
@@ -49,7 +50,32 @@ class Storage:
         self.home.mkdir(parents=True, exist_ok=True)
         self.db_path = self.home / "prompt_library.sqlite3"
         self.legacy_json = Path(legacy_json) if legacy_json else self.home / "prompt_library.json"
+        self._check_existing_schema()
         self._initialize()
+
+    def _check_existing_schema(self):
+        """Reject unknown schema versions before any writable connection."""
+        if not self.db_path.is_file():
+            return
+        try:
+            con = sqlite3.connect(self.db_path.resolve().as_uri() + "?mode=ro", uri=True)
+            try:
+                metadata = con.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='metadata'"
+                ).fetchone()
+                if not metadata:
+                    raise StorageError("现有数据库缺少版本信息")
+                row = con.execute(
+                    "SELECT value FROM metadata WHERE key='schema_version'"
+                ).fetchone()
+                if row is None or not str(row[0]).isdigit():
+                    raise StorageError("现有数据库版本无效")
+                if int(row[0]) > MAX_SUPPORTED_SCHEMA_VERSION or int(row[0]) < 1:
+                    raise StorageError("数据库版本不受此程序支持，已拒绝写入")
+            finally:
+                con.close()
+        except sqlite3.Error as exc:
+            raise StorageError("无法安全读取现有数据库版本") from exc
 
     def _connect(self) -> sqlite3.Connection:
         con = sqlite3.connect(self.db_path, timeout=15)

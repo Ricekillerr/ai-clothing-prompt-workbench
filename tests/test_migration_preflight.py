@@ -6,7 +6,8 @@ import unittest
 from pathlib import Path
 
 from migration_preflight import inspect_database
-from storage import Storage
+from storage import Storage, StorageError
+from stage2_schema import migrate
 
 
 class MigrationPreflightTests(unittest.TestCase):
@@ -70,6 +71,25 @@ class MigrationPreflightTests(unittest.TestCase):
                              [item[2] for item in fixtures])
             self.assertEqual(report["quick_check"], ["ok"])
             self.assertEqual(store.load_data(), before)
+
+    def test_corrupt_matching_hash_blocks_migration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            store = Storage(root)
+            store.save_data({"cases": [{"id": "c", "body": "完整原文"}], "modules": []})
+            references = root / "references"
+            references.mkdir()
+            data = b"not an image"
+            (references / "bad.png").write_bytes(data)
+            with store._session() as con:
+                con.execute("INSERT INTO attachments(asset_id,relative_path,sha256) VALUES(?,?,?)",
+                            ("c", "bad.png", hashlib.sha256(data).hexdigest()))
+            with self.assertRaisesRegex(StorageError, "附件或外键"):
+                migrate(store)
+            with store._session() as con:
+                self.assertEqual(con.execute(
+                    "SELECT value FROM metadata WHERE key='schema_version'").fetchone()[0], "1")
+            self.assertEqual(store.load_data()["cases"][0]["body"], "完整原文")
 
     def test_symlinked_intermediate_directory_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
