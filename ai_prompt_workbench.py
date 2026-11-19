@@ -391,6 +391,55 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         with path.open("rb") as source:
             shutil.copyfileobj(source, self.wfile, length=1024 * 1024)
+    def send_full_json_backup(self, path):
+        prefix = b'{"format":"PromptAtelierFullBackupJSON","version":1,"zip_base64":"'
+        suffix = b'"}'
+        size = Path(path).stat().st_size
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Disposition", 'attachment; filename="prompt_atelier_full_backup.json"')
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(prefix) + 4 * ((size + 2) // 3) + len(suffix)))
+        self.end_headers()
+        self.wfile.write(prefix)
+        with Path(path).open("rb") as source:
+            for chunk in iter(lambda: source.read(3 * 65536), b""):
+                self.wfile.write(base64.b64encode(chunk))
+        self.wfile.write(suffix)
+
+    def restore_full_json_backup(self, size):
+        prefix = b'{"format":"PromptAtelierFullBackupJSON","version":1,"zip_base64":"'
+        if size < len(prefix) + 2 or self.rfile.read(len(prefix)) != prefix:
+            raise ValueError("完整 JSON 备份格式不正确")
+        remaining = size - len(prefix)
+        temp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(prefix="restore_json_", suffix=".zip",
+                                             dir=str(HOME), delete=False) as temp:
+                temp_path = Path(temp.name)
+                pending = b""
+                while remaining:
+                    block = self.rfile.read(min(256 * 1024, remaining))
+                    if not block:
+                        raise ValueError("完整 JSON 备份上传未完成")
+                    remaining -= len(block)
+                    pending += block
+                    usable = max(0, ((len(pending) - 6) // 4) * 4)
+                    if usable:
+                        part, pending = pending[:usable], pending[usable:]
+                        if b"=" in part:
+                            raise ValueError("完整 JSON 备份编码无效")
+                        temp.write(base64.b64decode(part, validate=True))
+                if not pending.endswith(b'"}'):
+                    raise ValueError("完整 JSON 备份结尾无效")
+                encoded = pending[:-2]
+                if encoded:
+                    temp.write(base64.b64decode(encoded, validate=True))
+            return STORAGE.restore_full_backup(temp_path)
+        finally:
+            if temp_path and temp_path.exists():
+                temp_path.unlink()
+
     def do_GET(self):
         if not self._validate_local_request():
             return
@@ -428,6 +477,12 @@ class Handler(BaseHTTPRequestHandler):
                 "enabled": STORAGE.get_setting("auto_update_enabled", "0") == "1",
                 "idle_minutes": 15,
             })
+        elif path == "/api/backup/full-json":
+            try:
+                archive = STORAGE.create_full_backup(IMAGES, app_version=APP_VERSION)
+                self.send_full_json_backup(archive)
+            except Exception as exc:
+                self.send_json(500, {"ok": False, "error": f"完整 JSON 备份创建失败：{exc}"})
         elif path == "/api/backup/full":
             try:
                 archive = STORAGE.create_full_backup(IMAGES, app_version=APP_VERSION)
@@ -501,8 +556,16 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             n = int(self.headers.get("Content-Length", "0"))
-            max_request = 500 * 1024 * 1024 if self.path == "/api/backup/restore" else 25 * 1024 * 1024
+            if self.path == "/api/backup/full-json/restore":
+                max_request = 700 * 1024 * 1024
+            elif self.path == "/api/backup/restore":
+                max_request = 500 * 1024 * 1024
+            else:
+                max_request = 25 * 1024 * 1024
             if n <= 0 or n > max_request: raise ValueError("请求内容为空或超过大小限制")
+            if self.path == "/api/backup/full-json/restore":
+                self.send_json(200, self.restore_full_json_backup(n))
+                return
             if self.path == "/api/backup/restore":
                 if "application/zip" not in self.headers.get("Content-Type", "").lower():
                     raise ValueError("恢复文件必须是 ZIP 格式")

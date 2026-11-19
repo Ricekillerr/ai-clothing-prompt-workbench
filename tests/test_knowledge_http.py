@@ -1,10 +1,14 @@
 import importlib
 import json
+import hashlib
+from io import BytesIO
+from PIL import Image
 import tempfile
 import threading
 import unittest
 from pathlib import Path
 from urllib.request import Request, build_opener, ProxyHandler
+from urllib.error import HTTPError
 
 from stage2_schema import migrate
 from storage import Storage
@@ -46,6 +50,49 @@ class KnowledgeHTTPTests(unittest.TestCase):
             with opener.open(base + "/api/knowledge?action=notes&id=case1", timeout=3) as response:
                 notes = json.loads(response.read())["data"]
             self.assertEqual(notes[0]["id"], note["result"])
+            old_home, old_images = app.HOME, app.IMAGES
+            app.HOME, app.IMAGES = Path(tmp), Path(tmp) / "references"
+            app.IMAGES.mkdir(exist_ok=True)
+            output = BytesIO()
+            Image.new("RGB", (3, 3), "blue").save(output, format="PNG")
+            image = output.getvalue()
+            (app.IMAGES / "one.png").write_bytes(image)
+            with store._session() as con:
+                attachment_id = con.execute(
+                    "INSERT INTO attachments(asset_id,relative_path,sha256) VALUES('case1','one.png',?)",
+                    (hashlib.sha256(image).hexdigest(),),
+                ).lastrowid
+            post({"action": "add_ps_asset", "note_id": note["result"],
+                  "attachment_id": attachment_id, "role": "before"})
+            self.addCleanup(setattr, app, "HOME", old_home)
+            self.addCleanup(setattr, app, "IMAGES", old_images)
+            with opener.open(base + "/api/backup/full-json", timeout=10) as response:
+                backup = response.read()
+            envelope = json.loads(backup)
+            self.assertEqual(envelope["format"], "PromptAtelierFullBackupJSON")
+            post({"action": "create_garment", "name": "临时外套", "category": "外套"})
+            request = Request(base + "/api/backup/full-json/restore", data=backup,
+                              headers={"Content-Type": "application/json"}, method="POST")
+            with opener.open(request, timeout=10) as response:
+                restored = json.loads(response.read())
+            self.assertTrue(restored["ok"])
+            with store._session() as con:
+                self.assertEqual(con.execute("SELECT count(*) FROM garments").fetchone()[0], 1)
+                self.assertEqual(con.execute("SELECT count(*) FROM ps_notes").fetchone()[0], 1)
+            self.assertTrue((Path(tmp) / "backups" / restored["safety_backup"]).is_file())
+            self.assertEqual((app.IMAGES / "one.png").read_bytes(), image)
+            with store._session() as con:
+                self.assertEqual(con.execute(
+                    "SELECT count(*) FROM ps_note_assets").fetchone()[0], 1)
+            damaged = bytearray(backup)
+            damaged[len(damaged) // 2] = ord("!")
+            request = Request(base + "/api/backup/full-json/restore", data=bytes(damaged),
+                              headers={"Content-Type": "application/json"}, method="POST")
+            with self.assertRaises(HTTPError):
+                opener.open(request, timeout=10)
+            self.assertEqual((app.IMAGES / "one.png").read_bytes(), image)
+            with store._session() as con:
+                self.assertEqual(con.execute("SELECT count(*) FROM garments").fetchone()[0], 1)
 
 
 if __name__ == "__main__":

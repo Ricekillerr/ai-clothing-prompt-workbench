@@ -16,8 +16,9 @@ import tempfile
 import threading
 import uuid
 import zipfile
+import warnings
 from contextlib import contextmanager
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 SCHEMA_VERSION = 2
@@ -33,6 +34,80 @@ def _is_link_or_junction(path: Path) -> bool:
         return bool(checker()) if callable(checker) else False
     except OSError:
         return True
+
+
+MAX_IMAGE_BYTES = 100 * 1024 * 1024
+MAX_IMAGE_PIXELS = 80_000_000
+FORMATS = {".png": "PNG", ".jpg": "JPEG", ".jpeg": "JPEG", ".webp": "WEBP",
+           ".gif": "GIF", ".bmp": "BMP"}
+
+
+def _link(path):
+    try:
+        return path.is_symlink() or bool(getattr(path, "is_junction", lambda: False)())
+    except OSError:
+        return True
+
+
+def _attachment_status(root, relative_path, media_type, expected):
+    path = Path(relative_path)
+    windows = PureWindowsPath(relative_path)
+    if (not relative_path or path.is_absolute() or windows.is_absolute() or windows.drive
+            or ".." in path.parts or ".." in windows.parts or "\\" in relative_path):
+        return "unsafe_path"
+    current = root
+    if any(_link(component) for component in (root, *root.parents)):
+        return "unsafe_path"
+    for component in path.parts:
+        current = current / component
+        if _link(current):
+            return "unsafe_path"
+    try:
+        if not current.resolve().is_relative_to(root.resolve()):
+            return "unsafe_path"
+        if not current.is_file():
+            return "missing"
+        image_format = FORMATS.get(current.suffix.lower())
+        if media_type != "image" or image_format is None:
+            return "unsupported"
+        initial = current.stat()
+        if initial.st_size > MAX_IMAGE_BYTES:
+            return "corrupt"
+        digest = hashlib.sha256()
+        with current.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        if expected and digest.hexdigest() != str(expected).lower():
+            return "hash_mismatch"
+        try:
+            from PIL import Image, UnidentifiedImageError
+        except ImportError:
+            return "unverified"
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", Image.DecompressionBombWarning)
+                with Image.open(current) as image:
+                    if image.format != image_format:
+                        return "corrupt"
+                    if image.width <= 0 or image.height <= 0 or image.width * image.height > MAX_IMAGE_PIXELS:
+                        return "corrupt"
+                    image.verify()
+                with Image.open(current) as image:
+                    for frame in range(getattr(image, "n_frames", 1)):
+                        image.seek(frame)
+                        image.load()
+        except (OSError, ValueError, SyntaxError, EOFError, Image.DecompressionBombError,
+                Image.DecompressionBombWarning, UnidentifiedImageError):
+            return "corrupt"
+        final = current.stat()
+        if (initial.st_size, initial.st_mtime_ns, initial.st_ino) != (final.st_size, final.st_mtime_ns, final.st_ino):
+            return "unverified"
+        return "verified" if expected else "unverified"
+    except PermissionError:
+        return "unverified"
+    except OSError:
+        return "unverified"
+
 
 
 class StorageError(RuntimeError):
@@ -1500,11 +1575,24 @@ class Storage:
                 tables = {row[0] for row in check.execute(
                     "SELECT name FROM sqlite_master WHERE type='table'"
                 ).fetchall()}
+                foreign_key_errors = check.execute("PRAGMA foreign_key_check").fetchall()
                 check.close()
             except sqlite3.DatabaseError as exc:
                 raise StorageError("备份数据库无法打开或已损坏") from exc
-            if integrity != "ok" or not {"assets", "metadata"}.issubset(tables):
-                raise StorageError("备份数据库完整性或结构检查未通过")
+            if integrity != "ok" or foreign_key_errors or not {"assets", "metadata"}.issubset(tables):
+                raise StorageError("备份数据库完整性、外键或结构检查未通过")
+            if manifest.get("format_version") == 2:
+                inspection = sqlite3.connect(str(staged_db))
+                try:
+                    records = inspection.execute(
+                        "SELECT relative_path,media_type,sha256 FROM attachments"
+                    ).fetchall()
+                finally:
+                    inspection.close()
+                for relative_path, media_type, digest in records:
+                    status = _attachment_status(stage_dir / "references", relative_path, media_type, digest)
+                    if status != "verified":
+                        raise StorageError("备份素材未通过验证：" + str(status))
 
             try:
                 restored_json = json.loads(staged_json.read_text(encoding="utf-8"))

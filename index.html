@@ -607,7 +607,7 @@ function saveDraft(){
    :"智能组合器生成，尚待实际验证";
  openEditor("case",{name:"组合提示词草稿",category:"整套搭配",model:"通用",status:"待验证",tags:["组合草稿"],body,notes,composition});
 }
-async function exportJSON(){try{await save()}catch(error){toast("备份前保存失败："+error.message);return}try{const r=await fetch("/api/version"),v=await r.json();if(!r.ok)throw new Error("无法读取数据库版本");if(v.schema_version==="2"&&!confirm("此 JSON 仅包含案例和模块，不包含单品关系、提示词版本、PS 记录及图片。完整备份请使用“数据与备份”中的完整 ZIP。仍要导出吗？"))return}catch(error){toast("无法确认导出范围："+error.message);return}let a=document.createElement("a"),u=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:"application/json"}));a.href=u;a.download="prompt_library_backup.json";a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);toast("案例与模块 JSON 已导出")}
+async function exportJSON(){try{await save()}catch(error){toast("备份前保存失败："+error.message);return}try{const r=await fetch("/api/version"),v=await r.json();if(!r.ok)throw new Error("无法读取数据库版本");if(v.schema_version==="2"){let link=document.createElement("a");link.href="/api/backup/full-json";link.download="prompt_atelier_full_backup.json";link.click();toast("正在创建完整 JSON 备份");return}}catch(error){toast("无法确认导出范围："+error.message);return}let a=document.createElement("a"),u=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:"application/json"}));a.href=u;a.download="prompt_library_backup.json";a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);toast("案例与模块 JSON 已导出")}
 async function restoreFullBackup(file){
  const status=$("restoreStatus");
  if(!file||!file.name.toLowerCase().endsWith(".zip")){if(status)status.textContent="请选择完整 ZIP 备份文件";return}
@@ -674,8 +674,26 @@ function mergeImportedAssets(data,current){
  }
  return {data:merged,added,skipped};
 }
-function importJSON(f){
- if(!f||f.size>25*1024*1024){toast("JSON 备份不能超过 25MB");return}
+function importJSON(f){return importJSONAsync(f)}
+async function importJSONAsync(f){
+ if(!f)return;
+ const prefix=await f.slice(0,64).text();
+ if(prefix.startsWith('{"format":"PromptAtelierFullBackupJSON",')){
+  if(f.size>700*1024*1024){toast("完整 JSON 备份超过大小限制");return}
+  if(!confirm("恢复完整备份将替换当前数据库和图片，恢复前会先创建安全备份。确定继续吗？"))return;
+  try{
+   await save();
+   const response=await fetch("/api/backup/full-json/restore",{method:"POST",headers:{"Content-Type":"application/json"},body:f});
+   const result=await response.json();
+   if(!response.ok||!result.ok)throw new Error(result.error||"恢复失败");
+   const current=await fetch("/api/data");
+   if(!current.ok)throw new Error("恢复后无法刷新案例");
+   db=normalizeAssetData(await current.json());
+   render();alert("完整备份已恢复。恢复前安全备份："+result.safety_backup);
+  }catch(error){alert("恢复状态未确认，请检查数据与备份："+error.message)}
+  return;
+ }
+ if(f.size>25*1024*1024){toast("旧版 JSON 备份不能超过 25MB");return}
  const reader=new FileReader();
  reader.onerror=()=>toast("JSON 文件读取失败，请检查文件是否可读后重试");
  reader.onabort=()=>toast("JSON 导入已取消");

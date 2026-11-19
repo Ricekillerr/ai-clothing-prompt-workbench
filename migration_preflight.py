@@ -5,78 +5,7 @@ import sqlite3
 import warnings
 from pathlib import Path, PureWindowsPath
 
-MAX_IMAGE_BYTES = 100 * 1024 * 1024
-MAX_IMAGE_PIXELS = 80_000_000
-FORMATS = {".png": "PNG", ".jpg": "JPEG", ".jpeg": "JPEG", ".webp": "WEBP",
-           ".gif": "GIF", ".bmp": "BMP"}
-
-
-def _link(path):
-    try:
-        return path.is_symlink() or bool(getattr(path, "is_junction", lambda: False)())
-    except OSError:
-        return True
-
-
-def _attachment_status(root, relative_path, media_type, expected):
-    path = Path(relative_path)
-    windows = PureWindowsPath(relative_path)
-    if (not relative_path or path.is_absolute() or windows.is_absolute() or windows.drive
-            or ".." in path.parts or ".." in windows.parts or "\\" in relative_path):
-        return "unsafe_path"
-    current = root
-    if any(_link(component) for component in (root, *root.parents)):
-        return "unsafe_path"
-    for component in path.parts:
-        current = current / component
-        if _link(current):
-            return "unsafe_path"
-    try:
-        if not current.resolve().is_relative_to(root.resolve()):
-            return "unsafe_path"
-        if not current.is_file():
-            return "missing"
-        image_format = FORMATS.get(current.suffix.lower())
-        if media_type != "image" or image_format is None:
-            return "unsupported"
-        initial = current.stat()
-        if initial.st_size > MAX_IMAGE_BYTES:
-            return "corrupt"
-        digest = hashlib.sha256()
-        with current.open("rb") as stream:
-            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-                digest.update(chunk)
-        if expected and digest.hexdigest() != str(expected).lower():
-            return "hash_mismatch"
-        try:
-            from PIL import Image, UnidentifiedImageError
-        except ImportError:
-            return "unverified"
-        try:
-            with warnings.catch_warnings():
-                warnings.simplefilter("error", Image.DecompressionBombWarning)
-                with Image.open(current) as image:
-                    if image.format != image_format:
-                        return "corrupt"
-                    if image.width <= 0 or image.height <= 0 or image.width * image.height > MAX_IMAGE_PIXELS:
-                        return "corrupt"
-                    image.verify()
-                with Image.open(current) as image:
-                    for frame in range(getattr(image, "n_frames", 1)):
-                        image.seek(frame)
-                        image.load()
-        except (OSError, ValueError, SyntaxError, EOFError, Image.DecompressionBombError,
-                Image.DecompressionBombWarning, UnidentifiedImageError):
-            return "corrupt"
-        final = current.stat()
-        if (initial.st_size, initial.st_mtime_ns, initial.st_ino) != (final.st_size, final.st_mtime_ns, final.st_ino):
-            return "unverified"
-        return "verified" if expected else "unverified"
-    except PermissionError:
-        return "unverified"
-    except OSError:
-        return "unverified"
-
+from storage import _attachment_status
 
 def inspect_database(database, references):
     database = Path(database).resolve(strict=True)
