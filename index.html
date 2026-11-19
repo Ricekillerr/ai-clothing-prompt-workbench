@@ -681,12 +681,28 @@ function importJSON(f){
  reader.onabort=()=>toast("JSON 导入已取消");
  reader.onload=async()=>{
   const previous=JSON.parse(JSON.stringify(db));
+  let knowledgeImportStarted=false;
   try{
    const data=JSON.parse(reader.result);
+   const versionResponse=await fetch("/api/version");
+   if(!versionResponse.ok)throw new Error("无法读取数据库版本");
+   const version=await versionResponse.json();
+   if(version.schema_version==="2"){
+    knowledgeImportStarted=true;
+    const report=await knowledgeRequest("import_legacy","POST",{payload:data});
+    const current=await fetch("/api/data");
+    if(!current.ok)throw new Error("导入后无法刷新案例");
+    db=normalizeAssetData(await current.json());
+    render();
+    const summary="导入 "+report.inserted+" 条，已存在 "+report.existing+" 条，无效 "+report.errors.length+" 条，待审核 "+report.warnings.length+" 条";
+    if(report.errors.length||report.warnings.length)alert(summary+String.fromCharCode(10)+[...report.errors,...report.warnings].map(x=>x.record+"："+x.reason).join(String.fromCharCode(10)));
+    else toast(summary);
+    return;
+   }
    const merged=mergeImportedAssets(data,db);
    db=merged.data;
    await save();render();toast("导入完成："+merged.added+" 条新增，"+merged.skipped+" 条重复或无效记录已跳过");
-  }catch(error){const outcome=await reconcileSaveFailure(error,()=>db=previous);if(outcome==="server")render();alert(saveFailureMessage("导入",outcome,error))}
+  }catch(error){if(knowledgeImportStarted){alert("导入状态未确认，请刷新数据后检查："+error.message);return}const outcome=await reconcileSaveFailure(error,()=>db=previous);if(outcome==="server")render();alert(saveFailureMessage("导入",outcome,error))}
  };
  reader.readAsText(f);
 }

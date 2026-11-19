@@ -1710,6 +1710,50 @@ class KnowledgeStore:
                         (asset_id, kind, json.dumps(item, ensure_ascii=False),
                          item.get("created_at"), item.get("updated_at")),
                     )
+                    if kind == "case" and isinstance(item.get("outfit_items"), list):
+                        for item_index, part in enumerate(item["outfit_items"]):
+                            if not isinstance(part, dict):
+                                report["warnings"].append({
+                                    "record": location, "reason": "单品记录无效，保留原始内容待审核"
+                                })
+                                con.execute(
+                                    "INSERT INTO migration_review(id,case_id,source_index,reason) VALUES(?,?,?,?)",
+                                    (_id(), asset_id, item_index, "单品记录无效"),
+                                )
+                                continue
+                            def field(name):
+                                value = part.get(name)
+                                return value.strip() if isinstance(value, str) else ""
+                            garment_id = _id()
+                            details = part.get("details")
+                            con.execute(
+                                "INSERT INTO garments(id,sku,name,category,subcategory,color,silhouette,fabric,details) "
+                                "VALUES(?,?,?,?,?,?,?,?,?)",
+                                (garment_id, field("sku"), field("name"), field("category"),
+                                 field("subcategory"), field("color"), field("silhouette"), field("material"),
+                                 json.dumps(details, ensure_ascii=False) if isinstance(details, list) else ""),
+                            )
+                            con.execute(
+                                "INSERT INTO case_garments(id,case_id,garment_id,instance_key) VALUES(?,?,?,?)",
+                                (_id(), asset_id, garment_id, str(item_index)),
+                            )
+                            con.execute(
+                                "INSERT INTO migration_review(id,case_id,source_index,reason) VALUES(?,?,?,?)",
+                                (_id(), asset_id, item_index, "导入单品的身份和属性需要人工确认"),
+                            )
+                            if field("sku"):
+                                matches = con.execute(
+                                    "SELECT DISTINCT g.id FROM garments g JOIN case_garments cg ON cg.garment_id=g.id "
+                                    "WHERE g.id<>? AND cg.case_id<>? AND lower(trim(g.sku))=lower(?)",
+                                    (garment_id, asset_id, field("sku")),
+                                ).fetchall()
+                                for match in matches:
+                                    first, second = sorted((garment_id, match["id"]))
+                                    con.execute(
+                                        "INSERT OR IGNORE INTO garment_candidates(id,first_id,second_id,reason) "
+                                        "VALUES(?,?,?,?)",
+                                        (_id(), first, second, "款号相同，需人工核对"),
+                                    )
                     if kind == "case" and (item.get("image") or item.get("images")):
                         reason = "旧 JSON 中的图片路径尚未校验并关联，请人工审核"
                         con.execute(

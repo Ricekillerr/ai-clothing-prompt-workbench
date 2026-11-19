@@ -25,7 +25,8 @@ class KnowledgeStoreTests(unittest.TestCase):
     def test_legacy_json_import_is_additive_and_idempotent(self):
         payload = {"cases": [
             {"id": "c1", "body": "禁止覆盖"},
-            {"id": "c3", "body": "全新原文", "custom": {"old": "field"}},
+            {"id": "c3", "body": "全新原文", "custom": {"old": "field"},
+             "outfit_items": [{"name": "马甲", "category": "上装"}]},
             {"name": "缺少 ID"},
         ], "modules": [{"id": "m1", "body": "面料"}]}
         report = self.knowledge.import_legacy_json(payload)
@@ -36,6 +37,11 @@ class KnowledgeStoreTests(unittest.TestCase):
         self.assertEqual(cases["c1"]["body"], "原文")
         self.assertEqual(cases["c3"]["custom"], {"old": "field"})
         self.assertEqual(self.knowledge.list_sources("c3")[0]["body"], "全新原文")
+        with self.store._session() as con:
+            self.assertEqual(con.execute(
+                "SELECT count(*) FROM case_garments WHERE case_id='c3'").fetchone()[0], 1)
+            self.assertEqual(con.execute(
+                "SELECT count(*) FROM migration_review WHERE case_id='c3'").fetchone()[0], 1)
 
     def test_existing_case_editor_creates_immutable_prompt_version(self):
         self.store.save_data({"cases": [
