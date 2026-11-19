@@ -19,7 +19,7 @@ class KnowledgeStore:
             raise StorageError("导入文件必须是对象")
         if not isinstance(payload.get("cases"), list) or not isinstance(payload.get("modules"), list):
             raise StorageError("导入文件缺少案例或模块数组")
-        report = {"inserted": 0, "existing": 0, "errors": []}
+        report = {"inserted": 0, "existing": 0, "errors": [], "warnings": []}
         seen = set()
         with self.store._session() as con:
             for collection, kind in (("cases", "case"), ("modules", "module")):
@@ -44,6 +44,13 @@ class KnowledgeStore:
                         (asset_id, kind, json.dumps(item, ensure_ascii=False),
                          item.get("created_at"), item.get("updated_at")),
                     )
+                    if kind == "case" and (item.get("image") or item.get("images")):
+                        reason = "旧 JSON 中的图片路径尚未校验并关联，请人工审核"
+                        con.execute(
+                            "INSERT INTO migration_review(id,case_id,reason) VALUES(?,?,?)",
+                            (_id(), asset_id, reason),
+                        )
+                        report["warnings"].append({"record": location, "reason": reason})
                     if kind == "case" and isinstance(item.get("body"), str):
                         body = item["body"]
                         con.execute(
