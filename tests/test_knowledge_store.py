@@ -66,6 +66,8 @@ class KnowledgeStoreTests(unittest.TestCase):
         with self.assertRaises(StorageError):
             self.knowledge.add_ps_note("c2", "口袋", "多余装饰", link)
         note = self.knowledge.add_ps_note("c1", "口袋", "多余装饰", link)
+        self.assertEqual(self.knowledge.list_ps_notes("c1")[0]["id"], note)
+        self.assertEqual(self.knowledge.list_sources("c1")[0]["id"], source)
         with self.store._session() as con:
             self.assertEqual(con.execute("SELECT status FROM ps_notes WHERE id=?", (note,)).fetchone()[0], "pending")
 

@@ -125,6 +125,38 @@ class KnowledgeStore:
             if result.rowcount != 1:
                 raise StorageError("案例单品关联不存在")
 
+    def list_sources(self, case_id, offset=0, limit=50):
+        limit = max(1, min(int(limit), 100))
+        offset = max(0, int(offset))
+        with self.store._session() as con:
+            rows = con.execute(
+                "SELECT id,case_id,version,body,sha256,revision_id,created_at "
+                "FROM prompt_sources WHERE case_id=? ORDER BY version DESC LIMIT ? OFFSET ?",
+                (case_id, limit, offset),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def list_reviews(self, offset=0, limit=50):
+        limit = max(1, min(int(limit), 100))
+        offset = max(0, int(offset))
+        with self.store._session() as con:
+            rows = con.execute(
+                "SELECT * FROM migration_review WHERE status='pending' "
+                "ORDER BY case_id,source_index,id LIMIT ? OFFSET ?",
+                (limit, offset),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def list_ps_notes(self, case_id, offset=0, limit=50):
+        limit = max(1, min(int(limit), 100))
+        offset = max(0, int(offset))
+        with self.store._session() as con:
+            rows = con.execute(
+                "SELECT * FROM ps_notes WHERE case_id=? ORDER BY id LIMIT ? OFFSET ?",
+                (case_id, limit, offset),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
     def append_source(self, case_id, body):
         if not isinstance(body, str):
             raise StorageError("原始提示词必须为文本")
