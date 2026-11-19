@@ -15,6 +15,7 @@ import time
 import tempfile
 import traceback
 from pathlib import Path
+from storage import active_data_home
 
 LOG_MAX_BYTES = 1024 * 1024
 LOG_BACKUP_COUNT = 3
@@ -195,14 +196,14 @@ def launch_workbench(root, launcher, version):
 def old_install(root):
     entry = root / "ai_prompt_workbench.py"
     if not entry.is_file():
-        return None, None
+        return None, None, None
     match = re.search(r'^APP_VERSION\s*=\s*["\']([^"\']+)', entry.read_text(encoding="utf-8-sig"), re.M)
     if not match:
         raise ValueError("无法识别旧版本")
     spec = importlib.util.spec_from_file_location("previous_storage", root / "storage.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return match[1], module.Storage
+    return match[1], module.Storage, getattr(module, "SCHEMA_VERSION", 1)
 
 def restore_snapshot(storage_type, home, snapshot):
     # Validate into a separate store even if the failed migration made the live DB unreadable.
@@ -272,8 +273,11 @@ def main():
             shutil.copy2(version_dst, version_backup)
 
         journal = root / "_update_transaction.json"
-        old_version, storage_type = old_install(root)
-        data_home = Path.home() / "AI_Prompt_Asset_Workbench"
+        old_version, storage_type, supported_schema = old_install(root)
+        data_home = active_data_home(Path.home())
+        if (data_home != Path.home() / "AI_Prompt_Asset_Workbench"
+                and (supported_schema is None or supported_schema < 2)):
+            raise UnsafeToRestore("旧程序不支持 V2 数据，已停止更新并保留当前数据")
         snapshot = None
         if storage_type:
             # The old server has released its port. Capture writes since the HTTP-side snapshot.

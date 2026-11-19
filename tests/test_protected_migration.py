@@ -1,4 +1,7 @@
 import hashlib
+import json
+import sys
+import updater
 import importlib.util
 import subprocess
 import tempfile
@@ -7,10 +10,24 @@ from pathlib import Path
 from unittest.mock import patch
 
 from protected_migration import create_protected_copy
-from storage import Storage
+from storage import Storage, StorageError, active_data_home
 
 
 class ProtectedCopyTests(unittest.TestCase):
+    def test_selection_requires_completed_valid_v2_marker(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = Path(tmp)
+            legacy = profile / "AI_Prompt_Asset_Workbench"
+            source = Storage(legacy)
+            source.save_data({"cases": [{"id": "c1", "body": "原文"}], "modules": []})
+            self.assertEqual(active_data_home(profile), legacy)
+            container = profile / "AI_Prompt_Asset_Workbench_v2"
+            create_protected_copy(source, container)
+            self.assertEqual(active_data_home(profile), container / "data")
+            (container / "stage2-ready.json").write_text("bad json", encoding="utf8")
+            with self.assertRaises(StorageError):
+                active_data_home(profile)
+
     def test_old_restore_cannot_replace_v2_data_or_references(self):
         with tempfile.TemporaryDirectory() as tmp:
             parent = Path(tmp)
@@ -48,6 +65,37 @@ class ProtectedCopyTests(unittest.TestCase):
                 self.assertEqual(con.execute("SELECT count(*) FROM case_garments").fetchone()[0], 1)
                 self.assertEqual(con.execute("SELECT count(*) FROM prompt_sources").fetchone()[0], 2)
             self.assertEqual(image.read_bytes(), b"v2-only")
+
+    def test_updater_rejects_incompatible_old_program_with_active_v2(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = Path(tmp)
+            legacy = Storage(profile / "AI_Prompt_Asset_Workbench")
+            legacy.save_data({"cases": [{"id": "c1", "body": "原文"}], "modules": []})
+            protected = profile / "AI_Prompt_Asset_Workbench_v2"
+            create_protected_copy(legacy, protected)
+            v2 = Storage(protected / "data")
+            with v2._session() as con:
+                con.execute("INSERT INTO garments(id,name,category) VALUES('g1','外套','上装')")
+            program = profile / "program"
+            program.mkdir()
+            root = Path(__file__).resolve().parents[1]
+            for name in ("storage.py", "ai_prompt_workbench.py"):
+                (program / name).write_bytes(subprocess.check_output(
+                    ["git", "show", "74c9c28:" + name], cwd=root))
+            stage = profile / "stage"
+            stage.mkdir()
+            (stage / "index.html").write_bytes(b"new")
+            (stage / "update_meta.json").write_text(
+                json.dumps({"version": "0.7.0", "files": {
+                    "index.html": hashlib.sha256(b"new").hexdigest()}}), encoding="utf8")
+            args = ["updater.py", str(stage), str(program), str(program / "launcher.bat")]
+            with patch.object(sys, "argv", args), patch.object(updater.Path, "home", return_value=profile), \
+                 patch.object(updater, "service_running", return_value=False):
+                self.assertEqual(updater.main(), 9)
+            self.assertFalse((program / "index.html").exists())
+            self.assertTrue(stage.exists())
+            with v2._session() as con:
+                self.assertEqual(con.execute("SELECT name FROM garments").fetchone()[0], "外套")
 
     def test_previous_updater_recovery_cannot_replace_v2_directory(self):
         with tempfile.TemporaryDirectory() as tmp:

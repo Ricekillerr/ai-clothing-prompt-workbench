@@ -5,7 +5,7 @@ from pathlib import Path
 from urllib.parse import unquote, quote, parse_qs, urlsplit
 from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
-from storage import Storage
+from storage import Storage, active_data_home
 from collector import scan_folder, sha256_file
 from case_matcher import rank_matches, rank_case_matches
 from ai_analyzer import analyze_pair, analyze_assets
@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parent
 UPDATE_JOURNAL = ROOT / "_update_transaction.json"
 if __name__ == "__main__" and UPDATE_JOURNAL.exists() and not os.environ.get("PROMPT_ATELIER_UPDATE_CHILD"):
     raise SystemExit("检测到未完成的更新，已暂停启动。请查看 _update_transaction.json 和 _update_error.log。")
-HOME = Path.home() / "AI_Prompt_Asset_Workbench"
+HOME = active_data_home(Path.home())
 IMAGES = HOME / "references"
 DATA = HOME / "prompt_library.json"
 HOME.mkdir(parents=True, exist_ok=True)

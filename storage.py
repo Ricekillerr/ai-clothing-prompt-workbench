@@ -38,6 +38,40 @@ class StorageError(RuntimeError):
     pass
 
 
+def active_data_home(profile: Path) -> Path:
+    """Select only a fully initialized isolated V2 store."""
+    profile = Path(profile)
+    legacy = profile / "AI_Prompt_Asset_Workbench"
+    container = profile / "AI_Prompt_Asset_Workbench_v2"
+    if not container.exists():
+        return legacy
+    if _is_link_or_junction(container):
+        raise StorageError("V2 数据目录不能是符号链接或目录联接")
+    marker = container / "stage2-ready.json"
+    data = container / "data"
+    database = data / "prompt_library.sqlite3"
+    if (_is_link_or_junction(marker) or _is_link_or_junction(data)
+            or _is_link_or_junction(database) or not marker.is_file()
+            or not database.is_file()):
+        raise StorageError("V2 数据目录尚未安全完成，请保留文件并恢复")
+    try:
+        settings = json.loads(marker.read_text(encoding="utf-8"))
+        if settings != {"schema_version": 2}:
+            raise StorageError("V2 数据目录标记无效")
+        con = sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True)
+        try:
+            version = con.execute(
+                "SELECT value FROM metadata WHERE key='schema_version'"
+            ).fetchone()
+            if version is None or str(version[0]) != "2":
+                raise StorageError("V2 数据库版本无效")
+        finally:
+            con.close()
+    except (OSError, ValueError, sqlite3.Error) as exc:
+        raise StorageError("V2 数据目录无法安全读取") from exc
+    return data
+
+
 class Storage:
     def __init__(self, home: Path, legacy_json: Path | None = None):
         self._db_lock = threading.RLock()
