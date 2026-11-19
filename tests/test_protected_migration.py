@@ -204,12 +204,7 @@ class ProtectedCopyTests(unittest.TestCase):
             source = Storage(root / "legacy")
             source.save_data({"cases": [{"id": "c1", "body": "原始"}], "modules": []})
             destination = root / "protected"
-            original_open = Path.open
-            def fail_marker(path, *args, **kwargs):
-                if path.name == "stage2-ready.json":
-                    raise OSError("marker interruption")
-                return original_open(path, *args, **kwargs)
-            with patch.object(Path, "open", fail_marker):
+            with patch("protected_migration._write_ready_marker", side_effect=OSError("marker interruption")):
                 with self.assertRaisesRegex(OSError, "marker interruption"):
                     create_protected_copy(source, destination)
             self.assertTrue((destination / "data" / "prompt_library.sqlite3").is_file())

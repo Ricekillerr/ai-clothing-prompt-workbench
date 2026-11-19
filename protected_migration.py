@@ -8,6 +8,25 @@ from stage2_schema import migrate
 from storage import Storage, StorageError
 
 
+def _write_ready_marker(destination):
+    """Publish the completion marker only after its bytes are durable."""
+    fd, temp_name = tempfile.mkstemp(prefix=".ready-", dir=destination)
+    temp = Path(temp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            stream.write('{"schema_version":2}')
+            stream.flush()
+            os.fsync(stream.fileno())
+        marker = destination / "stage2-ready.json"
+        if os.name == "nt":
+            os.rename(temp, marker)
+        else:
+            os.link(temp, marker)
+    finally:
+        if temp.exists():
+            temp.unlink()
+
+
 def create_protected_copy(source, destination):
     """Copy an isolated V1 store into a separate V2 directory without replacing V1."""
     destination = Path(destination)
@@ -41,11 +60,7 @@ def create_protected_copy(source, destination):
         destination.mkdir()
         data_dir = destination / "data"
         os.rename(work, data_dir)
-        marker = destination / "stage2-ready.json"
-        with marker.open("x", encoding="utf-8") as stream:
-            stream.write('{"schema_version":2}')
-            stream.flush()
-            os.fsync(stream.fileno())
+        _write_ready_marker(destination)
         migration["backup"] = str(data_dir / Path(migration["backup"]).relative_to(work))
         return {"status": "created", "source_backup": str(backup),
                 "destination": str(data_dir), "migration": migration, "report": after}
@@ -76,8 +91,5 @@ def recover_protected_copy(destination, staged_copy):
         raise StorageError("隔离副本未通过恢复校验")
     if candidate == staged_copy:
         os.rename(staged_copy, data)
-    with (destination / "stage2-ready.json").open("x", encoding="utf-8") as stream:
-        stream.write('{"schema_version":2}')
-        stream.flush()
-        os.fsync(stream.fileno())
+    _write_ready_marker(destination)
     return {"status": "recovered", "destination": str(data)}
