@@ -19,8 +19,9 @@ from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-SCHEMA_VERSION = 1
-MAX_SUPPORTED_SCHEMA_VERSION = 2
+SCHEMA_VERSION = 2
+LEGACY_SCHEMA_VERSION = 1
+MAX_SUPPORTED_SCHEMA_VERSION = SCHEMA_VERSION
 
 
 def _is_link_or_junction(path: Path) -> bool:
@@ -273,7 +274,7 @@ class Storage:
                 """)
                 con.execute(
                     "INSERT OR IGNORE INTO metadata(key,value) VALUES('schema_version',?)",
-                    (str(SCHEMA_VERSION),),
+                    (str(LEGACY_SCHEMA_VERSION),),
                 )
                 row = con.execute("PRAGMA quick_check").fetchone()
                 if not row or row[0] != "ok":
