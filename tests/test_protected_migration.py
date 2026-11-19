@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from protected_migration import create_protected_copy
+from protected_migration import create_protected_copy, recover_protected_copy
 from storage import Storage, StorageError, active_data_home
 
 
@@ -188,8 +188,15 @@ class ProtectedCopyTests(unittest.TestCase):
                     create_protected_copy(source, destination)
             self.assertTrue(destination.is_dir())
             self.assertFalse((destination / "stage2-ready.json").exists())
-            self.assertTrue(any(root.glob(".stage2-copy-*")))
+            staged = list(root.glob(".stage2-copy-*"))
+            self.assertEqual(len(staged), 1)
             self.assertEqual(source.load_data()["cases"][0]["body"], "原始")
+            recovered = recover_protected_copy(destination, staged[0])
+            self.assertEqual(recovered["status"], "recovered")
+            recovered_store = Storage(destination / "data")
+            self.assertEqual(recovered_store.load_data()["cases"][0]["body"], "原始")
+            with self.assertRaises(StorageError):
+                recover_protected_copy(destination, staged[0])
 
     def test_failed_copy_does_not_replace_source_or_original_backup(self):
         with tempfile.TemporaryDirectory() as tmp:
