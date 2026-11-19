@@ -1,23 +1,93 @@
-"""Read-only preflight for the stage 2 migration."""
+"""Read-only inventory and integrity checks before schema migration."""
 import hashlib
 import json
 import sqlite3
-from pathlib import Path
+import warnings
+from pathlib import Path, PureWindowsPath
+
+MAX_IMAGE_BYTES = 100 * 1024 * 1024
+MAX_IMAGE_PIXELS = 80_000_000
+FORMATS = {".png": "PNG", ".jpg": "JPEG", ".jpeg": "JPEG", ".webp": "WEBP",
+           ".gif": "GIF", ".bmp": "BMP"}
+
+
+def _link(path):
+    try:
+        return path.is_symlink() or bool(getattr(path, "is_junction", lambda: False)())
+    except OSError:
+        return True
+
+
+def _attachment_status(root, relative_path, media_type, expected):
+    path = Path(relative_path)
+    windows = PureWindowsPath(relative_path)
+    if (not relative_path or path.is_absolute() or windows.is_absolute() or windows.drive
+            or ".." in path.parts or ".." in windows.parts or "\\" in relative_path):
+        return "unsafe_path"
+    current = root
+    if _link(root):
+        return "unsafe_path"
+    for component in path.parts:
+        current = current / component
+        if _link(current):
+            return "unsafe_path"
+    try:
+        if not current.resolve().is_relative_to(root.resolve()):
+            return "unsafe_path"
+        if not current.is_file():
+            return "missing"
+        image_format = FORMATS.get(current.suffix.lower())
+        if media_type != "image" or image_format is None:
+            return "unsupported"
+        if current.stat().st_size > MAX_IMAGE_BYTES:
+            return "corrupt"
+        digest = hashlib.sha256()
+        with current.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        if expected and digest.hexdigest() != str(expected).lower():
+            return "hash_mismatch"
+        try:
+            from PIL import Image, ImageFile, UnidentifiedImageError
+        except ImportError:
+            return "unverified"
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", Image.DecompressionBombWarning)
+                with Image.open(current) as image:
+                    if image.format != image_format:
+                        return "corrupt"
+                    if image.width <= 0 or image.height <= 0 or image.width * image.height > MAX_IMAGE_PIXELS:
+                        return "corrupt"
+                    image.verify()
+                with Image.open(current) as image:
+                    for frame in range(getattr(image, "n_frames", 1)):
+                        image.seek(frame)
+                        image.load()
+        except (OSError, ValueError, SyntaxError, EOFError, Image.DecompressionBombError,
+                Image.DecompressionBombWarning, UnidentifiedImageError):
+            return "corrupt"
+        return "verified" if expected else "unverified"
+    except PermissionError:
+        return "unverified"
+    except OSError:
+        return "unverified"
 
 
 def inspect_database(database, references):
     database = Path(database).resolve(strict=True)
     references = Path(references)
-    uri = database.as_uri() + "?mode=ro"
-    con = sqlite3.connect(uri, uri=True)
+    con = sqlite3.connect(database.as_uri() + "?mode=ro", uri=True)
     con.row_factory = sqlite3.Row
     try:
-        integrity = [row[0] for row in con.execute("PRAGMA quick_check")]
+        con.execute("PRAGMA query_only=ON")
+        con.execute("BEGIN")
+        quick = [row[0] for row in con.execute("PRAGMA quick_check")]
+        integrity = [row[0] for row in con.execute("PRAGMA integrity_check")]
         foreign_keys = [tuple(row) for row in con.execute("PRAGMA foreign_key_check")]
         tables = {row[0] for row in con.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")}
-        required = {"metadata", "assets", "attachments"}
-        if not required.issubset(tables):
+        if not {"metadata", "assets", "attachments"}.issubset(tables):
             raise ValueError("数据库缺少必要的现有表")
         version_row = con.execute(
             "SELECT value FROM metadata WHERE key='schema_version'").fetchone()
@@ -31,25 +101,14 @@ def inspect_database(database, references):
                 prompt_hashes.append({"asset_id": row["id"],
                                       "sha256": hashlib.sha256(body.encode("utf-8")).hexdigest()})
         attachments = []
-        root = references.resolve()
-        for row in con.execute("SELECT id, relative_path, sha256 FROM attachments ORDER BY id"):
-            path = Path(row["relative_path"])
-            if path.is_absolute() or ".." in path.parts:
-                status = "unsafe_path"
-            else:
-                target = references / path
-                resolved = target.resolve()
-                if not resolved.is_relative_to(root):
-                    status = "unsafe_path"
-                elif not target.is_file():
-                    status = "missing"
-                else:
-                    digest = hashlib.sha256(target.read_bytes()).hexdigest()
-                    status = "verified" if row["sha256"] and digest == row["sha256"].lower() else (
-                        "hash_mismatch" if row["sha256"] else "unverified")
+        for row in con.execute(
+            "SELECT id, relative_path, media_type, sha256 FROM attachments ORDER BY id"
+        ):
+            status = _attachment_status(references, row["relative_path"], row["media_type"], row["sha256"])
             attachments.append({"id": row["id"], "status": status})
         return {"schema_version": version_row[0] if version_row else None,
-                "integrity": integrity, "foreign_key_errors": foreign_keys,
-                "counts": counts, "prompt_hashes": prompt_hashes, "attachments": attachments}
+                "quick_check": quick, "integrity": integrity,
+                "foreign_key_errors": foreign_keys, "counts": counts,
+                "prompt_hashes": prompt_hashes, "attachments": attachments}
     finally:
         con.close()

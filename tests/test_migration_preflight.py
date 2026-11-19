@@ -1,4 +1,6 @@
 import hashlib
+from io import BytesIO
+from PIL import Image
 import tempfile
 import unittest
 from pathlib import Path
@@ -15,8 +17,11 @@ class MigrationPreflightTests(unittest.TestCase):
             store.save_data({"cases": [{"id": "c", "body": "原始提示词"}], "modules": []})
             image_dir = root / "references"
             image_dir.mkdir()
-            (image_dir / "a.png").write_bytes(b"image")
-            digest = hashlib.sha256(b"image").hexdigest()
+            buffer = BytesIO()
+            Image.new("RGB", (2, 2), "red").save(buffer, format="PNG")
+            image_bytes = buffer.getvalue()
+            (image_dir / "a.png").write_bytes(image_bytes)
+            digest = hashlib.sha256(image_bytes).hexdigest()
             with store._session() as con:
                 con.execute("INSERT INTO attachments(asset_id,relative_path,sha256) VALUES(?,?,?)",
                             ("c", "a.png", digest))
@@ -29,6 +34,62 @@ class MigrationPreflightTests(unittest.TestCase):
             self.assertEqual(result["prompt_hashes"][0]["sha256"],
                              hashlib.sha256("原始提示词".encode()).hexdigest())
             self.assertEqual(store.load_data(), before)
+
+
+    def test_image_formats_and_failure_classification(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            store = Storage(root)
+            store.save_data({"cases": [{"id": "c", "body": "未改变"}], "modules": []})
+            references = root / "references"
+            references.mkdir()
+            fixtures = []
+            for extension, image_format in (("png", "PNG"), ("jpg", "JPEG"), ("webp", "WEBP")):
+                out = BytesIO()
+                Image.new("RGB", (3, 3), "blue").save(out, format=image_format)
+                data = out.getvalue()
+                name = "good." + extension
+                (references / name).write_bytes(data)
+                fixtures.append((name, hashlib.sha256(data).hexdigest(), "verified"))
+            damaged = b"not an image"
+            (references / "bad.png").write_bytes(damaged)
+            fixtures.extend([
+                ("bad.png", hashlib.sha256(damaged).hexdigest(), "corrupt"),
+                ("missing.png", "0" * 64, "missing"),
+                ("../escape.png", "0" * 64, "unsafe_path"),
+                ("good.png", "0" * 64, "hash_mismatch"),
+                ("good.jpg", None, "unverified"),
+            ])
+            with store._session() as con:
+                for number, (name, digest, _) in enumerate(fixtures):
+                    con.execute("INSERT INTO attachments(asset_id, relative_path, role, sha256) VALUES(?,?,?,?)",
+                                ("c", name, str(number), digest))
+            before = store.load_data()
+            report = inspect_database(store.db_path, references)
+            self.assertEqual([item["status"] for item in report["attachments"]],
+                             [item[2] for item in fixtures])
+            self.assertEqual(report["quick_check"], ["ok"])
+            self.assertEqual(store.load_data(), before)
+
+    def test_symlinked_intermediate_directory_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            store = Storage(root)
+            store.save_data({"cases": [{"id": "c", "body": "原文"}], "modules": []})
+            references = root / "references"
+            references.mkdir()
+            inside = references / "real"
+            inside.mkdir()
+            link = references / "link"
+            try:
+                link.symlink_to(inside, target_is_directory=True)
+            except OSError:
+                self.skipTest("当前平台不允许创建符号链接")
+            with store._session() as con:
+                con.execute("INSERT INTO attachments(asset_id,relative_path,sha256) VALUES(?,?,?)",
+                            ("c", "link/a.png", "0" * 64))
+            self.assertEqual(inspect_database(store.db_path, references)["attachments"][0]["status"],
+                             "unsafe_path")
 
 
 if __name__ == "__main__":
