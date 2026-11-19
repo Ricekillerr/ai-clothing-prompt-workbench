@@ -43,7 +43,7 @@ def active_data_home(profile: Path) -> Path:
     profile = Path(profile)
     legacy = profile / "AI_Prompt_Asset_Workbench"
     container = profile / "AI_Prompt_Asset_Workbench_v2"
-    if not container.exists():
+    if not container.exists() and not _is_link_or_junction(container):
         return legacy
     if _is_link_or_junction(container):
         raise StorageError("V2 数据目录不能是符号链接或目录联接")
@@ -65,6 +65,15 @@ def active_data_home(profile: Path) -> Path:
             ).fetchone()
             if version is None or str(version[0]) != "2":
                 raise StorageError("V2 数据库版本无效")
+            names = {row[0] for row in con.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            )}
+            required = {"assets", "attachments", "garments", "garment_revisions",
+                        "case_garments", "prompt_sources", "prompt_segments",
+                        "prompt_segment_refs", "ps_notes", "ps_note_assets",
+                        "garment_candidates", "migration_review"}
+            if not required.issubset(names) or con.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                raise StorageError("V2 数据库结构或完整性检查失败")
         finally:
             con.close()
     except (OSError, ValueError, sqlite3.Error) as exc:
@@ -116,6 +125,8 @@ class Storage:
         con = sqlite3.connect(self.db_path, timeout=15)
         con.row_factory = sqlite3.Row
         con.create_function("prompt_atelier_stage2_write", 0, lambda: 1)
+        con.create_function("prompt_atelier_sha256", 1,
+                            lambda text: hashlib.sha256(text.encode("utf-8")).hexdigest())
         con.execute("PRAGMA foreign_keys=ON")
         con.execute("PRAGMA journal_mode=WAL")
         con.execute("PRAGMA synchronous=FULL")

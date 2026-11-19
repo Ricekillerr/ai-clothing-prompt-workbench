@@ -34,6 +34,17 @@ class KnowledgeStoreTests(unittest.TestCase):
         self.assertEqual(cases["c3"]["custom"], {"old": "field"})
         self.assertEqual(self.knowledge.list_sources("c3")[0]["body"], "全新原文")
 
+    def test_existing_case_editor_creates_immutable_prompt_version(self):
+        self.store.save_data({"cases": [
+            {"id": "c1", "body": "编辑后的原文"}, {"id": "c2", "body": "第二案例"}
+        ], "modules": []})
+        versions = self.knowledge.list_sources("c1")
+        self.assertEqual([entry["body"] for entry in versions], ["编辑后的原文", "原文"])
+        self.store.save_data({"cases": [
+            {"id": "c1", "body": "编辑后的原文"}, {"id": "c2", "body": "第二案例"}
+        ], "modules": []})
+        self.assertEqual(len(self.knowledge.list_sources("c1")), 2)
+
     def test_many_to_many_status_and_duplicate_candidates(self):
         one = self.knowledge.create_garment("马甲", "上装", "A1")
         two = self.knowledge.create_garment("另一件马甲", "上装", "a1")

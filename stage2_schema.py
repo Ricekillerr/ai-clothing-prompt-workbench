@@ -52,6 +52,28 @@ SCHEMA = [
         version INTEGER NOT NULL, body TEXT NOT NULL, sha256 TEXT NOT NULL,
         revision_id TEXT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(case_id, version))""",
+    """CREATE TRIGGER assets_capture_prompt_insert AFTER INSERT ON assets
+       WHEN NEW.kind='case' AND json_type(NEW.payload_json,'$.body')='text'
+       BEGIN
+         INSERT INTO prompt_sources(id,case_id,version,body,sha256)
+         VALUES(lower(hex(randomblob(16))),NEW.id,1,
+                json_extract(NEW.payload_json,'$.body'),
+                prompt_atelier_sha256(json_extract(NEW.payload_json,'$.body')));
+       END""",
+    """CREATE TRIGGER assets_capture_prompt_update AFTER UPDATE OF payload_json ON assets
+       WHEN NEW.kind='case' AND json_type(NEW.payload_json,'$.body')='text'
+         AND NOT EXISTS (
+           SELECT 1 FROM prompt_sources WHERE case_id=NEW.id
+             AND version=(SELECT MAX(version) FROM prompt_sources WHERE case_id=NEW.id)
+             AND body=json_extract(NEW.payload_json,'$.body')
+         )
+       BEGIN
+         INSERT INTO prompt_sources(id,case_id,version,body,sha256)
+         VALUES(lower(hex(randomblob(16))),NEW.id,
+                (SELECT COALESCE(MAX(version),0)+1 FROM prompt_sources WHERE case_id=NEW.id),
+                json_extract(NEW.payload_json,'$.body'),
+                prompt_atelier_sha256(json_extract(NEW.payload_json,'$.body')));
+       END""",
     """CREATE TRIGGER prompt_sources_no_update BEFORE UPDATE ON prompt_sources
        BEGIN SELECT RAISE(ABORT, 'prompt source is immutable'); END""",
     """CREATE TRIGGER prompt_sources_no_delete BEFORE DELETE ON prompt_sources

@@ -51,12 +51,6 @@ class KnowledgeStore:
                             (_id(), asset_id, reason),
                         )
                         report["warnings"].append({"record": location, "reason": reason})
-                    if kind == "case" and isinstance(item.get("body"), str):
-                        body = item["body"]
-                        con.execute(
-                            "INSERT INTO prompt_sources(id,case_id,version,body,sha256) VALUES(?,?,?,?,?)",
-                            (_id(), asset_id, 1, body, hashlib.sha256(body.encode("utf-8")).hexdigest()),
-                        )
                     report["inserted"] += 1
         return report
 
