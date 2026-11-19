@@ -53,6 +53,27 @@ class KnowledgeStoreTests(unittest.TestCase):
         with self.store._session() as con:
             self.assertEqual(con.execute("SELECT status FROM ps_notes WHERE id=?", (note,)).fetchone()[0], "pending")
 
+    def test_references_and_ps_images_must_belong_to_same_case(self):
+        with self.store._session() as con:
+            one = con.execute(
+                "INSERT INTO attachments(asset_id,relative_path,role) VALUES('c1','one.png','reference')"
+            ).lastrowid
+            other = con.execute(
+                "INSERT INTO attachments(asset_id,relative_path,role) VALUES('c2','two.mp4','reference')"
+            ).lastrowid
+        source = self.knowledge.append_source("c1", "请参照 @图片1")
+        segment = self.knowledge.add_segment(source, "model_constraints", 0, 2)
+        self.knowledge.add_segment_reference(segment, one, "@图片1")
+        with self.assertRaises(StorageError):
+            self.knowledge.add_segment_reference(segment, other, "@图片1")
+        with self.assertRaises(StorageError):
+            self.knowledge.add_segment_reference(segment, one, "@视频1")
+        note = self.knowledge.add_ps_note("c1", "口袋", "多余装饰")
+        self.knowledge.add_ps_asset(note, one, "before")
+        with self.assertRaises(StorageError):
+            self.knowledge.add_ps_asset(note, other, "after")
+
+
 
 if __name__ == "__main__":
     unittest.main()

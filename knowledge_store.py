@@ -110,6 +110,44 @@ class KnowledgeStore:
             )
             return segment_id
 
+    def add_segment_reference(self, segment_id, attachment_id, marker):
+        marker = str(marker).strip()
+        if not marker:
+            raise StorageError("参考素材标记不能为空")
+        with self.store._session() as con:
+            row = con.execute(
+                "SELECT p.case_id,p.body,a.asset_id FROM prompt_segments s "
+                "JOIN prompt_sources p ON p.id=s.source_id "
+                "JOIN attachments a ON a.id=? WHERE s.id=?",
+                (attachment_id, segment_id),
+            ).fetchone()
+            if row is None or row["case_id"] != row["asset_id"]:
+                raise StorageError("素材与片段不属于同一案例")
+            if marker not in row["body"]:
+                raise StorageError("原文中不存在此参考标记")
+            ref_id = _id()
+            con.execute(
+                "INSERT INTO prompt_segment_refs(id,segment_id,attachment_id,marker) VALUES(?,?,?,?)",
+                (ref_id, segment_id, attachment_id, marker),
+            )
+            return ref_id
+
+    def add_ps_asset(self, note_id, attachment_id, role):
+        if role not in {"before", "after"}:
+            raise StorageError("图片角色无效")
+        with self.store._session() as con:
+            row = con.execute(
+                "SELECT p.case_id,a.asset_id FROM ps_notes p "
+                "JOIN attachments a ON a.id=? WHERE p.id=?",
+                (attachment_id, note_id),
+            ).fetchone()
+            if row is None or row["case_id"] != row["asset_id"]:
+                raise StorageError("素材与修改记录不属于同一案例")
+            con.execute(
+                "INSERT INTO ps_note_assets(note_id,attachment_id,role) VALUES(?,?,?)",
+                (note_id, attachment_id, role),
+            )
+
     def add_ps_note(self, case_id, area, problem, case_garment_id=None):
         if not str(area).strip() or not str(problem).strip():
             raise StorageError("修改区域和原始问题不能为空")
