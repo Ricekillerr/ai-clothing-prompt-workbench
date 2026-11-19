@@ -1862,14 +1862,23 @@ class KnowledgeStore:
             ).fetchall()
             return [dict(row) for row in rows]
 
-    def create_garment(self, name, category, sku=""):
-        name, category, sku = str(name).strip(), str(category).strip(), str(sku).strip()
+    def create_garment(self, name, category, sku="", subcategory="", color="",
+                       silhouette="", fabric="", details=""):
+        values = (name, category, sku, subcategory, color, silhouette, fabric, details)
+        if any(not isinstance(value, str) for value in values):
+            raise StorageError("单品字段必须为文本")
+        name, category, sku, subcategory, color, silhouette, fabric, details = (
+            value.strip() for value in values
+        )
         if not name or not category:
             raise StorageError("单品名称和分类不能为空")
         garment_id = _id()
         with self.store._session() as con:
-            con.execute("INSERT INTO garments(id,name,category,sku) VALUES(?,?,?,?)",
-                        (garment_id, name, category, sku))
+            con.execute(
+                "INSERT INTO garments(id,name,category,sku,subcategory,color,silhouette,fabric,details) "
+                "VALUES(?,?,?,?,?,?,?,?,?)",
+                (garment_id, name, category, sku, subcategory, color, silhouette, fabric, details),
+            )
             if sku:
                 rows = con.execute(
                     "SELECT id FROM garments WHERE id<>? AND lower(trim(sku))=lower(?)",

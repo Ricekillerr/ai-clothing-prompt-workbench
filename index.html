@@ -979,9 +979,9 @@ async function garmentPage(){
 }
 function garmentForm(item=null){
  const detail=$("garmentDetail");
- detail.innerHTML='<div class="vault"><h3>'+(item?"编辑单品":"新增单品")+'</h3><label>名称 <input id="gName" value="'+esc(item?.name||"")+'"></label> <label>分类 <select id="gCategory">'+["上装","外套","内搭","裤装","鞋履","配饰"].map(x=>'<option '+(item?.category===x?"selected":"")+'>'+x+'</option>').join("")+'</select></label> <label>款号 <input id="gSku" value="'+esc(item?.sku||"")+'"></label> <button class="btn primary" id="gSave">保存</button><p id="gMessage" role="status"></p></div>';
+ detail.innerHTML='<div class="vault"><h3>'+(item?"编辑单品":"新增单品")+'</h3><label>名称 <input id="gName" value="'+esc(item?.name||"")+'"></label> <label>分类 <select id="gCategory">'+["上装","外套","内搭","裤装","鞋履","配饰"].map(x=>'<option '+(item?.category===x?"selected":"")+'>'+x+'</option>').join("")+'</select></label> <label>款号 <input id="gSku" value="'+esc(item?.sku||"")+'"></label> <label>二级分类 <input id="gSubcategory" value="'+esc(item?.subcategory||"")+'"></label> <label>颜色 <input id="gColor" value="'+esc(item?.color||"")+'"></label> <label>版型 <input id="gSilhouette" value="'+esc(item?.silhouette||"")+'"></label> <label>面料 <input id="gFabric" value="'+esc(item?.fabric||"")+'"></label> <label>结构特征 <input id="gDetails" value="'+esc(item?.details||"")+'"></label> <button class="btn primary" id="gSave">保存</button><p id="gMessage" role="status"></p></div>';
  $("gSave").onclick=async()=>{try{
-  const values={name:$("gName").value.trim(),category:$("gCategory").value,sku:$("gSku").value.trim()};
+  const values={name:$("gName").value.trim(),category:$("gCategory").value,sku:$("gSku").value.trim(),subcategory:$("gSubcategory").value.trim(),color:$("gColor").value.trim(),silhouette:$("gSilhouette").value.trim(),fabric:$("gFabric").value.trim(),details:$("gDetails").value.trim()};
   if(!values.name)throw new Error("请填写单品名称");
   if(item)await knowledgeRequest("update_garment","POST",{id:item.id,values});
   else await knowledgeRequest("create_garment","POST",values);

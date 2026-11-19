@@ -615,7 +615,11 @@ class Handler(BaseHTTPRequestHandler):
                     knowledge = KnowledgeStore(STORAGE)
                     action = d.get("action")
                     if action == "create_garment":
-                        result = knowledge.create_garment(d.get("name", ""), d.get("category", ""), d.get("sku", ""))
+                        result = knowledge.create_garment(
+                            d.get("name", ""), d.get("category", ""), d.get("sku", ""),
+                            d.get("subcategory", ""), d.get("color", ""), d.get("silhouette", ""),
+                            d.get("fabric", ""), d.get("details", ""),
+                        )
                     elif action == "update_garment":
                         knowledge.update_garment(d.get("id", ""), d.get("values", {}))
                         result = d.get("id", "")

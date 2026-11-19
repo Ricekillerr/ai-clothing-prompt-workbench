@@ -70,6 +70,18 @@ class KnowledgeStoreTests(unittest.TestCase):
             self.assertEqual(con.execute("SELECT count(*) FROM garment_candidates WHERE review_status='pending'").fetchone()[0], 1)
         self.assertNotEqual(one, two)
 
+    def test_create_garment_persists_all_attributes(self):
+        garment = self.knowledge.create_garment(
+            "马甲", "上装", "A01", "羽绒马甲", "黑色", "宽松", "锦纶", "双向拉链"
+        )
+        record = self.knowledge.garment_detail(garment)["garment"]
+        self.assertEqual(
+            [record[key] for key in ("subcategory", "color", "silhouette", "fabric", "details")],
+            ["羽绒马甲", "黑色", "宽松", "锦纶", "双向拉链"],
+        )
+        with self.assertRaises(StorageError):
+            self.knowledge.create_garment("马甲", "上装", color=None)
+
     def test_edit_garment_retains_revision_and_case_links(self):
         garment = self.knowledge.create_garment("马甲", "上装")
         self.knowledge.link_case("c1", garment)
