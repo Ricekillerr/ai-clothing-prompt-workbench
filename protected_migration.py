@@ -35,9 +35,17 @@ def create_protected_copy(source, destination):
                 or after["prompt_hashes"] != report["prompt_hashes"]
                 or after["attachments"] != report["attachments"]):
             raise StorageError(f"隔离复制校验失败，副本保留在 {work}")
-        if destination.exists():
-            raise StorageError("目标目录已出现，副本已保留")
-        os.rename(work, destination)
-        migration["backup"] = str(destination / Path(migration["backup"]).relative_to(work))
+        # Reserve a previously absent container, preventing a competing process
+        # from replacing any existing directory. A missing marker means recovery
+        # must be reviewed before the application uses this location.
+        destination.mkdir()
+        data_dir = destination / "data"
+        os.rename(work, data_dir)
+        marker = destination / "stage2-ready.json"
+        with marker.open("x", encoding="utf-8") as stream:
+            stream.write('{"schema_version":2}')
+            stream.flush()
+            os.fsync(stream.fileno())
+        migration["backup"] = str(data_dir / Path(migration["backup"]).relative_to(work))
         return {"status": "created", "source_backup": str(backup),
-                "destination": str(destination), "migration": migration, "report": after}
+                "destination": str(data_dir), "migration": migration, "report": after}

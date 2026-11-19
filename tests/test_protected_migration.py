@@ -25,8 +25,8 @@ class ProtectedCopyTests(unittest.TestCase):
             new_dir = parent / "protected"
             result = create_protected_copy(old, new_dir)
             self.assertTrue(Path(result["migration"]["backup"]).is_file())
-            v2 = Storage(new_dir)
-            image = new_dir / "references" / "v2.png"
+            v2 = Storage(new_dir / "data")
+            image = new_dir / "data" / "references" / "v2.png"
             image.write_bytes(b"v2-only")
             with v2._session() as con:
                 con.execute("INSERT INTO garments(id,name,category) VALUES('g1','马甲','上装')")
@@ -60,7 +60,7 @@ class ProtectedCopyTests(unittest.TestCase):
             digest = hashlib.sha256(backup.read_bytes()).hexdigest()
             protected = parent / "protected"
             create_protected_copy(old, protected)
-            v2 = Storage(protected)
+            v2 = Storage(protected / "data")
             with v2._session() as con:
                 con.execute("INSERT INTO garments(id,name,category) VALUES('g1','外套','上装')")
                 con.execute("INSERT INTO case_garments(id,case_id,garment_id) VALUES('cg1','c1','g1')")
@@ -80,6 +80,20 @@ class ProtectedCopyTests(unittest.TestCase):
                 self.assertEqual(con.execute("SELECT count(*) FROM garments").fetchone()[0], 1)
                 self.assertEqual(con.execute("SELECT count(*) FROM case_garments").fetchone()[0], 1)
                 self.assertEqual(con.execute("SELECT count(*) FROM prompt_sources").fetchone()[0], 2)
+
+    def test_interrupted_activation_leaves_unready_container_and_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = Storage(root / "legacy")
+            source.save_data({"cases": [{"id": "c1", "body": "原始"}], "modules": []})
+            destination = root / "protected"
+            with patch("protected_migration.os.rename", side_effect=OSError("injected interruption")):
+                with self.assertRaisesRegex(OSError, "injected interruption"):
+                    create_protected_copy(source, destination)
+            self.assertTrue(destination.is_dir())
+            self.assertFalse((destination / "stage2-ready.json").exists())
+            self.assertTrue(any(root.glob(".stage2-copy-*")))
+            self.assertEqual(source.load_data()["cases"][0]["body"], "原始")
 
     def test_failed_copy_does_not_replace_source_or_original_backup(self):
         with tempfile.TemporaryDirectory() as tmp:
