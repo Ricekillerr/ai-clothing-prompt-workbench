@@ -1,8 +1,10 @@
 import importlib.util
+import json
 import sqlite3
 import subprocess
 import tempfile
 import unittest
+import zipfile
 from unittest.mock import patch
 from pathlib import Path
 
@@ -90,6 +92,25 @@ class Stage2SchemaTests(unittest.TestCase):
             self.assertEqual(con.execute("SELECT name FROM garments WHERE id='g1'").fetchone()[0], "马甲")
         self.assertEqual(image.read_bytes(), b"current image")
         self.assertEqual(self.store.load_data()["cases"][0]["body"], "原始提示词")
+
+    def test_v2_backup_manifest_and_isolated_v2_restore(self):
+        references = self.store.home / "references"
+        references.mkdir()
+        stage2_schema.migrate(self.store)
+        with self.store._session() as con:
+            con.execute("INSERT INTO garments(id,name,category) VALUES('g1','马甲','上装')")
+        backup = self.store.create_full_backup(references, app_version="0.6.5")
+        with zipfile.ZipFile(backup) as archive:
+            manifest = json.loads(archive.read("backup_manifest.json"))
+        self.assertEqual(manifest["format_version"], 2)
+        self.assertEqual(manifest["schema_version"], 2)
+        with self.store._session() as con:
+            con.execute("INSERT INTO garments(id,name,category) VALUES('g2','外套','上装')")
+        result = self.store.restore_full_backup(backup)
+        self.assertTrue(result["ok"])
+        with self.store._session() as con:
+            self.assertEqual([row[0] for row in con.execute("SELECT id FROM garments")], ["g1"])
+        self.assertTrue((self.store.home / "backups" / result["safety_backup"]).is_file())
 
     def test_unknown_future_schema_is_rejected_before_writes(self):
         with self.store._session() as con:

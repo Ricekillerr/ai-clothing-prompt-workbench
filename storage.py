@@ -1240,7 +1240,13 @@ class Storage:
                 rows = snapshot.execute(
                     "SELECT kind,payload_json FROM assets ORDER BY updated_at DESC, rowid DESC"
                 ).fetchall()
+                version_row = snapshot.execute(
+                    "SELECT value FROM metadata WHERE key='schema_version'"
+                ).fetchone()
+                snapshot_version = str(version_row[0]) if version_row else ""
                 snapshot.close()
+                if snapshot_version not in {"1", "2"}:
+                    raise StorageError("备份数据库版本不受支持")
                 snapshot_data = {"version": 3, "cases": [], "modules": []}
                 for kind, payload_json in rows:
                     item = json.loads(payload_json)
@@ -1284,7 +1290,8 @@ class Storage:
             checksums = {name: file_sha256(path) for name, path in payloads.items()}
             manifest = {
                 "format": "PromptAtelierFullBackup",
-                "format_version": 1,
+                "format_version": 2 if snapshot_version == "2" else 1,
+                "schema_version": int(snapshot_version),
                 "app_version": str(app_version),
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "files": checksums,
@@ -1350,7 +1357,7 @@ class Storage:
                     raise StorageError("备份清单异常过大")
                 manifest = json.loads(archive.read("backup_manifest.json").decode("utf-8"))
                 if (manifest.get("format") != "PromptAtelierFullBackup"
-                        or manifest.get("format_version") != 1
+                        or manifest.get("format_version") not in (1, 2)
                         or not isinstance(manifest.get("files"), dict)):
                     raise StorageError("备份格式或版本不受支持")
                 expected_files = manifest["files"]
@@ -1475,6 +1482,13 @@ class Storage:
                 restored_version = str(row[0]) if row else ""
             finally:
                 restored.close()
+            if restored_version not in {"1", "2"}:
+                raise StorageError("备份数据库版本不受支持")
+            if manifest.get("format_version") == 2:
+                if manifest.get("schema_version") != int(restored_version):
+                    raise StorageError("备份清单与数据库版本不一致")
+            elif restored_version != "1":
+                raise StorageError("V2 数据库必须使用版本 2 备份格式")
             if live_version == "2" and restored_version != "2":
                 raise StorageError("不能使用旧版本备份覆盖 V2 数据库；请先在隔离目录恢复并迁移")
 
