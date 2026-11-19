@@ -1,5 +1,6 @@
 """V2 knowledge records. Callers provide a migrated, isolated Storage."""
 import hashlib
+import json
 import uuid
 
 from storage import StorageError
@@ -43,6 +44,54 @@ class KnowledgeStore:
                         (_id(), first, second, "款号相同，需人工核对"),
                     )
         return garment_id
+
+    def update_garment(self, garment_id, values):
+        permitted = {"name", "category", "sku", "subcategory", "color", "silhouette", "fabric", "details"}
+        if not isinstance(values, dict) or set(values) - permitted:
+            raise StorageError("单品字段无效")
+        with self.store._session() as con:
+            current = con.execute("SELECT * FROM garments WHERE id=?", (garment_id,)).fetchone()
+            if current is None:
+                raise StorageError("单品不存在")
+            updated = dict(current)
+            for key, value in values.items():
+                if not isinstance(value, str):
+                    raise StorageError("单品字段必须为文本")
+                updated[key] = value.strip()
+            if not updated["name"] or not updated["category"]:
+                raise StorageError("单品名称和分类不能为空")
+            con.execute(
+                "INSERT INTO garment_revisions(id,garment_id,payload_json) VALUES(?,?,?)",
+                (_id(), garment_id, json.dumps(dict(current), ensure_ascii=False)),
+            )
+            con.execute(
+                "UPDATE garments SET name=?,category=?,sku=?,subcategory=?,color=?,silhouette=?,"
+                "fabric=?,details=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                tuple(updated[key] for key in ("name","category","sku","subcategory","color","silhouette","fabric","details"))
+                + (garment_id,),
+            )
+            if updated["sku"]:
+                matches = con.execute(
+                    "SELECT id FROM garments WHERE id<>? AND lower(trim(sku))=lower(?)",
+                    (garment_id, updated["sku"]),
+                ).fetchall()
+                for row in matches:
+                    first, second = sorted((garment_id, row["id"]))
+                    con.execute(
+                        "INSERT OR IGNORE INTO garment_candidates(id,first_id,second_id,reason) VALUES(?,?,?,?)",
+                        (_id(), first, second, "款号相同，需人工核对"),
+                    )
+
+    def garment_detail(self, garment_id):
+        with self.store._session() as con:
+            garment = con.execute("SELECT * FROM garments WHERE id=?", (garment_id,)).fetchone()
+            if garment is None:
+                raise StorageError("单品不存在")
+            cases = con.execute(
+                "SELECT * FROM case_garments WHERE garment_id=? ORDER BY case_id,instance_key",
+                (garment_id,),
+            ).fetchall()
+            return {"garment": dict(garment), "cases": [dict(row) for row in cases]}
 
     def link_case(self, case_id, garment_id, instance_key="", role=""):
         case_id, garment_id = str(case_id), str(garment_id)

@@ -35,6 +35,22 @@ class KnowledgeStoreTests(unittest.TestCase):
             self.assertEqual(con.execute("SELECT count(*) FROM garment_candidates WHERE review_status='pending'").fetchone()[0], 1)
         self.assertNotEqual(one, two)
 
+    def test_edit_garment_retains_revision_and_case_links(self):
+        garment = self.knowledge.create_garment("马甲", "上装")
+        self.knowledge.link_case("c1", garment)
+        self.knowledge.update_garment(garment, {"name": "羽绒马甲"})
+        detail = self.knowledge.garment_detail(garment)
+        self.assertEqual(detail["garment"]["name"], "羽绒马甲")
+        self.assertEqual(detail["cases"][0]["case_id"], "c1")
+        with self.store._session() as con:
+            revision = con.execute(
+                "SELECT payload_json FROM garment_revisions WHERE garment_id=?", (garment,)
+            ).fetchone()
+        self.assertIn("马甲", revision[0])
+        with self.assertRaises(StorageError):
+            self.knowledge.update_garment(garment, {"name": ""})
+        self.assertEqual(self.knowledge.garment_detail(garment)["garment"]["name"], "羽绒马甲")
+
     def test_prompt_trace_and_case_boundaries(self):
         garment = self.knowledge.create_garment("马甲", "上装")
         link = self.knowledge.link_case("c1", garment)

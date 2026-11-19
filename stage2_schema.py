@@ -35,6 +35,9 @@ SCHEMA = [
         fabric TEXT NOT NULL DEFAULT '', details TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""",
+    """CREATE TABLE garment_revisions (
+        id TEXT PRIMARY KEY, garment_id TEXT NOT NULL REFERENCES garments(id),
+        payload_json TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""",
     """CREATE TABLE case_garments (
         id TEXT PRIMARY KEY, case_id TEXT NOT NULL REFERENCES assets(id),
         garment_id TEXT NOT NULL REFERENCES garments(id), instance_key TEXT NOT NULL DEFAULT '',
