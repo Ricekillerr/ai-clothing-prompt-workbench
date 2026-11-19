@@ -1,4 +1,6 @@
+import importlib.util
 import sqlite3
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -57,6 +59,21 @@ class Stage2SchemaTests(unittest.TestCase):
         self.store.save_data({"cases": [{"id": "c1", "body": "保留原始版本的新文本"}], "modules": []})
         with self.store._session() as con:
             self.assertEqual(con.execute("SELECT body FROM prompt_sources").fetchone()[0], "原始提示词")
+
+    def test_actual_previous_storage_cannot_save(self):
+        stage2_schema.migrate(self.store)
+        root = Path(__file__).resolve().parents[1]
+        previous = subprocess.check_output(
+            ["git", "show", "74c9c28:storage.py"], cwd=root)
+        old_path = Path(self.tmp.name) / "old_storage.py"
+        old_path.write_bytes(previous)
+        spec = importlib.util.spec_from_file_location("stage1_storage_fixture", old_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        old_store = module.Storage(Path(self.tmp.name))
+        with self.assertRaises(module.StorageError):
+            old_store.save_data({"cases": [{"id": "c1", "body": "覆盖"}], "modules": []})
+        self.assertEqual(self.store.load_data()["cases"][0]["body"], "原始提示词")
 
     def test_ddl_failure_rolls_back(self):
         original = list(stage2_schema.SCHEMA)
