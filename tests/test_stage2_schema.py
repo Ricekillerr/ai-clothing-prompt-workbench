@@ -120,6 +120,29 @@ class Stage2SchemaTests(unittest.TestCase):
             Storage(self.store.home)
         self.assertEqual(self.store.db_path.read_bytes(), before)
 
+    def test_backfill_preserves_per_case_items_and_revision_history(self):
+        first = {"id": "c1", "body": "原始提示词", "outfit_items": [
+            {"sku": "A001", "name": "马甲", "category": "上装", "color": "黑色", "material": "尼龙"}
+        ]}
+        second = {"id": "c2", "body": "第二案例", "outfit_items": [
+            {"sku": "a001", "name": "马甲", "category": "上装"}
+        ]}
+        self.store.save_data({"cases": [first, second], "modules": []})
+        first["body"] = "更新后的提示词"
+        self.store.save_data({"cases": [first, second], "modules": []})
+        stage2_schema.migrate(self.store)
+        with self.store._session() as con:
+            self.assertEqual(con.execute("SELECT count(*) FROM garments").fetchone()[0], 2)
+            self.assertEqual(con.execute("SELECT count(*) FROM case_garments").fetchone()[0], 2)
+            self.assertEqual(con.execute("SELECT count(*) FROM garment_candidates WHERE review_status='pending'").fetchone()[0], 1)
+            self.assertEqual(con.execute("SELECT count(*) FROM migration_review WHERE status='pending'").fetchone()[0], 2)
+            versions = con.execute(
+                "SELECT body,revision_id FROM prompt_sources WHERE case_id='c1' ORDER BY version").fetchall()
+            self.assertEqual(versions[-1][0], "更新后的提示词")
+            self.assertIn("原始提示词", [row[0] for row in versions])
+            self.assertTrue(any(row[1] for row in versions))
+        self.assertEqual(self.store.load_data()["cases"][0]["body"] in ("更新后的提示词", "第二案例"), True)
+
     def test_ddl_failure_rolls_back(self):
         original = list(stage2_schema.SCHEMA)
         with patch.object(stage2_schema, "SCHEMA", original + ["invalid sql"]):

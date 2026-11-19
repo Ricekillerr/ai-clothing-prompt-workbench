@@ -47,6 +47,7 @@ SCHEMA = [
     """CREATE TABLE prompt_sources (
         id TEXT PRIMARY KEY, case_id TEXT NOT NULL REFERENCES assets(id),
         version INTEGER NOT NULL, body TEXT NOT NULL, sha256 TEXT NOT NULL,
+        revision_id TEXT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(case_id, version))""",
     """CREATE TRIGGER prompt_sources_no_update BEFORE UPDATE ON prompt_sources
        BEGIN SELECT RAISE(ABORT, 'prompt source is immutable'); END""",
@@ -90,6 +91,11 @@ SCHEMA = [
         attachment_id INTEGER NOT NULL REFERENCES attachments(id),
         role TEXT NOT NULL CHECK(role IN ('before','after')), position INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY(note_id, attachment_id, role))""",
+    """CREATE TABLE migration_review (
+        id TEXT PRIMARY KEY, case_id TEXT NOT NULL REFERENCES assets(id),
+        source_index INTEGER, reason TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending'
+            CHECK(status IN ('pending','resolved','rejected')))""",
     """CREATE TABLE garment_candidates (
         id TEXT PRIMARY KEY, first_id TEXT NOT NULL REFERENCES garments(id),
         second_id TEXT NOT NULL REFERENCES garments(id), reason TEXT NOT NULL,
@@ -135,12 +141,78 @@ def migrate(store):
                 "SELECT id, payload_json FROM assets WHERE kind='case' ORDER BY id").fetchall()
             for row in rows:
                 payload = json.loads(row["payload_json"])
+                versions = []
+                revisions = con.execute(
+                    "SELECT revision_id,payload_json FROM asset_revisions "
+                    "WHERE asset_id=? AND kind='case' ORDER BY created_at,rowid",
+                    (row["id"],),
+                ).fetchall()
+                for revision in revisions:
+                    previous = json.loads(revision["payload_json"])
+                    if isinstance(previous.get("body"), str):
+                        versions.append((previous["body"], revision["revision_id"]))
                 if isinstance(payload.get("body"), str):
-                    body = payload["body"]
-                    source_id = str(uuid.uuid4())
+                    versions.append((payload["body"], None))
+                for number, (body, revision_id) in enumerate(versions, 1):
                     con.execute(
-                        "INSERT INTO prompt_sources(id,case_id,version,body,sha256) VALUES(?,?,?,?,?)",
-                        (source_id, row["id"], 1, body, hashlib.sha256(body.encode("utf-8")).hexdigest()))
+                        "INSERT INTO prompt_sources(id,case_id,version,body,sha256,revision_id) "
+                        "VALUES(?,?,?,?,?,?)",
+                        (uuid.uuid4().hex, row["id"], number, body,
+                         hashlib.sha256(body.encode("utf-8")).hexdigest(), revision_id),
+                    )
+                items = payload.get("outfit_items")
+                if not isinstance(items, list):
+                    if items is not None:
+                        con.execute(
+                            "INSERT INTO migration_review(id,case_id,reason) VALUES(?,?,?)",
+                            (uuid.uuid4().hex, row["id"], "单品结构无效"),
+                        )
+                    continue
+                for index, item in enumerate(items):
+                    if not isinstance(item, dict):
+                        con.execute(
+                            "INSERT INTO migration_review(id,case_id,source_index,reason) VALUES(?,?,?,?)",
+                            (uuid.uuid4().hex, row["id"], index, "单品记录无效"),
+                        )
+                        continue
+                    def text_field(name):
+                        value = item.get(name)
+                        return value.strip() if isinstance(value, str) else ""
+                    garment_id = uuid.uuid4().hex
+                    details = item.get("details")
+                    con.execute(
+                        "INSERT INTO garments(id,sku,name,category,subcategory,color,silhouette,fabric,details) "
+                        "VALUES(?,?,?,?,?,?,?,?,?)",
+                        (garment_id, text_field("sku"), text_field("name"),
+                         text_field("category"), text_field("subcategory"), text_field("color"),
+                         text_field("silhouette"), text_field("material"),
+                         json.dumps(details, ensure_ascii=False) if isinstance(details, list) else ""),
+                    )
+                    con.execute(
+                        "INSERT INTO case_garments(id,case_id,garment_id,instance_key) VALUES(?,?,?,?)",
+                        (uuid.uuid4().hex, row["id"], garment_id, str(index)),
+                    )
+                    missing = [key for key in ("sku", "name", "category", "color", "material")
+                               if not text_field(key)]
+                    reason = "单品来源及属性需人工确认"
+                    if missing:
+                        reason += "；缺少 " + ", ".join(missing)
+                    con.execute(
+                        "INSERT INTO migration_review(id,case_id,source_index,reason) VALUES(?,?,?,?)",
+                        (uuid.uuid4().hex, row["id"], index, reason),
+                    )
+            candidates = con.execute(
+                "SELECT a.id,b.id,a.sku FROM garments a "
+                "JOIN case_garments ca ON ca.garment_id=a.id "
+                "JOIN garments b ON a.id < b.id AND trim(a.sku) <> '' "
+                "AND lower(trim(a.sku)) = lower(trim(b.sku)) "
+                "JOIN case_garments cb ON cb.garment_id=b.id AND cb.case_id<>ca.case_id"
+            ).fetchall()
+            for candidate in candidates:
+                con.execute(
+                    "INSERT INTO garment_candidates(id,first_id,second_id,reason) VALUES(?,?,?,?)",
+                    (uuid.uuid4().hex, candidate[0], candidate[1], "款号相同，需人工核对"),
+                )
             con.execute("UPDATE metadata SET value='2' WHERE key='schema_version'")
             if con.execute("PRAGMA foreign_key_check").fetchall():
                 raise StorageError("迁移后外键检查失败")
