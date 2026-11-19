@@ -118,14 +118,14 @@ def migrate(store):
         raise StorageError("当前实验迁移仅允许操作临时测试目录")
     with store.exclusive_operation():
         before = inspect_database(store.db_path, store.home / "references")
-        if before["schema_version"] == "2":
-            return {"status": "already_migrated", "before": before}
-        if before["schema_version"] != "1" or (before["integrity"] != ["ok"] or before["quick_check"] != ["ok"]):
+        if before["schema_version"] not in {"1", "2"} or (before["integrity"] != ["ok"] or before["quick_check"] != ["ok"]):
             raise StorageError("数据库版本或完整性检查失败")
         if before["schema_errors"] or before["foreign_key_errors"] or any(
             item["status"] != "verified" for item in before["attachments"]
         ):
             raise StorageError("附件或外键检查失败，迁移已中止")
+        if before["schema_version"] == "2":
+            return {"status": "already_migrated", "before": before}
         backup = store.create_full_backup(store.home / "references", app_version="pre-stage2")
         with store._session() as con:
             con.execute("BEGIN IMMEDIATE")
