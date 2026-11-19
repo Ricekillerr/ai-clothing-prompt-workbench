@@ -108,6 +108,12 @@ def inspect_database(database, references):
                 schema_errors.append(table + " 表缺少必要字段")
         if version not in {"1", "2"}:
             schema_errors.append("未知数据库版本")
+        if version == "2":
+            required_v2 = {"garments", "case_garments", "prompt_sources", "prompt_segments",
+                           "prompt_segment_refs", "ps_notes", "ps_note_assets", "garment_candidates"}
+            missing = sorted(required_v2 - tables)
+            if missing:
+                schema_errors.append("V2 数据库缺少表：" + ", ".join(missing))
         counts = {name: con.execute('SELECT COUNT(*) FROM "' + name.replace('"', '""') + '"').fetchone()[0]
                   for name in sorted(tables)}
         prompt_hashes = []

@@ -72,6 +72,17 @@ class MigrationPreflightTests(unittest.TestCase):
             self.assertEqual(report["quick_check"], ["ok"])
             self.assertEqual(store.load_data(), before)
 
+    def test_incomplete_v2_schema_is_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            store = Storage(root)
+            with store._session() as con:
+                con.execute("UPDATE metadata SET value='2' WHERE key='schema_version'")
+            report = inspect_database(store.db_path, root / "references")
+            self.assertTrue(any("V2 数据库缺少表" in message for message in report["schema_errors"]))
+            with self.assertRaises(StorageError):
+                migrate(store)
+
     def test_corrupt_matching_hash_blocks_migration(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
