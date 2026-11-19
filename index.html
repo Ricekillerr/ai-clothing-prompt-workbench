@@ -980,11 +980,16 @@ async function showGarmentCase(id,linkId){
   $("psSave").onclick=async()=>{try{await knowledgeRequest("add_ps_note","POST",{case_id:id,case_garment_id:linkId,area:$("psArea").value,problem:$("psProblem").value,desired:$("psDesired").value,operation:$("psOperation").value,suggestion:$("psSuggestion").value,before_id:$("psBefore").value?Number($("psBefore").value):null,after_id:$("psAfter").value?Number($("psAfter").value):null});toast("修改记录已保存");showGarmentCase(id,linkId)}catch(e){$("psResult").textContent=e.message}};
  }catch(error){root.innerHTML='<p role="alert">'+esc(error.message)+'</p>'}
 }
-async function showGarmentReviews(){
- try{const items=await knowledgeRequest("reviews","GET",{limit:50});$("garmentDetail").innerHTML='<div class="vault"><h3>待审核记录</h3>'+items.map(x=>'<p>'+esc(x.case_id)+' · '+esc(x.reason)+'</p>').join("")+(items.length?"":"<p>暂无待审核记录</p>")+'</div>'}
- catch(error){$("garmentDetail").innerHTML='<div class="vault" role="alert">'+esc(error.message)+'</div>'}
-}
 
+async function showGarmentReviews(){
+ try{
+  const [items,candidates]=await Promise.all(["reviews","candidates"].map(action=>knowledgeRequest(action,"GET",{limit:50})));
+  const root=$("garmentDetail");
+  root.innerHTML='<div class="vault"><h3>待审核记录</h3>'+items.map(x=>'<p>'+esc(x.case_id)+' · '+esc(x.reason)+' <button class="btn" data-resolve="'+esc(x.id)+'">确认已检查</button></p>').join("")+(items.length?"":"<p>暂无待审核记录</p>")+'<h4>同款候选</h4>'+candidates.map(x=>'<p>'+esc(x.reason)+' · '+esc(x.first_id)+' / '+esc(x.second_id)+' <button class="btn" data-reject="'+esc(x.id)+'">排除候选</button></p>').join("")+(candidates.length?"":"<p>暂无候选</p>")+'</div>';
+  root.querySelectorAll("[data-resolve]").forEach(button=>button.onclick=async()=>{try{await knowledgeRequest("resolve_review","POST",{id:button.dataset.resolve,decision:"resolved"});toast("审核状态已保存");showGarmentReviews()}catch(error){toast(error.message)}});
+  root.querySelectorAll("[data-reject]").forEach(button=>button.onclick=async()=>{try{await knowledgeRequest("resolve_review","POST",{id:button.dataset.reject,decision:"rejected",candidate:true});toast("候选已排除");showGarmentReviews()}catch(error){toast(error.message)}});
+ }catch(error){$("garmentDetail").innerHTML='<div class="vault" role="alert">'+esc(error.message)+'</div>'}
+}
 document.querySelectorAll(".nav").forEach(n=>n.onclick=()=>{if(n.dataset.cat){filter=n.dataset.cat;page="gallery"}else if(n.dataset.page){page=n.dataset.page;filter="全部";if(page==="trash")deletedAssetsCache=null}render()});$("search").oninput=render;$("addBtn").onclick=()=>openEditor(page==="modules"?"module":"case");$("importBtn").onclick=()=>$("jsonPicker").click();$("exportBtn").onclick=exportJSON;$("updateBtn").onclick=()=>{page="settings";render();checkUpdate(true)};$("jsonPicker").onchange=e=>{const file=e.target.files?.[0];e.target.value="";if(file)importJSON(file)};$("imagePicker").onchange=e=>e.target.files[0]&&uploadImage(e.target.files[0]);$("closeDetail").onclick=closeDetail;$("closeModal").onclick=closeEditor;$("detailOverlay").onclick=e=>{if(e.target===$("detailOverlay"))closeDetail()};$("editModal").onclick=e=>{if(e.target===$("editModal"))closeEditor()};
 // Keep the local server alive only while this workbench page is open.
 let heartbeatTimer=null;

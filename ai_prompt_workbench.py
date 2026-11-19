@@ -413,6 +413,7 @@ class Handler(BaseHTTPRequestHandler):
                     "garment": lambda: knowledge.garment_detail(identifier),
                     "sources": lambda: knowledge.list_sources(identifier, offset, limit),
                     "reviews": lambda: knowledge.list_reviews(offset, limit),
+                    "candidates": lambda: knowledge.list_candidates(offset, limit),
                     "notes": lambda: knowledge.list_ps_notes(identifier, offset, limit),
                     "attachments": lambda: knowledge.list_attachments(identifier, offset, limit),
                 }
@@ -571,6 +572,12 @@ class Handler(BaseHTTPRequestHandler):
                     elif action == "add_ps_asset":
                         knowledge.add_ps_asset(d.get("note_id", ""), d.get("attachment_id"), d.get("role", ""))
                         result = d.get("note_id", "")
+                    elif action == "resolve_review":
+                        candidate = d.get("candidate", False)
+                        if not isinstance(candidate, bool):
+                            raise ValueError("审核类型必须为布尔值")
+                        knowledge.resolve_review(d.get("id", ""), d.get("decision", ""), candidate)
+                        result = d.get("id", "")
                     elif action == "import_legacy":
                         result = knowledge.import_legacy_json(d.get("payload"))
                     else:

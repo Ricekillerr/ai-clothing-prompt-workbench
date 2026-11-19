@@ -1853,6 +1853,30 @@ class KnowledgeStore:
             ).fetchall()
             return [dict(row) for row in rows]
 
+    def list_candidates(self, offset=0, limit=50):
+        limit = max(1, min(int(limit), 100))
+        offset = max(0, int(offset))
+        with self.store._session() as con:
+            rows = con.execute(
+                "SELECT * FROM garment_candidates WHERE review_status='pending' "
+                "ORDER BY id LIMIT ? OFFSET ?", (limit, offset)
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def resolve_review(self, review_id, decision, candidate=False):
+        table = "garment_candidates" if candidate else "migration_review"
+        column = "review_status" if candidate else "status"
+        allowed = {"approved", "rejected"} if candidate else {"resolved", "rejected"}
+        if decision not in allowed:
+            raise StorageError("审核结果无效")
+        with self.store._session() as con:
+            result = con.execute(
+                "UPDATE " + table + " SET " + column + "=? WHERE id=? AND " + column + "='pending'",
+                (decision, review_id),
+            )
+            if result.rowcount != 1:
+                raise StorageError("审核记录不存在或已处理")
+
     def list_attachments(self, case_id, offset=0, limit=50):
         limit = max(1, min(int(limit), 100))
         offset = max(0, int(offset))
