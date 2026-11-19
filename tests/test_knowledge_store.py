@@ -19,6 +19,21 @@ class KnowledgeStoreTests(unittest.TestCase):
         migrate(self.store)
         self.knowledge = KnowledgeStore(self.store)
 
+    def test_legacy_json_import_is_additive_and_idempotent(self):
+        payload = {"cases": [
+            {"id": "c1", "body": "禁止覆盖"},
+            {"id": "c3", "body": "全新原文", "custom": {"old": "field"}},
+            {"name": "缺少 ID"},
+        ], "modules": [{"id": "m1", "body": "面料"}]}
+        report = self.knowledge.import_legacy_json(payload)
+        self.assertEqual((report["inserted"], report["existing"], len(report["errors"])), (2, 1, 1))
+        again = self.knowledge.import_legacy_json(payload)
+        self.assertEqual((again["inserted"], again["existing"], len(again["errors"])), (0, 3, 1))
+        cases = {row["id"]: row for row in self.store.load_data()["cases"]}
+        self.assertEqual(cases["c1"]["body"], "原文")
+        self.assertEqual(cases["c3"]["custom"], {"old": "field"})
+        self.assertEqual(self.knowledge.list_sources("c3")[0]["body"], "全新原文")
+
     def test_many_to_many_status_and_duplicate_candidates(self):
         one = self.knowledge.create_garment("马甲", "上装", "A1")
         two = self.knowledge.create_garment("另一件马甲", "上装", "a1")

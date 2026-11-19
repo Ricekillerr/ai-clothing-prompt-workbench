@@ -14,6 +14,45 @@ class KnowledgeStore:
     def __init__(self, store):
         self.store = store
 
+    def import_legacy_json(self, payload):
+        if not isinstance(payload, dict):
+            raise StorageError("导入文件必须是对象")
+        if not isinstance(payload.get("cases"), list) or not isinstance(payload.get("modules"), list):
+            raise StorageError("导入文件缺少案例或模块数组")
+        report = {"inserted": 0, "existing": 0, "errors": []}
+        seen = set()
+        with self.store._session() as con:
+            for collection, kind in (("cases", "case"), ("modules", "module")):
+                for index, item in enumerate(payload[collection]):
+                    location = f"{collection}[{index}]"
+                    if not isinstance(item, dict) or not str(item.get("id") or "").strip():
+                        report["errors"].append({"record": location, "reason": "记录或 ID 无效"})
+                        continue
+                    asset_id = str(item["id"]).strip()
+                    if not isinstance(item["id"], str) or asset_id != item["id"]:
+                        report["errors"].append({"record": location, "reason": "ID 必须是无首尾空格的字符串"})
+                        continue
+                    if asset_id in seen:
+                        report["errors"].append({"record": location, "reason": "导入文件内 ID 重复"})
+                        continue
+                    seen.add(asset_id)
+                    if con.execute("SELECT 1 FROM assets WHERE id=?", (asset_id,)).fetchone():
+                        report["existing"] += 1
+                        continue
+                    con.execute(
+                        "INSERT INTO assets(id,kind,payload_json,created_at,updated_at) VALUES(?,?,?,?,?)",
+                        (asset_id, kind, json.dumps(item, ensure_ascii=False),
+                         item.get("created_at"), item.get("updated_at")),
+                    )
+                    if kind == "case" and isinstance(item.get("body"), str):
+                        body = item["body"]
+                        con.execute(
+                            "INSERT INTO prompt_sources(id,case_id,version,body,sha256) VALUES(?,?,?,?,?)",
+                            (_id(), asset_id, 1, body, hashlib.sha256(body.encode("utf-8")).hexdigest()),
+                        )
+                    report["inserted"] += 1
+        return report
+
     def list_garments(self, offset=0, limit=50):
         limit = max(1, min(int(limit), 100))
         offset = max(0, int(offset))
