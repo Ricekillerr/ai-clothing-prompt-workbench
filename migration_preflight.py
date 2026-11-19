@@ -25,7 +25,7 @@ def _attachment_status(root, relative_path, media_type, expected):
             or ".." in path.parts or ".." in windows.parts or "\\" in relative_path):
         return "unsafe_path"
     current = root
-    if _link(root):
+    if any(_link(component) for component in (root, *root.parents)):
         return "unsafe_path"
     for component in path.parts:
         current = current / component
@@ -39,7 +39,8 @@ def _attachment_status(root, relative_path, media_type, expected):
         image_format = FORMATS.get(current.suffix.lower())
         if media_type != "image" or image_format is None:
             return "unsupported"
-        if current.stat().st_size > MAX_IMAGE_BYTES:
+        initial = current.stat()
+        if initial.st_size > MAX_IMAGE_BYTES:
             return "corrupt"
         digest = hashlib.sha256()
         with current.open("rb") as stream:
@@ -48,7 +49,7 @@ def _attachment_status(root, relative_path, media_type, expected):
         if expected and digest.hexdigest() != str(expected).lower():
             return "hash_mismatch"
         try:
-            from PIL import Image, ImageFile, UnidentifiedImageError
+            from PIL import Image, UnidentifiedImageError
         except ImportError:
             return "unverified"
         try:
@@ -67,6 +68,9 @@ def _attachment_status(root, relative_path, media_type, expected):
         except (OSError, ValueError, SyntaxError, EOFError, Image.DecompressionBombError,
                 Image.DecompressionBombWarning, UnidentifiedImageError):
             return "corrupt"
+        final = current.stat()
+        if (initial.st_size, initial.st_mtime_ns, initial.st_ino) != (final.st_size, final.st_mtime_ns, final.st_ino):
+            return "unverified"
         return "verified" if expected else "unverified"
     except PermissionError:
         return "unverified"
@@ -91,6 +95,19 @@ def inspect_database(database, references):
             raise ValueError("数据库缺少必要的现有表")
         version_row = con.execute(
             "SELECT value FROM metadata WHERE key='schema_version'").fetchone()
+        version = version_row[0] if version_row else None
+        schema_errors = []
+        expected_columns = {
+            "metadata": {"key", "value"},
+            "assets": {"id", "kind", "payload_json", "created_at", "updated_at"},
+            "attachments": {"id", "asset_id", "relative_path", "media_type", "sha256"},
+        }
+        for table, columns in expected_columns.items():
+            actual = {row[1] for row in con.execute('PRAGMA table_info("' + table + '")')}
+            if not columns.issubset(actual):
+                schema_errors.append(table + " 表缺少必要字段")
+        if version not in {"1", "2"}:
+            schema_errors.append("未知数据库版本")
         counts = {name: con.execute('SELECT COUNT(*) FROM "' + name.replace('"', '""') + '"').fetchone()[0]
                   for name in sorted(tables)}
         prompt_hashes = []
@@ -106,7 +123,7 @@ def inspect_database(database, references):
         ):
             status = _attachment_status(references, row["relative_path"], row["media_type"], row["sha256"])
             attachments.append({"id": row["id"], "status": status})
-        return {"schema_version": version_row[0] if version_row else None,
+        return {"schema_version": version, "schema_errors": schema_errors,
                 "quick_check": quick, "integrity": integrity,
                 "foreign_key_errors": foreign_keys, "counts": counts,
                 "prompt_hashes": prompt_hashes, "attachments": attachments}

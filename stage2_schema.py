@@ -122,7 +122,7 @@ def migrate(store):
             return {"status": "already_migrated", "before": before}
         if before["schema_version"] != "1" or (before["integrity"] != ["ok"] or before["quick_check"] != ["ok"]):
             raise StorageError("数据库版本或完整性检查失败")
-        if before["foreign_key_errors"] or any(
+        if before["schema_errors"] or before["foreign_key_errors"] or any(
             item["status"] != "verified" for item in before["attachments"]
         ):
             raise StorageError("附件或外键检查失败，迁移已中止")
