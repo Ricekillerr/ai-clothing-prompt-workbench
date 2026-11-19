@@ -198,6 +198,26 @@ class ProtectedCopyTests(unittest.TestCase):
             with self.assertRaises(StorageError):
                 recover_protected_copy(destination, staged[0])
 
+    def test_recovery_after_data_move_before_marker(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = Storage(root / "legacy")
+            source.save_data({"cases": [{"id": "c1", "body": "原始"}], "modules": []})
+            destination = root / "protected"
+            original_open = Path.open
+            def fail_marker(path, *args, **kwargs):
+                if path.name == "stage2-ready.json":
+                    raise OSError("marker interruption")
+                return original_open(path, *args, **kwargs)
+            with patch.object(Path, "open", fail_marker):
+                with self.assertRaisesRegex(OSError, "marker interruption"):
+                    create_protected_copy(source, destination)
+            self.assertTrue((destination / "data" / "prompt_library.sqlite3").is_file())
+            self.assertFalse((destination / "stage2-ready.json").exists())
+            missing_stage = root / ".stage2-copy-moved"
+            self.assertEqual(recover_protected_copy(destination, missing_stage)["status"], "recovered")
+            self.assertEqual(Storage(destination / "data").load_data()["cases"][0]["body"], "原始")
+
     def test_failed_copy_does_not_replace_source_or_original_backup(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
