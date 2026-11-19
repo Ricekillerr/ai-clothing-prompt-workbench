@@ -1,6 +1,7 @@
 import importlib
 import json
 import hashlib
+import os
 from io import BytesIO
 from PIL import Image
 import tempfile
@@ -54,7 +55,7 @@ class KnowledgeHTTPTests(unittest.TestCase):
             app.HOME, app.IMAGES = Path(tmp), Path(tmp) / "references"
             app.IMAGES.mkdir(exist_ok=True)
             output = BytesIO()
-            Image.new("RGB", (3, 3), "blue").save(output, format="PNG")
+            Image.frombytes("RGB", (512, 512), os.urandom(512 * 512 * 3)).save(output, format="PNG")
             image = output.getvalue()
             (app.IMAGES / "one.png").write_bytes(image)
             with store._session() as con:
@@ -68,6 +69,7 @@ class KnowledgeHTTPTests(unittest.TestCase):
             self.addCleanup(setattr, app, "IMAGES", old_images)
             with opener.open(base + "/api/backup/full-json", timeout=10) as response:
                 backup = response.read()
+            self.assertGreater(len(backup), 256 * 1024)
             envelope = json.loads(backup)
             self.assertEqual(envelope["format"], "PromptAtelierFullBackupJSON")
             post({"action": "create_garment", "name": "临时外套", "category": "外套"})
