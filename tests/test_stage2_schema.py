@@ -75,6 +75,22 @@ class Stage2SchemaTests(unittest.TestCase):
             old_store.save_data({"cases": [{"id": "c1", "body": "覆盖"}], "modules": []})
         self.assertEqual(self.store.load_data()["cases"][0]["body"], "原始提示词")
 
+    def test_v1_backup_cannot_overwrite_live_v2_data(self):
+        references = self.store.home / "references"
+        references.mkdir()
+        image = references / "current.png"
+        image.write_bytes(b"current image")
+        old_backup = self.store.create_full_backup(references, app_version="0.6.5")
+        stage2_schema.migrate(self.store)
+        with self.store._session() as con:
+            con.execute("INSERT INTO garments(id,name,category) VALUES('g1','马甲','上装')")
+        with self.assertRaisesRegex(Exception, "不能使用旧版本备份覆盖 V2"):
+            self.store.restore_full_backup(old_backup)
+        with self.store._session() as con:
+            self.assertEqual(con.execute("SELECT name FROM garments WHERE id='g1'").fetchone()[0], "马甲")
+        self.assertEqual(image.read_bytes(), b"current image")
+        self.assertEqual(self.store.load_data()["cases"][0]["body"], "原始提示词")
+
     def test_ddl_failure_rolls_back(self):
         original = list(stage2_schema.SCHEMA)
         with patch.object(stage2_schema, "SCHEMA", original + ["invalid sql"]):

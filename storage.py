@@ -1433,6 +1433,25 @@ class Storage:
                     or restored_json.get("modules") != database_payload["modules"]):
                 raise StorageError("备份数据库与 JSON 内容不一致，拒绝恢复")
 
+            # Never replace a V2 store with a V1 backup. The old application
+            # cannot apply this check, so file-level downgrade protection remains
+            # a separate release gate.
+            with self._session() as live:
+                row = live.execute(
+                    "SELECT value FROM metadata WHERE key='schema_version'"
+                ).fetchone()
+                live_version = str(row[0]) if row else ""
+            restored = sqlite3.connect(str(staged_db))
+            try:
+                row = restored.execute(
+                    "SELECT value FROM metadata WHERE key='schema_version'"
+                ).fetchone()
+                restored_version = str(row[0]) if row else ""
+            finally:
+                restored.close()
+            if live_version == "2" and restored_version != "2":
+                raise StorageError("不能使用旧版本备份覆盖 V2 数据库；请先在隔离目录恢复并迁移")
+
             safety_backup = self.create_full_backup(
                 self.home / "references", app_version="pre-restore"
             )
