@@ -54,6 +54,7 @@ class Storage:
     def _connect(self) -> sqlite3.Connection:
         con = sqlite3.connect(self.db_path, timeout=15)
         con.row_factory = sqlite3.Row
+        con.create_function("prompt_atelier_stage2_write", 0, lambda: 1)
         con.execute("PRAGMA foreign_keys=ON")
         con.execute("PRAGMA journal_mode=WAL")
         con.execute("PRAGMA synchronous=FULL")

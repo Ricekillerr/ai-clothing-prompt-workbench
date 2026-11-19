@@ -2,6 +2,7 @@
 import hashlib
 import json
 import uuid
+import tempfile
 from pathlib import Path
 
 from migration_preflight import inspect_database
@@ -61,6 +62,18 @@ SCHEMA = [
             CHECK(review_status IN ('pending','approved','rejected')),
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CHECK(source_start >= 0 AND source_end >= source_start))""",
+    """CREATE TRIGGER prompt_segment_validate_insert BEFORE INSERT ON prompt_segments
+       WHEN NEW.dimension NOT IN ('overall_appearance','silhouette','construction','fabric','surface',
+         'fit_on_body','reflectivity','special_design','model_constraints','prohibitions')
+         OR (SELECT substr(body, NEW.source_start + 1, NEW.source_end - NEW.source_start)
+             FROM prompt_sources WHERE id = NEW.source_id) IS NOT NEW.original_text
+       BEGIN SELECT RAISE(ABORT, 'segment must match source text and dimension'); END""",
+    """CREATE TRIGGER prompt_segment_validate_update BEFORE UPDATE ON prompt_segments
+       WHEN NEW.dimension NOT IN ('overall_appearance','silhouette','construction','fabric','surface',
+         'fit_on_body','reflectivity','special_design','model_constraints','prohibitions')
+         OR (SELECT substr(body, NEW.source_start + 1, NEW.source_end - NEW.source_start)
+             FROM prompt_sources WHERE id = NEW.source_id) IS NOT NEW.original_text
+       BEGIN SELECT RAISE(ABORT, 'segment must match source text and dimension'); END""",
     """CREATE TABLE prompt_segment_refs (
         id TEXT PRIMARY KEY, segment_id TEXT NOT NULL REFERENCES prompt_segments(id),
         attachment_id INTEGER REFERENCES attachments(id), marker TEXT NOT NULL,
@@ -83,6 +96,14 @@ SCHEMA = [
         review_status TEXT NOT NULL DEFAULT 'pending'
             CHECK(review_status IN ('pending','approved','rejected')),
         CHECK(first_id < second_id), UNIQUE(first_id, second_id))""",
+    *[
+        f"""CREATE TRIGGER stage2_guard_{table}_{operation.lower()}
+            BEFORE {operation} ON {table}
+            WHEN prompt_atelier_stage2_write() != 1
+            BEGIN SELECT RAISE(ABORT, 'newer database requires updated application'); END"""
+        for table in ("assets", "asset_revisions", "attachments")
+        for operation in ("INSERT", "UPDATE", "DELETE")
+    ],
     "CREATE INDEX idx_case_garments_garment ON case_garments(garment_id)",
     "CREATE INDEX idx_prompt_segments_source ON prompt_segments(source_id)",
     "CREATE INDEX idx_prompt_segment_refs_attachment ON prompt_segment_refs(attachment_id)",
@@ -92,9 +113,9 @@ SCHEMA = [
 
 def migrate(store):
     """Migrate an isolated store after verified backup; never deletes old records."""
-    real_home = Path.home() / "AI_Prompt_Asset_Workbench"
-    if store.home.resolve() == real_home.resolve():
-        raise StorageError("实验迁移不允许操作真实用户数据库")
+    temp_root = Path(tempfile.gettempdir()).resolve()
+    if not store.home.resolve().is_relative_to(temp_root):
+        raise StorageError("当前实验迁移仅允许操作临时测试目录")
     with store.exclusive_operation():
         before = inspect_database(store.db_path, store.home / "references")
         if before["schema_version"] == "2":
