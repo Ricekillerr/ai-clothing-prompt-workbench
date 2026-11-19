@@ -28,6 +28,9 @@ def map_dimension(label):
 
 
 SCHEMA = [
+    """CREATE TABLE case_tombstones (
+        case_id TEXT PRIMARY KEY REFERENCES assets(id),
+        deleted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""",
     """CREATE TABLE garments (
         id TEXT PRIMARY KEY, sku TEXT NOT NULL DEFAULT '', name TEXT NOT NULL,
         category TEXT NOT NULL, subcategory TEXT NOT NULL DEFAULT '',

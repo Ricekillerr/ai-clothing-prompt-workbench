@@ -1,4 +1,7 @@
 import sqlite3
+import hashlib
+from io import BytesIO
+from PIL import Image
 import tempfile
 import unittest
 from pathlib import Path
@@ -76,6 +79,39 @@ class KnowledgeStoreTests(unittest.TestCase):
         with self.assertRaises(StorageError):
             self.knowledge.update_garment(garment, {"name": ""})
         self.assertEqual(self.knowledge.garment_detail(garment)["garment"]["name"], "羽绒马甲")
+
+    def test_delete_restore_keeps_v2_knowledge_and_backup(self):
+        garment = self.knowledge.create_garment("马甲", "上装")
+        link = self.knowledge.link_case("c1", garment)
+        self.knowledge.set_case_status(link, "success", "approved")
+        source = self.knowledge.append_source("c1", "😀黑色马甲")
+        segment = self.knowledge.add_segment(source, "overall_appearance", 1, 3, link)
+        note = self.knowledge.add_ps_note("c1", "口袋", "多余装饰", link)
+        references = self.store.home / "references"
+        references.mkdir()
+        output = BytesIO()
+        Image.new("RGB", (2, 2), "red").save(output, format="PNG")
+        image = output.getvalue()
+        (references / "one.png").write_bytes(image)
+        with self.store._session() as con:
+            attachment = con.execute(
+                "INSERT INTO attachments(asset_id,relative_path,role,sha256) VALUES('c1','one.png','reference',?)",
+                (hashlib.sha256(image).hexdigest(),),
+            ).lastrowid
+        self.knowledge.add_ps_asset(note, attachment, "before")
+        self.store.save_data({"cases": [{"id": "c2", "body": "第二案例"}], "modules": []})
+        self.assertEqual([case["id"] for case in self.store.load_data()["cases"]], ["c2"])
+        deleted = self.store.list_deleted_assets()
+        self.assertEqual(deleted[0]["asset_id"], "c1")
+        backup = self.store.create_full_backup(self.store.home / "references")
+        self.store.restore_full_backup(backup)
+        self.store.restore_asset_revision("c1", deleted[0]["revision_id"], expected_absent=True)
+        with self.store._session() as con:
+            self.assertEqual(con.execute("SELECT status FROM case_garments WHERE id=?", (link,)).fetchone()[0], "success")
+            self.assertEqual(con.execute("SELECT original_text FROM prompt_segments WHERE id=?", (segment,)).fetchone()[0], "黑色")
+            self.assertEqual(con.execute("SELECT attachment_id FROM ps_note_assets WHERE note_id=?", (note,)).fetchone()[0], attachment)
+        self.assertIn("c1", [item["id"] for item in self.store.load_data()["cases"]])
+        self.assertEqual((references / "one.png").read_bytes(), image)
 
     def test_prompt_trace_and_case_boundaries(self):
         garment = self.knowledge.create_garment("马甲", "上装")

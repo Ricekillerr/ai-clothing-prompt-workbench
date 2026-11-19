@@ -68,7 +68,7 @@ def active_data_home(profile: Path) -> Path:
             names = {row[0] for row in con.execute(
                 "SELECT name FROM sqlite_master WHERE type='table'"
             )}
-            required = {"assets", "attachments", "garments", "garment_revisions",
+            required = {"assets", "attachments", "case_tombstones", "garments", "garment_revisions",
                         "case_garments", "prompt_sources", "prompt_segments",
                         "prompt_segment_refs", "ps_notes", "ps_note_assets",
                         "garment_candidates", "migration_review"}
@@ -413,8 +413,12 @@ class Storage:
     def load_data(self) -> dict[str, Any]:
         try:
             with self._session() as con:
+                has_tombstones = con.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='case_tombstones'"
+                ).fetchone() is not None
+                where = " WHERE id NOT IN (SELECT case_id FROM case_tombstones)" if has_tombstones else ""
                 rows = con.execute(
-                    "SELECT kind,payload_json FROM assets ORDER BY updated_at DESC, rowid DESC"
+                    "SELECT kind,payload_json FROM assets" + where + " ORDER BY updated_at DESC, rowid DESC"
                 ).fetchall()
                 result: dict[str, Any] = {"version": 3, "cases": [], "modules": []}
                 for row in rows:
@@ -465,9 +469,16 @@ class Storage:
                         (asset_id, asset_id),
                     )
 
+                has_tombstones = con.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='case_tombstones'"
+                ).fetchone() is not None
                 for key, kind in (("cases", "case"), ("modules", "module")):
                     for item in data[key]:
                         asset_id = str(item["id"])
+                        if has_tombstones and con.execute(
+                            "SELECT 1 FROM case_tombstones WHERE case_id=?", (asset_id,)
+                        ).fetchone():
+                            raise StorageError("案例已在回收站，请先恢复后再编辑")
                         payload_json = json.dumps(item, ensure_ascii=False)
                         previous = con.execute(
                             "SELECT kind,payload_json FROM assets WHERE id=?", (asset_id,)
@@ -485,11 +496,15 @@ class Storage:
                             (asset_id, kind, payload_json, item.get("created_at"), item.get("updated_at")),
                         )
 
-                existing_rows = con.execute("SELECT id,kind,payload_json FROM assets").fetchall()
+                where = " WHERE id NOT IN (SELECT case_id FROM case_tombstones)" if has_tombstones else ""
+                existing_rows = con.execute("SELECT id,kind,payload_json FROM assets" + where).fetchall()
                 removed_rows = [row for row in existing_rows if row["id"] not in incoming_ids]
                 for row in removed_rows:
                     retain_revision(row["id"], row["kind"], row["payload_json"], "deleted")
-                    con.execute("DELETE FROM assets WHERE id=?", (row["id"],))
+                    if has_tombstones and row["kind"] == "case":
+                        con.execute("INSERT INTO case_tombstones(case_id) VALUES(?)", (row["id"],))
+                    else:
+                        con.execute("DELETE FROM assets WHERE id=?", (row["id"],))
         except Exception as exc:
             raise StorageError(f"保存失败，事务已回滚：{exc}") from exc
 
@@ -497,13 +512,15 @@ class Storage:
     def list_deleted_assets(self, limit: int = 500) -> list[dict]:
         limit = min(500, max(1, int(limit)))
         with self._session() as con:
+            has_tombstones = con.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='case_tombstones'"
+            ).fetchone() is not None
+            absent = "(a.id IS NULL OR r.asset_id IN (SELECT case_id FROM case_tombstones))" if has_tombstones else "a.id IS NULL"
             rows = con.execute(
                 """SELECT r.revision_id,r.asset_id,r.kind,r.created_at,r.payload_json
-                   FROM asset_revisions r
-                   LEFT JOIN assets a ON a.id=r.asset_id
-                   WHERE r.reason='deleted' AND a.id IS NULL
-                   ORDER BY r.created_at DESC,r.rowid DESC
-                   LIMIT ?""",
+                   FROM asset_revisions r LEFT JOIN assets a ON a.id=r.asset_id
+                   WHERE r.reason='deleted' AND """ + absent + """
+                   ORDER BY r.created_at DESC,r.rowid DESC LIMIT ?""",
                 (limit,),
             ).fetchall()
             results = []
@@ -595,7 +612,13 @@ class Storage:
             current = con.execute(
                 "SELECT * FROM assets WHERE id=?", (asset_id,)
             ).fetchone()
-            if expected_absent and current is not None:
+            has_tombstones = con.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='case_tombstones'"
+            ).fetchone() is not None
+            tombstoned = has_tombstones and con.execute(
+                "SELECT 1 FROM case_tombstones WHERE case_id=?", (asset_id,)
+            ).fetchone() is not None
+            if expected_absent and current is not None and not tombstoned:
                 raise StorageError(
                     "资产已重新存在；为避免覆盖新数据，已拒绝从旧回收站快照恢复。请刷新后重试。"
                 )
@@ -628,6 +651,8 @@ class Storage:
                    )""",
                 (asset_id, asset_id),
             )
+            if tombstoned:
+                con.execute("DELETE FROM case_tombstones WHERE case_id=?", (asset_id,))
             payload = json.loads(revision["payload_json"])
             payload["updated_at"] = now
             con.execute(
@@ -1283,8 +1308,12 @@ class Storage:
             json_copy = work_dir / "prompt_library.json"
             try:
                 snapshot = sqlite3.connect(str(db_copy))
+                has_tombstones = snapshot.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='case_tombstones'"
+                ).fetchone() is not None
+                where = " WHERE id NOT IN (SELECT case_id FROM case_tombstones)" if has_tombstones else ""
                 rows = snapshot.execute(
-                    "SELECT kind,payload_json FROM assets ORDER BY updated_at DESC, rowid DESC"
+                    "SELECT kind,payload_json FROM assets" + where + " ORDER BY updated_at DESC, rowid DESC"
                 ).fetchall()
                 version_row = snapshot.execute(
                     "SELECT value FROM metadata WHERE key='schema_version'"
@@ -1498,8 +1527,12 @@ class Storage:
             # JSON and SQLite payloads describe the same library. Verify both.
             try:
                 verify_db = sqlite3.connect(str(staged_db))
+                has_tombstones = verify_db.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='case_tombstones'"
+                ).fetchone() is not None
+                where = " WHERE id NOT IN (SELECT case_id FROM case_tombstones)" if has_tombstones else ""
                 rows = verify_db.execute(
-                    "SELECT kind,payload_json FROM assets ORDER BY updated_at DESC, rowid DESC"
+                    "SELECT kind,payload_json FROM assets" + where + " ORDER BY updated_at DESC, rowid DESC"
                 ).fetchall()
                 verify_db.close()
                 database_payload = {"version": 3, "cases": [], "modules": []}

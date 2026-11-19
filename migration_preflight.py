@@ -109,7 +109,7 @@ def inspect_database(database, references):
         if version not in {"1", "2"}:
             schema_errors.append("未知数据库版本")
         if version == "2":
-            required_v2 = {"garments", "garment_revisions", "case_garments", "prompt_sources", "prompt_segments",
+            required_v2 = {"case_tombstones", "garments", "garment_revisions", "case_garments", "prompt_sources", "prompt_segments",
                            "prompt_segment_refs", "ps_notes", "ps_note_assets", "garment_candidates"}
             missing = sorted(required_v2 - tables)
             if missing:
