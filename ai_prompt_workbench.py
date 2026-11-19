@@ -5,7 +5,7 @@ from pathlib import Path
 from urllib.parse import unquote, quote, parse_qs, urlsplit
 from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
-from storage import Storage, active_data_home
+from storage import Storage, KnowledgeStore, active_data_home
 from collector import scan_folder, sha256_file
 from case_matcher import rank_matches, rank_case_matches
 from ai_analyzer import analyze_pair, analyze_assets
@@ -400,6 +400,26 @@ class Handler(BaseHTTPRequestHandler):
             self.send_bytes(200, f.read_bytes(), "text/html; charset=utf-8") if f.exists() else self.send_bytes(404, b"index.html missing", "text/plain")
         elif path == "/api/data":
             self.send_bytes(200, json.dumps(load_data(), ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
+        elif path == "/api/knowledge":
+            try:
+                params = parse_qs(urlsplit(self.path).query)
+                action = str((params.get("action") or ["garments"])[0])
+                offset = int((params.get("offset") or ["0"])[0])
+                limit = int((params.get("limit") or ["50"])[0])
+                identifier = str((params.get("id") or [""])[0])
+                knowledge = KnowledgeStore(STORAGE)
+                readers = {
+                    "garments": lambda: knowledge.list_garments(offset, limit),
+                    "garment": lambda: knowledge.garment_detail(identifier),
+                    "sources": lambda: knowledge.list_sources(identifier, offset, limit),
+                    "reviews": lambda: knowledge.list_reviews(offset, limit),
+                    "notes": lambda: knowledge.list_ps_notes(identifier, offset, limit),
+                }
+                if action not in readers:
+                    raise ValueError("未知查询")
+                self.send_json(200, {"ok": True, "data": readers[action]()})
+            except Exception as exc:
+                self.send_json(400, {"ok": False, "error": str(exc)})
         elif path == "/api/version": self.send_json(200, {"version": APP_VERSION})
         elif path == "/api/settings/auto-update":
             self.send_json(200, {
@@ -524,6 +544,37 @@ class Handler(BaseHTTPRequestHandler):
                         raise ValueError("自动更新设置必须是布尔值")
                     STORAGE.set_setting("auto_update_enabled", "1" if enabled else "0")
                     self.send_json(200, {"ok": True, "enabled": enabled})
+                elif self.path == "/api/knowledge":
+                    if not isinstance(d, dict):
+                        raise ValueError("请求格式无效")
+                    knowledge = KnowledgeStore(STORAGE)
+                    action = d.get("action")
+                    if action == "create_garment":
+                        result = knowledge.create_garment(d.get("name", ""), d.get("category", ""), d.get("sku", ""))
+                    elif action == "update_garment":
+                        knowledge.update_garment(d.get("id", ""), d.get("values", {}))
+                        result = d.get("id", "")
+                    elif action == "link_case":
+                        result = knowledge.link_case(d.get("case_id", ""), d.get("garment_id", ""), d.get("instance_key", ""), d.get("role", ""))
+                    elif action == "set_status":
+                        knowledge.set_case_status(d.get("id", ""), d.get("status", ""), d.get("review_status", ""))
+                        result = d.get("id", "")
+                    elif action == "append_source":
+                        result = knowledge.append_source(d.get("case_id", ""), d.get("body"))
+                    elif action == "add_segment":
+                        result = knowledge.add_segment(d.get("source_id", ""), d.get("dimension", ""), d.get("start"), d.get("end"), d.get("case_garment_id"))
+                    elif action == "add_reference":
+                        result = knowledge.add_segment_reference(d.get("segment_id", ""), d.get("attachment_id"), d.get("marker", ""))
+                    elif action == "add_ps_note":
+                        result = knowledge.add_ps_note(d.get("case_id", ""), d.get("area", ""), d.get("problem", ""), d.get("case_garment_id"))
+                    elif action == "add_ps_asset":
+                        knowledge.add_ps_asset(d.get("note_id", ""), d.get("attachment_id"), d.get("role", ""))
+                        result = d.get("note_id", "")
+                    elif action == "import_legacy":
+                        result = knowledge.import_legacy_json(d.get("payload"))
+                    else:
+                        raise ValueError("未知知识库操作")
+                    self.send_json(200, {"ok": True, "result": result})
                 elif self.path == "/api/data":
                     if not isinstance(d, dict): raise ValueError("数据格式不正确")
                     d.setdefault("cases", []); d.setdefault("modules", []); save_data(d)
