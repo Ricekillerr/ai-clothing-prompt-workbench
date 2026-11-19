@@ -17,6 +17,9 @@ GITHUB_BRANCH = "release/v0.6.5-stabilization"
 RAW_BASE = f"https://raw.githubusercontent.com/{GITHUB_OWNER}/{GITHUB_REPO}/{GITHUB_BRANCH}/"
 MANIFEST_URL = RAW_BASE + "update_manifest.json"
 ROOT = Path(__file__).resolve().parent
+UPDATE_JOURNAL = ROOT / "_update_transaction.json"
+if __name__ == "__main__" and UPDATE_JOURNAL.exists() and not os.environ.get("PROMPT_ATELIER_UPDATE_CHILD"):
+    raise SystemExit("检测到未完成的更新，已暂停启动。请查看 _update_transaction.json 和 _update_error.log。")
 HOME = Path.home() / "AI_Prompt_Asset_Workbench"
 IMAGES = HOME / "references"
 DATA = HOME / "prompt_library.json"
@@ -49,6 +52,7 @@ CLOSE_REQUESTED_AT = 0.0
 CLIENT_HEARTBEAT_TIMEOUT_SECONDS = 15
 LOG_MAX_BYTES = 1024 * 1024
 LOG_BACKUP_COUNT = 3
+UPDATE_INSTALL_LOCK = threading.Lock()
 SCAN_SOURCE_LOCKS = {}
 SCAN_SOURCE_LOCKS_LOCK = threading.Lock()
 
@@ -128,7 +132,7 @@ def auto_scan_loop():
         AUTO_SCAN_WAKE.clear()
         if AUTO_SCAN_STOP.is_set():
             break
-        if not auto_scan_is_enabled():
+        if UPDATE_JOURNAL.exists() or not auto_scan_is_enabled():
             continue
         for source in STORAGE.list_scan_sources():
             if AUTO_SCAN_STOP.is_set() or not auto_scan_is_enabled():
@@ -151,7 +155,7 @@ def heartbeat_watchdog(server):
             continue
         should_close = bool(
             (last and now - last > CLIENT_HEARTBEAT_TIMEOUT_SECONDS)
-            or (close_requested and now - close_requested > 2 and last < close_requested)
+            or (close_requested and now - close_requested > 2 and last <= close_requested)
         )
         if should_close:
             threading.Thread(target=server.shutdown, daemon=True).start()
@@ -467,6 +471,9 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_bytes(404, b"not found", "text/plain")
         else: self.send_bytes(404, b"not found", "text/plain")
     def do_POST(self):
+        if UPDATE_JOURNAL.exists():
+            self.send_json(503, {"ok": False, "error": "更新恢复中，请稍后重试"})
+            return
         global LAST_CLIENT_HEARTBEAT, CLOSE_REQUESTED_AT
         if not self._validate_local_request(require_json=self.path != "/api/backup/restore"):
             return
@@ -630,25 +637,31 @@ class Handler(BaseHTTPRequestHandler):
                     STORAGE.set_setting("auto_update_skipped_version", version)
                     self.send_json(200, {"ok": True, "skipped_version": version})
                 elif self.path == "/api/update/apply":
-                    # Preserve a verified snapshot of the user's database and local
-                    # reference images before any program update is staged or applied.
-                    pre_update_backup = STORAGE.create_full_backup(IMAGES, app_version=APP_VERSION)
-                    stage, latest = stage_update()
-                    # Bootstrap from the verified staged updater. Older installs may not
-                    # contain updater.py or the launcher yet; both are included in the
-                    # manifest and installed by the updater transaction.
-                    updater = stage / "updater.py"
-                    launcher = ROOT / "启动AI服装提示词工作台.bat"
-                    if not updater.is_file():
-                        shutil.rmtree(stage, ignore_errors=True)
-                        raise ValueError("更新包缺少经过校验的 updater.py，已安全取消更新")
-                    flags = 0
-                    if sys.platform == "win32": flags = getattr(subprocess, "DETACHED_PROCESS", 8) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 512)
-                    subprocess.Popen([sys.executable, str(updater), str(stage), str(ROOT), str(launcher)], cwd=str(ROOT),
-                        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                        creationflags=flags, close_fds=(sys.platform != "win32"))
-                    self.send_json(200, {"ok": True, "message": f"已下载并校验 V{latest}；更新前完整备份已保存为 {pre_update_backup.name}。工作台即将关闭并自动更新。"})
-                    threading.Timer(1.0, lambda: threading.Thread(target=self.server.shutdown, daemon=True).start()).start()
+                    if not UPDATE_INSTALL_LOCK.acquire(blocking=False):
+                        raise ValueError("已有更新任务正在执行")
+                    try:
+                        # Preserve a verified snapshot of the user's database and local
+                        # reference images before any program update is staged or applied.
+                        pre_update_backup = STORAGE.create_full_backup(IMAGES, app_version=APP_VERSION)
+                        stage, latest = stage_update()
+                        # Bootstrap from the verified staged updater. Older installs may not
+                        # contain updater.py or the launcher yet; both are included in the
+                        # manifest and installed by the updater transaction.
+                        updater = stage / "updater.py"
+                        launcher = ROOT / "启动AI服装提示词工作台.bat"
+                        if not updater.is_file():
+                            shutil.rmtree(stage, ignore_errors=True)
+                            raise ValueError("更新包缺少经过校验的 updater.py，已安全取消更新")
+                        flags = 0
+                        if sys.platform == "win32": flags = getattr(subprocess, "DETACHED_PROCESS", 8) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 512)
+                        subprocess.Popen([sys.executable, str(updater), str(stage), str(ROOT), str(launcher), str(os.getpid())], cwd=str(ROOT),
+                            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                            creationflags=flags, close_fds=(sys.platform != "win32"))
+                        self.send_json(200, {"ok": True, "message": f"已下载并校验 V{latest}；更新前完整备份已保存为 {pre_update_backup.name}。工作台即将关闭并自动更新。"})
+                        threading.Timer(1.0, lambda: threading.Thread(target=self.server.shutdown, daemon=True).start()).start()
+                    except Exception:
+                        UPDATE_INSTALL_LOCK.release()
+                        raise
                 else: self.send_json(404, {"ok": False, "error": "接口不存在"})
         except Exception as e:
             log_api_error(self.path, e)
