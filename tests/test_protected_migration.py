@@ -48,6 +48,38 @@ class ProtectedCopyTests(unittest.TestCase):
                 self.assertEqual(con.execute("SELECT count(*) FROM prompt_sources").fetchone()[0], 2)
             self.assertEqual(image.read_bytes(), b"v2-only")
 
+    def test_previous_updater_recovery_cannot_replace_v2_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp)
+            old_dir = parent / "legacy"
+            old_dir.mkdir()
+            old = Storage(old_dir)
+            old.save_data({"cases": [{"id": "c1", "body": "原文"}], "modules": []})
+            backup = old.create_full_backup(old_dir / "references", app_version="0.6.5")
+            digest = hashlib.sha256(backup.read_bytes()).hexdigest()
+            protected = parent / "protected"
+            create_protected_copy(old, protected)
+            v2 = Storage(protected)
+            with v2._session() as con:
+                con.execute("INSERT INTO garments(id,name,category) VALUES('g1','外套','上装')")
+                con.execute("INSERT INTO case_garments(id,case_id,garment_id) VALUES('cg1','c1','g1')")
+                con.execute("INSERT INTO prompt_sources(id,case_id,version,body,sha256) VALUES('v2','c1',2,'新版本','hash')")
+            root = Path(__file__).resolve().parents[1]
+            modules = []
+            for name in ("storage", "updater"):
+                path = parent / (name + "_previous.py")
+                path.write_bytes(subprocess.check_output(["git", "show", "74c9c28:" + name + ".py"], cwd=root))
+                spec = importlib.util.spec_from_file_location("previous_" + name, path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                modules.append(module)
+            modules[1].restore_snapshot(modules[0].Storage, old_dir, backup)
+            self.assertEqual(hashlib.sha256(backup.read_bytes()).hexdigest(), digest)
+            with v2._session() as con:
+                self.assertEqual(con.execute("SELECT count(*) FROM garments").fetchone()[0], 1)
+                self.assertEqual(con.execute("SELECT count(*) FROM case_garments").fetchone()[0], 1)
+                self.assertEqual(con.execute("SELECT count(*) FROM prompt_sources").fetchone()[0], 2)
+
     def test_failed_copy_does_not_replace_source_or_original_backup(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
