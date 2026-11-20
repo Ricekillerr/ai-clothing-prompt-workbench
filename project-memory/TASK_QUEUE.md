@@ -133,3 +133,12 @@ V2 备份清单记录 schema_version 和 format_version，测试 V2 恢复前保
 本机 Windows Python 3.12.14、隔离数据目录的全量测试 237 项：232 通过、0 失败、0 错误、5 项因本机符号链接权限跳过；最新代码的 GitHub Windows/Ubuntu CI 尚待核验。仍需解决视频附件的安全校验与导入、普通用户运行环境的 Pillow 部署、跨平台最终 CI 及完整产品验收。禁止迁移真实用户数据，PR #10 保持 Draft。
 
 CI 证据：PR #10 提交 6e4f5a3dc44bd56756ba3a4f9fffcd5f24b39acc，Release validation #632（https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/44654654885）：Windows Python 3.12.14 237/237 通过；Ubuntu Python 3.12.14 237 项中 233 通过、4 项 Windows 专用跳过，均 0 失败。后续新增的测试尚未纳入此轮 CI。
+
+
+## 2026-11-20 视频素材与 V1 数据变化检查
+
+新增 V1 迁移后变化检查，通过阶段 1 真实旧版 save_data 的隔离测试；检测到变化时提示保留两份数据，不自动合并或覆盖。视频预检支持常见容器签名、大小、流式 SHA-256 和 FFmpeg 解码，缺少解码器时保守拒绝；扫描过的授权来源可经接口导入案例，以内容哈希命名并在复制校验后原子发布。测试覆盖真实短视频、损坏、错误类型、错误哈希、路径越界、重复导入和模拟导入中断。UI 增加从已扫描素材选择视频。
+
+PR #10 提交 e123cb5143a7a12db46db394ffc1227a1eaebc7e 的 Release validation #637：https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/44661412953 。Windows Python 3.12.14 241 项通过；Ubuntu 241 项中 237 通过、4 项 Windows 专项跳过。该结果不包含之后的 UI 修改。本机沙箱限制回环网络，完整本机 HTTP 回归无法执行；以隔离 CI 记录为准。
+
+尚未完成：普通安装环境的 Pillow 与 FFmpeg 自包含交付、无预装依赖的干净 Windows 安装测试、正式 Windows 候选安装包、UI 真实浏览器验收和历史绝对路径视频的安全迁移。仍禁止真实用户数据迁移、合并及发布。
