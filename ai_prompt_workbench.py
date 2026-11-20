@@ -683,6 +683,8 @@ class Handler(BaseHTTPRequestHandler):
                         result = d.get("id", "")
                     elif action == "import_legacy":
                         result = knowledge.import_legacy_json(d.get("payload"))
+                    elif action == "import_video":
+                        result = knowledge.import_video(d.get("case_id", ""), d.get("source_path", ""), d.get("sha256", ""))
                     else:
                         raise ValueError("未知知识库操作")
                     self.send_json(200, {"ok": True, "result": result})

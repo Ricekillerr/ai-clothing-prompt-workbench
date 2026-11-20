@@ -1975,6 +1975,51 @@ class KnowledgeStore:
                     report["inserted"] += 1
         return report
 
+    def import_video(self, case_id, source_path, expected_sha256):
+        """Import only a previously scanned source, using an atomic content-addressed copy."""
+        digest = str(expected_sha256).lower()
+        if len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+            raise StorageError("视频 SHA-256 无效")
+        stage = None
+        with self.store._session() as con:
+            if not con.execute("SELECT 1 FROM assets WHERE id=? AND kind='case'", (case_id,)).fetchone():
+                raise StorageError("关联案例不存在")
+            source = self.store._verified_ingest_source_path(con, str(source_path), "video", digest)
+            if source.suffix.lower() not in VIDEO_FORMATS or source.stat().st_size > MAX_VIDEO_BYTES:
+                raise StorageError("视频格式或大小不受支持")
+            if _verify_video_file(source) != "verified":
+                raise StorageError("视频损坏或无法完成解码校验")
+            refs = self.store.home / "references"
+            if _is_link_or_junction(refs):
+                raise StorageError("素材目录不安全")
+            refs.mkdir(parents=True, exist_ok=True)
+            if _is_link_or_junction(refs) or refs.resolve().parent != self.store.home.resolve():
+                raise StorageError("素材目录不安全")
+            name = "video_" + digest + source.suffix.lower()
+            target = refs / name
+            try:
+                if not target.exists():
+                    fd, temp_name = tempfile.mkstemp(prefix=".video-import-", suffix=source.suffix.lower(), dir=refs)
+                    stage = Path(temp_name)
+                    with os.fdopen(fd, "wb") as out, source.open("rb") as inp:
+                        shutil.copyfileobj(inp, out, 1024 * 1024)
+                        out.flush()
+                        os.fsync(out.fileno())
+                    if _attachment_status(refs, stage.name, "video", digest) != "verified":
+                        raise StorageError("视频复制后校验失败")
+                    try:
+                        os.link(stage, target)
+                    except FileExistsError:
+                        pass
+                if _attachment_status(refs, name, "video", digest) != "verified":
+                    raise StorageError("已有同名素材校验失败，未覆盖")
+                con.execute("INSERT OR IGNORE INTO attachments(asset_id,relative_path,media_type,role,sha256) VALUES(?,?,?,?,?)",
+                            (case_id, name, "video", "reference", digest))
+                return {"path": name, "sha256": digest}
+            finally:
+                if stage is not None:
+                    stage.unlink(missing_ok=True)
+
     def list_garments(self, offset=0, limit=50):
         limit = max(1, min(int(limit), 100))
         offset = max(0, int(offset))
