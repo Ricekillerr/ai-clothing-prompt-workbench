@@ -45,7 +45,7 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: |
           $candidate = $env:CANDIDATE_DIR
-          python tools/windows_candidate_smoke.py $candidate
+          & (Join-Path $candidate 'runtime/python.exe') -I tools/windows_candidate_smoke.py $candidate
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Package candidate and record provenance
         shell: pwsh
@@ -61,6 +61,8 @@ jobs:
           "$hash  PromptAtelier-Windows-x64-candidate.zip" | Set-Content -Encoding ascii (Join-Path $out 'SHA256SUMS.txt')
           Copy-Item (Join-Path $candidate 'dependency-versions.json') $out
           Copy-Item (Join-Path $candidate 'candidate-version.json') $out
+          Copy-Item 'tools/windows_candidate_smoke.py' $out
+          Copy-Item 'tools/windows_clean_vm_smoke.ps1' $out
           Write-Host "Candidate size: $((Get-Item $archive).Length) bytes; SHA-256: $hash"
       - uses: actions/upload-artifact@v4
         with:
