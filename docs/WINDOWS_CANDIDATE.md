@@ -8,7 +8,7 @@ GitHub 托管 Windows CI 使用全新临时用户数据、中文及空格目录�
 
 ## 真正干净 Windows 虚拟机方案（尚待执行）
 
-使用可回滚快照的新 Windows x64 虚拟机，断开网络适配器，以无 Python、Python Launcher 和 FFmpeg 的全新账号运行。传入已核对 SHA-256 的候选 Artifact，在虚拟机中解压到中文及空格路径；使用 Artifact 附带的 `windows_clean_vm_smoke.ps1` 和 `windows_candidate_smoke.py`，由包内 Python 完成同一组测试。脚本会检查 PATH 和 Python 注册表项，但这些检查本身不能证明机器完全干净；须同时记录虚拟机映像、快照、网络隔离和测试日志。不得接入真实资料或真实 API 密钥。
+使用可回滚快照的新 Windows x64 虚拟机，断开网络适配器，以无 Python、Python Launcher 和 FFmpeg 的全新账号运行。传入已核对 SHA-256 的原始候选 ZIP，在虚拟机中解压到中文及空格路径；使用更新后的 `windows_clean_vm_smoke.ps1`、`windows_clean_vm_gate.ps1` 和 `windows_candidate_smoke.py`，由包内 Python 完成测试。脚本要求传入原始 ZIP 和解压目录，核对固定 SHA-256、逐文件哈希与附加文件；检查网卡、默认路由、Python/FFmpeg 注册信息、应用执行别名及常见系统和用户安装路径，执行期间周期性复查网络。需要足够权限读取所有用户的 Appx 信息，无法查询时直接失败。系统清单和周期采样不能单独证明机器完全干净或网络绝无短暂连接；须同时记录虚拟机映像、快照、外部网络隔离和测试日志。不得接入真实资料或真实 API 密钥。
 
 ## 当前边界
 
