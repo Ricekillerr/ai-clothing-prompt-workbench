@@ -17,6 +17,62 @@ from storage import Storage, StorageError, active_data_home, _activation_lock, l
 
 
 class ProtectedCopyTests(unittest.TestCase):
+    def test_absolute_legacy_video_is_retained_pending_without_opening_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = Storage(root / "legacy")
+            source.save_data({"cases": [{"id": "c1", "body": "原文"}], "modules": []})
+            external = root / "授权外 中文" / "视频.mp4"
+            external.parent.mkdir()
+            external.write_bytes("原始用户文件".encode("utf-8"))
+            original = external.read_bytes()
+            with source._session() as con:
+                con.execute("INSERT INTO attachments(asset_id,relative_path,media_type,role,sha256) VALUES(?,?,?,?,?)",
+                            ("c1", str(external), "video", "history_reference", "0" * 64))
+                con.execute("INSERT INTO attachments(asset_id,relative_path,media_type,role,sha256) VALUES(?,?,?,?,?)",
+                            ("c1", r"C:\\旧项目 空格\\不存在.mp4", "video", "history_reference", "1" * 64))
+            target = root / "protected"
+            result = create_protected_copy(source, target)
+            self.assertEqual(external.read_bytes(), original)
+            store = Storage(target / "data")
+            with store._session() as con:
+                attachment = con.execute("SELECT id,relative_path FROM attachments WHERE asset_id='c1' ORDER BY id").fetchone()
+                self.assertEqual(attachment["relative_path"], str(external))
+                self.assertEqual(con.execute("SELECT status FROM unresolved_video_refs WHERE attachment_id=?", (attachment["id"],)).fetchone()[0], "pending")
+                self.assertIn("重新定位", con.execute("SELECT reason FROM migration_review WHERE case_id='c1'").fetchone()[0])
+            self.assertEqual(len(result["report"]["unresolved_video_ids"]), 2)
+            backup = store.create_full_backup(store.home / "references", app_version="test")
+            store.restore_full_backup(backup)
+            self.assertEqual(external.read_bytes(), original)
+            self.assertEqual(store.load_data()["cases"][0]["body"], "原文")
+
+    def test_relative_video_traversal_still_blocks_migration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = Storage(root / "legacy")
+            source.save_data({"cases": [{"id": "c1", "body": "原文"}], "modules": []})
+            with source._session() as con:
+                con.execute("INSERT INTO attachments(asset_id,relative_path,media_type) VALUES(?,?,?)",
+                            ("c1", "../other.mp4", "video"))
+            with self.assertRaises(StorageError):
+                create_protected_copy(source, root / "protected")
+
+    def test_unresolved_legacy_video_survives_interrupted_activation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = Storage(root / "legacy")
+            source.save_data({"cases": [{"id": "c1", "body": "原文"}], "modules": []})
+            with source._session() as con:
+                con.execute("INSERT INTO attachments(asset_id,relative_path,media_type,sha256) VALUES(?,?,?,?)",
+                            ("c1", r"C:\\未知 路径\\视频.mp4", "video", "0" * 64))
+            destination = root / "protected"
+            with patch("storage._write_ready_marker", side_effect=OSError("interrupted")):
+                with self.assertRaises(OSError):
+                    create_protected_copy(source, destination)
+            self.assertEqual(recover_protected_copy(destination, root / ".stage2-copy-moved")["status"], "recovered")
+            with Storage(destination / "data")._session() as con:
+                self.assertEqual(con.execute("SELECT COUNT(*) FROM unresolved_video_refs WHERE status='pending'").fetchone()[0], 1)
+                self.assertEqual(con.execute("SELECT COUNT(*) FROM attachments WHERE asset_id='c1'").fetchone()[0], 1)
     def test_real_legacy_write_is_detected_without_changing_v2(self):
         with tempfile.TemporaryDirectory() as tmp:
             profile = Path(tmp)

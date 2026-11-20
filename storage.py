@@ -52,6 +52,22 @@ def _link(path):
         return True
 
 
+def _is_legacy_absolute_video(item):
+    """An old absolute video reference can only be retained as unresolved metadata."""
+    path = item.get("relative_path")
+    return (item.get("media_type") == "video" and item.get("status") == "unsafe_path"
+            and isinstance(path, str) and (PureWindowsPath(path).is_absolute() or PurePosixPath(path).is_absolute()))
+
+
+def _blocking_preflight_items(report):
+    pending = set(report.get("unresolved_video_ids", []))
+    return [item for item in report["attachments"]
+            if item["status"] != "verified" and not (
+                _is_legacy_absolute_video(item)
+                and (str(report["schema_version"]) == "1" or item["id"] in pending))] + [
+                    item for item in report["payload_references"] if item["status"] != "verified"]
+
+
 def _verify_video_file(path: Path) -> str:
     """Fully decode a local video; fail closed if the decoder is unavailable."""
     try:
@@ -1708,12 +1724,19 @@ class Storage:
                 inspection = sqlite3.connect(str(staged_db))
                 try:
                     records = inspection.execute(
-                        "SELECT relative_path,media_type,sha256 FROM attachments"
+                        "SELECT id,relative_path,media_type,sha256 FROM attachments"
                     ).fetchall()
+                    names = {row[0] for row in inspection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                    pending = ({row[0] for row in inspection.execute(
+                        "SELECT attachment_id FROM unresolved_video_refs WHERE status='pending'")}
+                        if "unresolved_video_refs" in names else set())
                 finally:
                     inspection.close()
-                for relative_path, media_type, digest in records:
+                for attachment_id, relative_path, media_type, digest in records:
                     status = _attachment_status(stage_dir / "references", relative_path, media_type, digest)
+                    if attachment_id in pending and _is_legacy_absolute_video({
+                            "relative_path": relative_path, "media_type": media_type, "status": status}):
+                        continue
                     if status != "verified":
                         raise StorageError("备份素材未通过验证：" + str(status))
 
@@ -2415,6 +2438,9 @@ def inspect_database(database, references):
                         "sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
                     })
         attachments = []
+        unresolved_video_ids = ([row[0] for row in con.execute(
+            "SELECT attachment_id FROM unresolved_video_refs WHERE status='pending'")]
+            if "unresolved_video_refs" in tables else [])
         for row in con.execute(
             "SELECT id, relative_path, media_type, sha256 FROM attachments ORDER BY id"
         ):
@@ -2426,7 +2452,8 @@ def inspect_database(database, references):
                 "quick_check": quick, "integrity": integrity,
                 "foreign_key_errors": foreign_keys, "counts": counts, "kind_counts": kind_counts,
                 "prompt_hashes": prompt_hashes, "revision_prompt_hashes": revision_prompt_hashes,
-                "attachments": attachments, "payload_references": payload_references}
+                "attachments": attachments, "payload_references": payload_references,
+                "unresolved_video_ids": unresolved_video_ids}
     finally:
         con.close()
 
@@ -2547,6 +2574,9 @@ SCHEMA = [
         source_index INTEGER, reason TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'pending'
             CHECK(status IN ('pending','resolved','rejected')))""",
+    """CREATE TABLE unresolved_video_refs (
+        attachment_id INTEGER PRIMARY KEY REFERENCES attachments(id),
+        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending')))""",
     """CREATE TABLE garment_candidates (
         id TEXT PRIMARY KEY, first_id TEXT NOT NULL REFERENCES garments(id),
         second_id TEXT NOT NULL REFERENCES garments(id), reason TEXT NOT NULL,
@@ -2578,9 +2608,7 @@ def migrate(store, _protected_stage=False):
         before = inspect_database(store.db_path, store.home / "references")
         if before["schema_version"] not in {"1", "2"} or (before["integrity"] != ["ok"] or before["quick_check"] != ["ok"]):
             raise StorageError("数据库版本或完整性检查失败")
-        if before["schema_errors"] or before["foreign_key_errors"] or any(
-            item["status"] != "verified" for item in before["attachments"] + before["payload_references"]
-        ):
+        if before["schema_errors"] or before["foreign_key_errors"] or _blocking_preflight_items(before):
             raise StorageError("附件或外键检查失败，迁移已中止")
         if before["schema_version"] == "2":
             return {"status": "already_migrated", "before": before}
@@ -2589,6 +2617,12 @@ def migrate(store, _protected_stage=False):
             con.execute("BEGIN IMMEDIATE")
             for statement in SCHEMA:
                 con.execute(statement)
+            for item in before["attachments"]:
+                if _is_legacy_absolute_video(item):
+                    con.execute("INSERT INTO unresolved_video_refs(attachment_id) VALUES(?)", (item["id"],))
+                    owner = con.execute("SELECT asset_id FROM attachments WHERE id=?", (item["id"],)).fetchone()
+                    con.execute("INSERT INTO migration_review(id,case_id,reason) VALUES(?,?,?)",
+                                (uuid.uuid4().hex, owner[0], "历史视频路径未授权，需重新定位"))
             rows = con.execute(
                 "SELECT id, payload_json FROM assets WHERE kind='case' ORDER BY id").fetchall()
             for row in rows:
@@ -2719,7 +2753,7 @@ def create_protected_copy(source, destination):
         if (report["schema_version"] != "1" or report["schema_errors"]
                 or report["quick_check"] != ["ok"] or report["integrity"] != ["ok"]
                 or report["foreign_key_errors"]
-                or any(item["status"] != "verified" for item in report["attachments"] + report["payload_references"])):
+                or _blocking_preflight_items(report)):
             raise StorageError("来源预检失败")
         backup = source.create_full_backup(source.home / "references", app_version="pre-stage2")
         work = Path(tempfile.mkdtemp(prefix=".stage2-copy-", dir=destination.parent))
@@ -2821,7 +2855,7 @@ def _finish_protected_recovery(source_db, source_home, origin, candidate, staged
                 or report["legacy_fingerprint"] != origin["legacy_fingerprint"]
                 or any(item not in report["attachments"] for item in origin["attachments"])
                 or report["payload_references"] != origin["payload_references"]
-                or any(item["status"] != "verified" for item in report["attachments"] + report["payload_references"])):
+                or _blocking_preflight_items(report)):
             raise StorageError("隔离副本未通过恢复校验")
         if candidate == staged_copy:
             os.rename(staged_copy, data)
