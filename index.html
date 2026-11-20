@@ -1054,5 +1054,7 @@ function startWorkbenchHeartbeat(){
  if(heartbeatTimer===null) heartbeatTimer=setInterval(sendWorkbenchHeartbeat,5000);
 }
 window.addEventListener("pagehide",()=>{if(heartbeatTimer!==null){clearInterval(heartbeatTimer);heartbeatTimer=null;}try{navigator.sendBeacon("/api/client/close",new Blob(["{}"],{type:"application/json"}));}catch(e){}});
-(async()=>{await load();render();startWorkbenchHeartbeat();checkUpdate(false);setInterval(()=>checkUpdate(false),15*60*1000)})();
+let legacyWarningShown=false;
+async function checkLegacyDivergence(){try{const response=await fetch('/api/legacy-divergence',{cache:'no-store'});if(!response.ok)throw new Error('核对失败');const result=await response.json();if(!legacyWarningShown&&['changed','unverified'].includes(result.status)){legacyWarningShown=true;alert((result.message||'无法核对旧版数据')+'\n请保留旧版和新版数据，不要用旧备份覆盖新版。')}}catch(error){if(!legacyWarningShown){legacyWarningShown=true;alert('无法核对旧版数据，请保留旧版和新版数据。')}}}
+(async()=>{await load();render();startWorkbenchHeartbeat();checkLegacyDivergence();setInterval(checkLegacyDivergence,5*60*1000);checkUpdate(false);setInterval(()=>checkUpdate(false),15*60*1000)})();
 </script></body></html>

@@ -212,6 +212,34 @@ def active_data_home(profile: Path) -> Path:
     return data
 
 
+def legacy_divergence_status(profile: Path) -> dict:
+    """Compare the retained V1 source with its migration snapshot, without writing either store."""
+    profile = Path(profile)
+    legacy = profile / "AI_Prompt_Asset_Workbench"
+    container = profile / "AI_Prompt_Asset_Workbench_v2"
+    origin_file = container / "data" / "stage2-origin.json"
+    if not container.exists():
+        return {"status": "not_migrated"}
+    try:
+        if any(_is_link_or_junction(p) for p in (container, container / "data", origin_file, legacy)):
+            return {"status": "unverified", "message": "旧版数据路径不安全，无法核对"}
+        if not origin_file.is_file() or origin_file.stat().st_size > 4 * 1024 * 1024:
+            return {"status": "unverified", "message": "迁移来源记录不可读取"}
+        origin = json.loads(origin_file.read_text(encoding="utf-8"))
+        if Path(origin["source_home"]).resolve() != legacy.resolve():
+            return {"status": "unverified", "message": "迁移来源路径不一致"}
+        report = inspect_database(legacy / "prompt_library.sqlite3", legacy / "references")
+        if report["schema_version"] != "1" or report["schema_errors"] or report["foreign_key_errors"] or report["integrity"] != ["ok"]:
+            return {"status": "unverified", "message": "旧版数据完整性无法确认"}
+        if (report["legacy_fingerprint"] != origin["legacy_fingerprint"]
+                or report["attachments"] != origin["attachments"]
+                or report["payload_references"] != origin["payload_references"]):
+            return {"status": "changed", "message": "迁移后旧版数据发生变化。两份数据均已保留，请勿使用旧版覆盖新版。"}
+        return {"status": "unchanged"}
+    except (OSError, ValueError, KeyError, TypeError, sqlite3.Error):
+        return {"status": "unverified", "message": "无法核对旧版数据；请保留两份数据"}
+
+
 class Storage:
     def __init__(self, home: Path, legacy_json: Path | None = None):
         self._db_lock = threading.RLock()

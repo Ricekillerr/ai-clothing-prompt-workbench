@@ -5,7 +5,7 @@ from pathlib import Path
 from urllib.parse import unquote, quote, parse_qs, urlsplit
 from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
-from storage import Storage, KnowledgeStore, active_data_home, create_protected_copy
+from storage import Storage, KnowledgeStore, active_data_home, create_protected_copy, legacy_divergence_status
 from collector import scan_folder, sha256_file
 from case_matcher import rank_matches, rank_case_matches
 from ai_analyzer import analyze_pair, analyze_assets
@@ -476,6 +476,7 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as exc:
                 self.send_json(400, {"ok": False, "error": str(exc)})
         elif path == "/api/version": self.send_json(200, {"version": APP_VERSION, "schema_version": STORAGE.get_setting("schema_version")})
+        elif path == "/api/legacy-divergence": self.send_json(200, legacy_divergence_status(Path.home()))
         elif path == "/api/settings/auto-update":
             self.send_json(200, {
                 "enabled": STORAGE.get_setting("auto_update_enabled", "0") == "1",

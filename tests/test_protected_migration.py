@@ -13,10 +13,37 @@ from pathlib import Path
 from unittest.mock import patch
 
 from protected_migration import create_protected_copy, recover_protected_copy
-from storage import Storage, StorageError, active_data_home, _activation_lock
+from storage import Storage, StorageError, active_data_home, _activation_lock, legacy_divergence_status
 
 
 class ProtectedCopyTests(unittest.TestCase):
+    def test_real_legacy_write_is_detected_without_changing_v2(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = Path(tmp)
+            legacy = profile / "AI_Prompt_Asset_Workbench"
+            source = Storage(legacy)
+            source.save_data({"cases": [{"id": "c1", "body": "原始"}], "modules": []})
+            target = profile / "AI_Prompt_Asset_Workbench_v2"
+            create_protected_copy(source, target)
+            v2 = Storage(target / "data")
+            with v2._session() as con:
+                con.execute("INSERT INTO garments(id,name,category) VALUES('g1','外套','上装')")
+                con.execute("INSERT INTO case_garments(id,case_id,garment_id) VALUES('cg1','c1','g1')")
+                con.execute("INSERT INTO prompt_sources(id,case_id,version,body,sha256) VALUES('v2','c1',2,'新版','hash')")
+            self.assertEqual(legacy_divergence_status(profile)["status"], "unchanged")
+            root = Path(__file__).resolve().parents[1]
+            old_path = profile / "old_storage.py"
+            old_path.write_bytes(subprocess.check_output(["git", "show", "74c9c28:storage.py"], cwd=root))
+            spec = importlib.util.spec_from_file_location("stage1_legacy_divergence", old_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            module.Storage(legacy).save_data({"cases": [{"id": "c1", "body": "旧版新内容"}], "modules": []})
+            self.assertEqual(legacy_divergence_status(profile)["status"], "changed")
+            self.assertEqual(active_data_home(profile), target / "data")
+            with v2._session() as con:
+                self.assertEqual(con.execute("SELECT count(*) FROM garments").fetchone()[0], 1)
+                self.assertEqual(con.execute("SELECT count(*) FROM case_garments").fetchone()[0], 1)
+                self.assertEqual(con.execute("SELECT count(*) FROM prompt_sources").fetchone()[0], 2)
     def test_payload_image_is_verified_and_registered_during_migration(self):
         from PIL import Image
         with tempfile.TemporaryDirectory() as tmp:
