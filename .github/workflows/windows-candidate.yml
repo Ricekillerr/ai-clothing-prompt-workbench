@@ -39,6 +39,15 @@ jobs:
           Add-Type -Path tools/windows_launcher.cs -ReferencedAssemblies System.Windows.Forms -OutputType WindowsApplication -OutputAssembly $launcher
           Copy-Item -LiteralPath $launcher -Destination (Join-Path $candidate 'PromptAtelier.exe')
           if (-not (Test-Path (Join-Path $candidate 'PromptAtelier.exe'))) { throw 'Launcher was not created' }
+      - name: Exercise offline clean VM gate fault injection
+        shell: powershell
+        run: |
+          & tools/test_windows_clean_vm_gate.ps1
+      - name: Test candidate archive integrity gate
+        shell: pwsh
+        run: |
+          python tools/test_windows_candidate_archive.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Exercise isolated candidate, actual decoders and HTTP lifecycle
         shell: pwsh
         env:
@@ -63,6 +72,7 @@ jobs:
           Copy-Item (Join-Path $candidate 'candidate-version.json') $out
           Copy-Item 'tools/windows_candidate_smoke.py' $out
           Copy-Item 'tools/windows_clean_vm_smoke.ps1' $out
+          Copy-Item 'tools/windows_clean_vm_gate.ps1' $out
           Write-Host "Candidate size: $((Get-Item $archive).Length) bytes; SHA-256: $hash"
       - uses: actions/upload-artifact@v4
         with:
