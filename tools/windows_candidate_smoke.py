@@ -1,6 +1,9 @@
 """Exercise the staged candidate in a fresh profile and restricted PATH."""
 import json
+import hashlib
 import os
+import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -8,10 +11,12 @@ import time
 from pathlib import Path
 from urllib.request import ProxyHandler, Request, build_opener
 
-candidate = Path(sys.argv[1]).resolve()
-python = candidate / "runtime" / "python.exe"
-launcher = candidate / "PromptAtelier.exe"
+source_candidate = Path(sys.argv[1]).resolve()
 with tempfile.TemporaryDirectory(prefix="candidate_") as tmp:
+    candidate = Path(tmp) / "程序 中文 空格"
+    shutil.copytree(source_candidate, candidate)
+    python = candidate / "runtime" / "python.exe"
+    launcher = candidate / "PromptAtelier.exe"
     profile = Path(tmp) / "中文 空格" / "profile"
     profile.mkdir(parents=True)
     env = dict(os.environ, USERPROFILE=str(profile), HOME=str(profile),
@@ -36,6 +41,10 @@ legacy=Storage(profile/'AI_Prompt_Asset_Workbench')
 legacy.save_data({'cases':[{'id':'c1','body':'中文提示词'}], 'modules':[]})
 create_protected_copy(legacy,profile/'AI_Prompt_Asset_Workbench_v2')
 store=Storage(profile/'AI_Prompt_Asset_Workbench_v2'/'data')
+with store._session() as con:
+    con.execute("INSERT INTO garments(id,name,category) VALUES('g1','马甲','上装')")
+    con.execute("INSERT INTO case_garments(id,case_id,garment_id) VALUES('cg1','c1','g1')")
+    con.execute("INSERT INTO prompt_sources(id,case_id,version,body,sha256) VALUES('v2','c1',2,'新版','hash')")
 inbox=profile/'视频 来源'; inbox.mkdir(); video=inbox/'原始 视频.mp4'
 subprocess.run([str(ffmpeg),'-v','error','-f','lavfi','-i','color=c=blue:s=32x32:d=1',
                 '-c:v','mpeg4','-y',str(video)],check=True)
@@ -80,3 +89,38 @@ print(json.dumps({'pillow':PIL.__version__,'ffmpeg':imageio_ffmpeg.get_ffmpeg_ve
                             "/PID", str(process.pid), "/T", "/F"], check=False,
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             process.wait(timeout=15)
+    data_home = profile / "AI_Prompt_Asset_Workbench_v2" / "data"
+    config = data_home / "isolated-settings.json"
+    config.write_text('{"private":"keep"}', encoding="utf-8")
+    video = next((data_home / "references").glob("video_*.mp4"))
+    video_hash = hashlib.sha256(video.read_bytes()).hexdigest()
+    def counts():
+        with sqlite3.connect(data_home / "prompt_library.sqlite3") as con:
+            return tuple(con.execute("SELECT COUNT(*) FROM " + table).fetchone()[0]
+                         for table in ("assets", "garments", "case_garments", "prompt_sources", "attachments"))
+    before = counts()
+    stage = Path(tmp) / "isolated-update"
+    stage.mkdir()
+    shutil.copy2(candidate / "index.html", stage / "index.html")
+    digest = hashlib.sha256((stage / "index.html").read_bytes()).hexdigest()
+    (stage / "update_meta.json").write_text(json.dumps({"version": "0.6.5", "files": {"index.html": digest}}), encoding="utf-8")
+    subprocess.run([str(python), str(candidate / "updater.py"), str(stage), str(candidate),
+                    str(candidate / "启动AI服装提示词工作台.bat")],
+                   env=env, cwd=candidate, check=True, timeout=120)
+    assert counts() == before and hashlib.sha256(video.read_bytes()).hexdigest() == video_hash
+    assert config.read_text(encoding="utf-8") == '{"private":"keep"}'
+    req = Request("http://127.0.0.1:8765/api/client/close", data=b"{}",
+                  headers={"Content-Type": "application/json"}, method="POST")
+    with opener.open(req, timeout=3) as response:
+        assert json.load(response)["ok"]
+    deadline = time.monotonic() + 40
+    while time.monotonic() < deadline:
+        try:
+            with opener.open("http://127.0.0.1:8765/api/version", timeout=1):
+                pass
+        except OSError:
+            break
+        time.sleep(0.2)
+    else:
+        raise RuntimeError("updated server did not stop")
+    print("bundled updater preserved V2 database, video and settings")
