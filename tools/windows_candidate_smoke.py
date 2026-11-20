@@ -21,7 +21,9 @@ with tempfile.TemporaryDirectory(prefix="candidate_") as tmp:
     profile.mkdir(parents=True)
     env = dict(os.environ, USERPROFILE=str(profile), HOME=str(profile),
                PATH=str(Path(os.environ["SystemRoot"]) / "System32"),
-               PROMPT_ATELIER_NO_BROWSER="1", PYTHONNOUSERSITE="1")
+               PROMPT_ATELIER_NO_BROWSER="1", PYTHONNOUSERSITE="1",
+               HTTP_PROXY="http://127.0.0.1:9", HTTPS_PROXY="http://127.0.0.1:9",
+               NO_PROXY="localhost,127.0.0.1")
     for variable in ("PYTHONHOME", "PYTHONPATH", "IMAGEIO_FFMPEG_EXE"):
         env.pop(variable, None)
     probe = r'''
@@ -33,6 +35,8 @@ from PIL import Image
 from storage import Storage, KnowledgeStore, create_protected_copy
 from collector import scan_folder
 assert Path(sys.executable).resolve().is_relative_to(root / 'runtime')
+assert Path(PIL.__file__).resolve().is_relative_to(root / 'runtime')
+assert Path(imageio_ffmpeg.__file__).resolve().is_relative_to(root / 'runtime')
 ffmpeg=Path(imageio_ffmpeg.get_ffmpeg_exe()).resolve()
 assert ffmpeg.is_relative_to(root / 'runtime') and ffmpeg.is_file()
 image=profile/'actual.png'; Image.new('RGB',(8,8),'red').save(image)

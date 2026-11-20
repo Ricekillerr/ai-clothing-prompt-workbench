@@ -9,6 +9,8 @@ jobs:
   candidate:
     runs-on: windows-latest
     timeout-minutes: 30
+    env:
+      CANDIDATE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,7 +53,7 @@ jobs:
           $candidate = $env:CANDIDATE_DIR
           $out = Join-Path $env:RUNNER_TEMP 'candidate-artifact'
           New-Item -ItemType Directory -Path $out | Out-Null
-          $version = @{ commit = $env:GITHUB_SHA; channel = 'stage2-candidate'; built_utc = (Get-Date).ToUniversalTime().ToString('o') }
+          $version = @{ source_commit = $env:CANDIDATE_SOURCE_SHA; checkout_commit = $env:GITHUB_SHA; channel = 'stage2-candidate'; built_utc = (Get-Date).ToUniversalTime().ToString('o') }
           $version | ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $candidate 'candidate-version.json')
           $archive = Join-Path $out 'PromptAtelier-Windows-x64-candidate.zip'
           Compress-Archive -Path (Join-Path $candidate '*') -DestinationPath $archive -CompressionLevel Optimal
