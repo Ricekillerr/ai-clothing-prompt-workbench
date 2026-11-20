@@ -2173,7 +2173,23 @@ def inspect_database(database, references):
         version_row = con.execute(
             "SELECT value FROM metadata WHERE key='schema_version'").fetchone()
         version = version_row[0] if version_row else None
+        legacy_tables = {"metadata", "assets", "asset_revisions", "attachments", "scan_sources",
+                         "ingest_files", "generation_feedback", "retrieval_feedback", "ai_analyses"}
+        fingerprint = hashlib.sha256()
+        for table in sorted(legacy_tables & tables):
+            fingerprint.update((table + "\n").encode("utf-8"))
+            rows = con.execute('SELECT * FROM "' + table + '" ORDER BY rowid')
+            for record in rows:
+                if table == "metadata" and record["key"] == "schema_version":
+                    continue
+                values = [({"bytes": value.hex()} if isinstance(value, bytes) else value)
+                          for value in record]
+                fingerprint.update(json.dumps(values, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+                fingerprint.update(b"\n")
         schema_errors = []
+        missing_legacy = sorted(legacy_tables - tables)
+        if missing_legacy:
+            schema_errors.append("数据库缺少旧版表：" + ", ".join(missing_legacy))
         expected_columns = {
             "metadata": {"key", "value"},
             "assets": {"id", "kind", "payload_json", "created_at", "updated_at"},
@@ -2217,8 +2233,10 @@ def inspect_database(database, references):
             "SELECT id, relative_path, media_type, sha256 FROM attachments ORDER BY id"
         ):
             status = _attachment_status(references, row["relative_path"], row["media_type"], row["sha256"])
-            attachments.append({"id": row["id"], "status": status})
+            attachments.append({"id": row["id"], "relative_path": row["relative_path"],
+                                "media_type": row["media_type"], "sha256": row["sha256"], "status": status})
         return {"schema_version": version, "schema_errors": schema_errors,
+                "legacy_fingerprint": fingerprint.hexdigest(),
                 "quick_check": quick, "integrity": integrity,
                 "foreign_key_errors": foreign_keys, "counts": counts, "kind_counts": kind_counts,
                 "prompt_hashes": prompt_hashes, "revision_prompt_hashes": revision_prompt_hashes,
@@ -2494,7 +2512,8 @@ def create_protected_copy(source, destination):
         raise StorageError("文件级恢复门禁未完成，当前仅允许隔离测试目录")
     if destination.exists() or destination.parent.resolve() != source.home.resolve().parent:
         raise StorageError("目标必须是与来源同级且不存在的目录")
-    with source.exclusive_operation():
+    with source.exclusive_operation(), source._session() as source_guard:
+        source_guard.execute("BEGIN IMMEDIATE")
         report = inspect_database(source.db_path, source.home / "references")
         if (report["schema_version"] != "1" or report["schema_errors"]
                 or report["quick_check"] != ["ok"] or report["integrity"] != ["ok"]
@@ -2511,8 +2530,24 @@ def create_protected_copy(source, destination):
                 or after["quick_check"] != ["ok"] or after["integrity"] != ["ok"]
                 or after["foreign_key_errors"] or after["counts"]["assets"] != report["counts"]["assets"]
                 or after["prompt_hashes"] != report["prompt_hashes"]
+                or after["legacy_fingerprint"] != report["legacy_fingerprint"]
                 or after["attachments"] != report["attachments"]):
             raise StorageError(f"隔离复制校验失败，副本保留在 {work}")
+        current = inspect_database(source.db_path, source.home / "references")
+        if (current["legacy_fingerprint"] != report["legacy_fingerprint"]
+                or current["attachments"] != report["attachments"]):
+            raise StorageError("迁移期间来源数据发生变化，已保留暂存副本并中止")
+        origin = {
+            "source_home": str(source.home.resolve()),
+            "destination": str(destination.resolve()),
+            "legacy_fingerprint": report["legacy_fingerprint"],
+            "attachments": report["attachments"],
+        }
+        with (work / "stage2-origin.json").open("x", encoding="utf-8") as stream:
+            json.dump(origin, stream, ensure_ascii=False)
+            stream.flush()
+            os.fsync(stream.fileno())
+
         # Reserve a previously absent container, preventing a competing process
         # from replacing any existing directory. A missing marker means recovery
         # must be reviewed before the application uses this location.
@@ -2542,13 +2577,38 @@ def recover_protected_copy(destination, staged_copy):
     candidate = data if data.is_dir() else staged_copy
     if candidate.is_symlink() or getattr(candidate, "is_junction", lambda: False)():
         raise StorageError("恢复数据不能是链接")
-    report = inspect_database(candidate / "prompt_library.sqlite3", candidate / "references")
-    if (report["schema_version"] != "2" or report["schema_errors"]
-            or report["quick_check"] != ["ok"] or report["integrity"] != ["ok"]
-            or report["foreign_key_errors"]
-            or any(item["status"] != "verified" for item in report["attachments"])):
-        raise StorageError("隔离副本未通过恢复校验")
-    if candidate == staged_copy:
-        os.rename(staged_copy, data)
-    _write_ready_marker(destination)
+    origin_file = candidate / "stage2-origin.json"
+    if _is_link_or_junction(origin_file) or not origin_file.is_file():
+        raise StorageError("恢复副本缺少来源记录")
+    try:
+        origin = json.loads(origin_file.read_text(encoding="utf-8"))
+        source_home = Path(origin["source_home"])
+        if (source_home.parent.resolve() != destination.parent.resolve()
+                or source_home == destination or _is_link_or_junction(source_home)
+                or Path(origin["destination"]) != destination.resolve()):
+            raise ValueError("来源位置不一致")
+        source_db = source_home / "prompt_library.sqlite3"
+        guard = sqlite3.connect(source_db, timeout=15)
+        try:
+            guard.execute("BEGIN IMMEDIATE")
+            source_report = inspect_database(source_db, source_home / "references")
+            report = inspect_database(candidate / "prompt_library.sqlite3", candidate / "references")
+            if (source_report["legacy_fingerprint"] != origin["legacy_fingerprint"]
+                    or source_report["attachments"] != origin["attachments"]):
+                raise StorageError("来源数据在迁移中断后已变化，请保留两份数据并人工处理")
+            if (report["schema_version"] != "2" or report["schema_errors"]
+                    or report["quick_check"] != ["ok"] or report["integrity"] != ["ok"]
+                    or report["foreign_key_errors"]
+                    or report["legacy_fingerprint"] != origin["legacy_fingerprint"]
+                    or report["attachments"] != origin["attachments"]
+                    or any(item["status"] != "verified" for item in report["attachments"])):
+                raise StorageError("隔离副本未通过恢复校验")
+            if candidate == staged_copy:
+                os.rename(staged_copy, data)
+            _write_ready_marker(destination)
+        finally:
+            guard.rollback()
+            guard.close()
+    except (OSError, ValueError, KeyError, sqlite3.Error) as exc:
+        raise StorageError("恢复来源验证失败，已保留所有数据") from exc
     return {"status": "recovered", "destination": str(data)}

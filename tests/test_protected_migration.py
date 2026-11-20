@@ -224,6 +224,22 @@ class ProtectedCopyTests(unittest.TestCase):
             self.assertEqual(recover_protected_copy(destination, missing_stage)["status"], "recovered")
             self.assertEqual(Storage(destination / "data").load_data()["cases"][0]["body"], "原始")
 
+    def test_recovery_refuses_when_legacy_changed_after_interruption(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = Storage(root / "legacy")
+            source.save_data({"cases": [{"id": "c1", "body": "原始"}], "modules": []})
+            destination = root / "protected"
+            with patch("storage._write_ready_marker", side_effect=OSError("interrupted")):
+                with self.assertRaises(OSError):
+                    create_protected_copy(source, destination)
+            source.save_data({"cases": [{"id": "c1", "body": "迁移后旧版新增内容"}], "modules": []})
+            with self.assertRaisesRegex(StorageError, "来源数据.*变化"):
+                recover_protected_copy(destination, root / ".stage2-copy-moved")
+            self.assertFalse((destination / "stage2-ready.json").exists())
+            self.assertEqual(source.load_data()["cases"][0]["body"], "迁移后旧版新增内容")
+            self.assertEqual(Storage(destination / "data").load_data()["cases"][0]["body"], "原始")
+
     def test_failed_copy_does_not_replace_source_or_original_backup(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
