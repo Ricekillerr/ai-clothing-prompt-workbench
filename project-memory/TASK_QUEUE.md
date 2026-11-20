@@ -162,3 +162,5 @@ PR #10 验证提交 fc9a72e5270664cfbb7c06e54b5b82d199fd7d7d 的 Release validat
 完善离线门禁：验证虚拟机身份、网卡和 IPv4/IPv6 默认路由，并在测试期间轮询；检查 Python/Launcher 注册表、Store 包、常见系统和用户安装位置、执行别名及 FFmpeg；查询失败直接阻断。校验指定原 ZIP 的固定 SHA-256，并将解压文件逐个与 ZIP 比较、拒绝额外文件和链接。门禁故障注入本机通过 1 个正常场景及 9 个拒绝场景；隔离 ZIP 测试 5 项通过。轮询与路径检查无法证明系统完全清洁或采样间隔内绝无联网，仍需可信映像、快照和外部断网证据。
 
 新增 docs/RUNTIME_UPDATE_ROLLBACK_DESIGN.md，仅为方案，未修改更新器。新增 docs/STAGE2_DESKTOP_ACCEPTANCE.md 记录 UI 验收方法和静态发现：当前媒体类型仅支持图片，案例素材区未发现视频播放控件；视频真实展示尚未通过验收。阶段 2 不得放行，PR #10 保持 Draft，未合并或发布，未操作真实用户数据。
+
+CI 补充证据：PR #10 验证提交 6aaa65e1b67f77284d6acee6c2c98155806d9ecc，[Release validation #651](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/44685540064) 在 Windows Python 3.12.14 运行 244 项全部通过，Ubuntu 运行 244 项、240 通过、4 项 Windows 专项跳过，失败和错误均为 0。[Windows candidate #13](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/44685540216) 成功运行离线门禁故障注入、5 项候选包完整性检查和受限环境独立包冒烟；该 CI 并非真实离线 VM，不能计入 VM 或桌面验收。
