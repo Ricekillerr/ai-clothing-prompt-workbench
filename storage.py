@@ -1040,7 +1040,7 @@ class Storage:
         if not raw_path:
             raise StorageError("AI 分析缺少原始素材路径，请重新扫描并分析")
         candidate = Path(raw_path)
-        if _is_link_or_junction(candidate):
+        if any(_is_link_or_junction(component) for component in (candidate, *candidate.parents)):
             raise StorageError("AI 分析来源文件已变为符号链接或目录联接，拒绝入库")
         try:
             resolved = candidate.resolve(strict=True)

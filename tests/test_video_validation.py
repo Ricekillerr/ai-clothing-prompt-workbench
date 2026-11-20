@@ -1,4 +1,5 @@
 import hashlib
+import os
 import subprocess
 import tempfile
 import unittest
@@ -6,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import imageio_ffmpeg
-from storage import _attachment_status, Storage, KnowledgeStore, create_protected_copy
+from storage import _attachment_status, Storage, StorageError, KnowledgeStore, create_protected_copy
 from collector import scan_folder
 
 
@@ -36,6 +37,15 @@ class VideoValidationTests(unittest.TestCase):
             first = knowledge.import_video("case1", video, digest)
             second = knowledge.import_video("case1", video, digest)
             self.assertEqual(first, second)
+            alias = root / "linked-inbox"
+            if os.name == "nt":
+                command = str(Path(os.environ["SystemRoot"]) / "System32" / "cmd.exe")
+                subprocess.run([command, "/c", "mklink", "/J", str(alias), str(inbox)],
+                               check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            else:
+                alias.symlink_to(inbox, target_is_directory=True)
+            with self.assertRaises(StorageError):
+                knowledge.import_video("case1", alias / "valid.mp4", digest)
             self.assertEqual((store.home / "references" / first["path"]).read_bytes(), original)
             with store._session() as con:
                 self.assertEqual(con.execute("SELECT COUNT(*) FROM attachments WHERE asset_id='case1'").fetchone()[0], 1)
