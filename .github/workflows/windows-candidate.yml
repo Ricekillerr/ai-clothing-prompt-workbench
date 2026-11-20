@@ -9,8 +9,6 @@ jobs:
   candidate:
     runs-on: windows-latest
     timeout-minutes: 30
-    env:
-      CANDIDATE_DIR: ${{ runner.temp }}\Prompt Atelier 中文 空格
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,7 +25,8 @@ jobs:
       - name: Build isolated Python runtime and dependencies
         shell: pwsh
         run: |
-          $candidate = $env:CANDIDATE_DIR
+          $candidate = Join-Path $env:RUNNER_TEMP 'Prompt Atelier 中文 空格'
+          "CANDIDATE_DIR=$candidate" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           python tools/build_windows_portable.py $candidate
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Compile standalone launcher

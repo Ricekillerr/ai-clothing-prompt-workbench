@@ -1,4 +1,5 @@
 """Build a Windows candidate in a caller-supplied empty staging directory."""
+import hashlib
 import json
 import os
 import shutil
@@ -34,8 +35,11 @@ def build(destination):
     manifest = json.loads((ROOT / "update_manifest.json").read_text(encoding="utf-8"))
     for filename in manifest["files"]:
         source = ROOT / filename
-        if source.parent != ROOT or not source.is_file():
+        if source.parent != ROOT or source.is_symlink() or not source.is_file():
             raise RuntimeError(f"invalid program file: {filename}")
+        actual = hashlib.sha256(source.read_bytes()).hexdigest()
+        if actual != manifest.get("sha256", {}).get(filename):
+            raise RuntimeError(f"program file hash mismatch: {filename}")
         shutil.copy2(source, destination / filename)
     shutil.copy2(ROOT / "update_manifest.json", destination / "update_manifest.json")
     metadata = subprocess.check_output(
