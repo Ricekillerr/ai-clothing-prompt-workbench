@@ -9,6 +9,8 @@ jobs:
   candidate:
     runs-on: windows-latest
     timeout-minutes: 30
+    env:
+      CANDIDATE_DIR: ${{ runner.temp }}\Prompt Atelier 中文 空格
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,27 +27,29 @@ jobs:
       - name: Build isolated Python runtime and dependencies
         shell: pwsh
         run: |
-          $candidate = Join-Path $env:RUNNER_TEMP 'Prompt Atelier 中文 空格'
+          $candidate = $env:CANDIDATE_DIR
           python tools/build_windows_portable.py $candidate
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Compile standalone launcher
         shell: powershell
         run: |
-          $candidate = Join-Path $env:RUNNER_TEMP 'Prompt Atelier 中文 空格'
-          Add-Type -Path tools/windows_launcher.cs -ReferencedAssemblies System.Windows.Forms -OutputType WindowsApplication -OutputAssembly (Join-Path $candidate 'PromptAtelier.exe')
+          $candidate = $env:CANDIDATE_DIR
+          $launcher = Join-Path $env:RUNNER_TEMP 'PromptAtelier.exe'
+          Add-Type -Path tools/windows_launcher.cs -ReferencedAssemblies System.Windows.Forms -OutputType WindowsApplication -OutputAssembly $launcher
+          Copy-Item -LiteralPath $launcher -Destination (Join-Path $candidate 'PromptAtelier.exe')
           if (-not (Test-Path (Join-Path $candidate 'PromptAtelier.exe'))) { throw 'Launcher was not created' }
       - name: Exercise isolated candidate, actual decoders and HTTP lifecycle
         shell: pwsh
         env:
           PYTHONIOENCODING: utf-8
         run: |
-          $candidate = Join-Path $env:RUNNER_TEMP 'Prompt Atelier 中文 空格'
+          $candidate = $env:CANDIDATE_DIR
           python tools/windows_candidate_smoke.py $candidate
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Package candidate and record provenance
         shell: pwsh
         run: |
-          $candidate = Join-Path $env:RUNNER_TEMP 'Prompt Atelier 中文 空格'
+          $candidate = $env:CANDIDATE_DIR
           $out = Join-Path $env:RUNNER_TEMP 'candidate-artifact'
           New-Item -ItemType Directory -Path $out | Out-Null
           $version = @{ commit = $env:GITHUB_SHA; channel = 'stage2-candidate'; built_utc = (Get-Date).ToUniversalTime().ToString('o') }
