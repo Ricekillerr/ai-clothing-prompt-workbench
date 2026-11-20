@@ -12,6 +12,7 @@ import os
 import shutil
 import sqlite3
 import stat
+import subprocess
 import tempfile
 import threading
 import uuid
@@ -38,6 +39,8 @@ def _is_link_or_junction(path: Path) -> bool:
 
 MAX_IMAGE_BYTES = 100 * 1024 * 1024
 MAX_IMAGE_PIXELS = 80_000_000
+MAX_VIDEO_BYTES = 1024 * 1024 * 1024
+VIDEO_FORMATS = {".mp4", ".mov", ".m4v", ".webm", ".avi"}
 FORMATS = {".png": "PNG", ".jpg": "JPEG", ".jpeg": "JPEG", ".webp": "WEBP",
            ".gif": "GIF", ".bmp": "BMP"}
 
@@ -47,6 +50,36 @@ def _link(path):
         return path.is_symlink() or bool(getattr(path, "is_junction", lambda: False)())
     except OSError:
         return True
+
+
+def _verify_video_file(path: Path) -> str:
+    """Fully decode a local video; fail closed if the decoder is unavailable."""
+    try:
+        import imageio_ffmpeg
+        binary = imageio_ffmpeg.get_ffmpeg_exe()
+        with path.open("rb") as stream:
+            header = stream.read(16)
+        ext = path.suffix.lower()
+        if ext in {".mp4", ".mov", ".m4v"}:
+            matches = len(header) >= 12 and header[4:8] in {b"ftyp", b"moov", b"wide"}
+        elif ext == ".webm":
+            matches = header.startswith(b"\x1a\x45\xdf\xa3")
+        elif ext == ".avi":
+            matches = header[:4] == b"RIFF" and header[8:12] == b"AVI "
+        else:
+            return "unsupported"
+        if not matches:
+            return "corrupt"
+        result = subprocess.run(
+            [binary, "-v", "error", "-xerror", "-nostdin", "-protocol_whitelist", "file,pipe",
+             "-i", str(path), "-map", "0:v:0", "-f", "null", "-"],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            timeout=120, check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        return "verified" if result.returncode == 0 else "corrupt"
+    except (ImportError, OSError, subprocess.TimeoutExpired):
+        return "unverified"
 
 
 def _attachment_status(root, relative_path, media_type, expected, computed=None,
@@ -69,10 +102,11 @@ def _attachment_status(root, relative_path, media_type, expected, computed=None,
         if not current.is_file():
             return "missing"
         image_format = FORMATS.get(current.suffix.lower())
-        if media_type != "image" or image_format is None:
+        if not ((media_type == "image" and image_format is not None)
+                or (media_type == "video" and current.suffix.lower() in VIDEO_FORMATS)):
             return "unsupported"
         initial = current.stat()
-        if initial.st_size > MAX_IMAGE_BYTES:
+        if initial.st_size <= 0 or initial.st_size > (MAX_VIDEO_BYTES if media_type == "video" else MAX_IMAGE_BYTES):
             return "corrupt"
         digest = hashlib.sha256()
         with current.open("rb") as stream:
@@ -83,6 +117,12 @@ def _attachment_status(root, relative_path, media_type, expected, computed=None,
             computed["sha256"] = actual_hash
         if expected and actual_hash != str(expected).lower():
             return "hash_mismatch"
+        if media_type == "video":
+            status = _verify_video_file(current)
+            final = current.stat()
+            if (initial.st_size, initial.st_mtime_ns, initial.st_ino) != (final.st_size, final.st_mtime_ns, final.st_ino):
+                return "unverified"
+            return status if expected or allow_missing_hash else "unverified"
         try:
             from PIL import Image, UnidentifiedImageError
         except ImportError:
