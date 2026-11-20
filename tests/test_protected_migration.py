@@ -13,7 +13,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from protected_migration import create_protected_copy, recover_protected_copy
-from storage import Storage, StorageError, active_data_home
+from storage import Storage, StorageError, active_data_home, _activation_lock
 
 
 class ProtectedCopyTests(unittest.TestCase):
@@ -238,6 +238,58 @@ class ProtectedCopyTests(unittest.TestCase):
                 recover_protected_copy(destination, root / ".stage2-copy-moved")
             self.assertFalse((destination / "stage2-ready.json").exists())
             self.assertEqual(source.load_data()["cases"][0]["body"], "迁移后旧版新增内容")
+            self.assertEqual(Storage(destination / "data").load_data()["cases"][0]["body"], "原始")
+
+    def test_concurrent_activation_lock_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Storage(Path(tmp) / "legacy")
+            with _activation_lock(source.home):
+                with self.assertRaisesRegex(StorageError, "正在运行"):
+                    with _activation_lock(source.home):
+                        pass
+
+    def test_startup_recovers_interrupted_activation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = Path(tmp)
+            source = Storage(profile / "AI_Prompt_Asset_Workbench")
+            source.save_data({"cases": [{"id": "c1", "body": "原始"}], "modules": []})
+            destination = profile / "AI_Prompt_Asset_Workbench_v2"
+            with patch("storage._write_ready_marker", side_effect=OSError("interrupted")):
+                with self.assertRaises(OSError):
+                    create_protected_copy(source, destination)
+            self.assertFalse((destination / "stage2-ready.json").exists())
+            selected = active_data_home(profile)
+            self.assertEqual(selected, destination / "data")
+            self.assertTrue((destination / "stage2-ready.json").exists())
+            self.assertEqual(Storage(selected).load_data()["cases"][0]["body"], "原始")
+
+    def test_startup_recovers_before_data_move(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = Path(tmp)
+            source = Storage(profile / "AI_Prompt_Asset_Workbench")
+            source.save_data({"cases": [{"id": "c1", "body": "原始"}], "modules": []})
+            destination = profile / "AI_Prompt_Asset_Workbench_v2"
+            with patch("storage.os.rename", side_effect=OSError("interrupted")):
+                with self.assertRaises(OSError):
+                    create_protected_copy(source, destination)
+            self.assertFalse((destination / "data").exists())
+            self.assertEqual(active_data_home(profile), destination / "data")
+            self.assertEqual(Storage(destination / "data").load_data()["cases"][0]["body"], "原始")
+
+    def test_startup_refuses_recovery_after_legacy_changed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = Path(tmp)
+            source = Storage(profile / "AI_Prompt_Asset_Workbench")
+            source.save_data({"cases": [{"id": "c1", "body": "原始"}], "modules": []})
+            destination = profile / "AI_Prompt_Asset_Workbench_v2"
+            with patch("storage._write_ready_marker", side_effect=OSError("interrupted")):
+                with self.assertRaises(OSError):
+                    create_protected_copy(source, destination)
+            source.save_data({"cases": [{"id": "c1", "body": "旧版新数据"}], "modules": []})
+            with self.assertRaisesRegex(StorageError, "来源数据.*变化"):
+                active_data_home(profile)
+            self.assertFalse((destination / "stage2-ready.json").exists())
+            self.assertEqual(source.load_data()["cases"][0]["body"], "旧版新数据")
             self.assertEqual(Storage(destination / "data").load_data()["cases"][0]["body"], "原始")
 
     def test_failed_copy_does_not_replace_source_or_original_backup(self):

@@ -114,6 +114,36 @@ class StorageError(RuntimeError):
     pass
 
 
+@contextmanager
+def _activation_lock(source_home):
+    """Hold an OS-released lock across protected-copy activation or recovery."""
+    path = Path(source_home) / ".stage2-activation.lock"
+    if _is_link_or_junction(path):
+        raise StorageError("迁移锁不能是符号链接或目录联接")
+    with path.open("a+b") as stream:
+        if stream.seek(0, os.SEEK_END) == 0:
+            stream.write(b"0")
+            stream.flush()
+        stream.seek(0)
+        try:
+            if os.name == "nt":
+                import msvcrt
+                msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as exc:
+            raise StorageError("已有迁移或恢复任务正在运行") from exc
+        try:
+            yield
+        finally:
+            stream.seek(0)
+            if os.name == "nt":
+                msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+
+
 def active_data_home(profile: Path) -> Path:
     """Select only a fully initialized isolated V2 store."""
     profile = Path(profile)
@@ -125,6 +155,27 @@ def active_data_home(profile: Path) -> Path:
         raise StorageError("V2 数据目录不能是符号链接或目录联接")
     marker = container / "stage2-ready.json"
     data = container / "data"
+    if not marker.exists() and not _is_link_or_junction(marker):
+        # Recover only a uniquely identified, verified staging copy.
+        if data.is_dir() and not _is_link_or_junction(data):
+            stage = profile / (".stage2-copy-moved-" + uuid.uuid4().hex)
+        else:
+            matching = []
+            for stage in profile.glob(".stage2-copy-*"):
+                origin = stage / "stage2-origin.json"
+                if _is_link_or_junction(stage) or _is_link_or_junction(origin):
+                    continue
+                try:
+                    if origin.is_file() and origin.stat().st_size <= 16384:
+                        record = json.loads(origin.read_text(encoding="utf-8"))
+                        if Path(record.get("destination", "")) == container.resolve():
+                            matching.append(stage)
+                except (OSError, ValueError, TypeError):
+                    continue
+            if len(matching) != 1:
+                raise StorageError("V2 迁移未完成，无法安全确定暂存副本")
+            stage = matching[0]
+        recover_protected_copy(container, stage)
     database = data / "prompt_library.sqlite3"
     if (_is_link_or_junction(marker) or _is_link_or_junction(data)
             or _is_link_or_junction(database) or not marker.is_file()
@@ -2509,10 +2560,15 @@ def create_protected_copy(source, destination):
     destination = Path(destination)
     temp_root = Path(tempfile.gettempdir()).resolve()
     if not source.home.resolve().is_relative_to(temp_root):
-        raise StorageError("文件级恢复门禁未完成，当前仅允许隔离测试目录")
+        expected = Path.home() / "AI_Prompt_Asset_Workbench"
+        expected_destination = Path.home() / "AI_Prompt_Asset_Workbench_v2"
+        if source.home.resolve() != expected.resolve() or destination.resolve() != expected_destination.resolve():
+            raise StorageError("正式迁移只允许从默认目录创建受保护副本")
+    if _is_link_or_junction(source.home):
+        raise StorageError("来源目录不能是链接")
     if destination.exists() or destination.parent.resolve() != source.home.resolve().parent:
         raise StorageError("目标必须是与来源同级且不存在的目录")
-    with source.exclusive_operation(), source._session() as source_guard:
+    with _activation_lock(source.home), source.exclusive_operation(), source._session() as source_guard:
         source_guard.execute("BEGIN IMMEDIATE")
         report = inspect_database(source.db_path, source.home / "references")
         if (report["schema_version"] != "1" or report["schema_errors"]
@@ -2566,7 +2622,9 @@ def recover_protected_copy(destination, staged_copy):
     staged_copy = Path(staged_copy)
     temp_root = Path(tempfile.gettempdir()).resolve()
     if not destination.resolve().is_relative_to(temp_root):
-        raise StorageError("隔离恢复实验仅支持临时目录")
+        expected = Path.home() / "AI_Prompt_Asset_Workbench_v2"
+        if destination.resolve() != expected.resolve():
+            raise StorageError("正式恢复仅支持默认 V2 数据目录")
     if (not destination.is_dir() or (destination / "stage2-ready.json").exists()
             or destination.is_symlink() or staged_copy.parent.resolve() != destination.parent.resolve()
             or not staged_copy.name.startswith(".stage2-copy-") or staged_copy.is_symlink()):
@@ -2588,27 +2646,32 @@ def recover_protected_copy(destination, staged_copy):
                 or Path(origin["destination"]) != destination.resolve()):
             raise ValueError("来源位置不一致")
         source_db = source_home / "prompt_library.sqlite3"
-        guard = sqlite3.connect(source_db, timeout=15)
-        try:
-            guard.execute("BEGIN IMMEDIATE")
-            source_report = inspect_database(source_db, source_home / "references")
-            report = inspect_database(candidate / "prompt_library.sqlite3", candidate / "references")
-            if (source_report["legacy_fingerprint"] != origin["legacy_fingerprint"]
-                    or source_report["attachments"] != origin["attachments"]):
-                raise StorageError("来源数据在迁移中断后已变化，请保留两份数据并人工处理")
-            if (report["schema_version"] != "2" or report["schema_errors"]
-                    or report["quick_check"] != ["ok"] or report["integrity"] != ["ok"]
-                    or report["foreign_key_errors"]
-                    or report["legacy_fingerprint"] != origin["legacy_fingerprint"]
-                    or report["attachments"] != origin["attachments"]
-                    or any(item["status"] != "verified" for item in report["attachments"])):
-                raise StorageError("隔离副本未通过恢复校验")
-            if candidate == staged_copy:
-                os.rename(staged_copy, data)
-            _write_ready_marker(destination)
-        finally:
-            guard.rollback()
-            guard.close()
+        with _activation_lock(source_home):
+            return _finish_protected_recovery(source_db, source_home, origin, candidate, staged_copy, data, destination)
     except (OSError, ValueError, KeyError, sqlite3.Error) as exc:
         raise StorageError("恢复来源验证失败，已保留所有数据") from exc
+
+
+def _finish_protected_recovery(source_db, source_home, origin, candidate, staged_copy, data, destination):
+    guard = sqlite3.connect(source_db, timeout=15)
+    try:
+        guard.execute("BEGIN IMMEDIATE")
+        source_report = inspect_database(source_db, source_home / "references")
+        report = inspect_database(candidate / "prompt_library.sqlite3", candidate / "references")
+        if (source_report["legacy_fingerprint"] != origin["legacy_fingerprint"]
+                or source_report["attachments"] != origin["attachments"]):
+            raise StorageError("来源数据在迁移中断后已变化，请保留两份数据并人工处理")
+        if (report["schema_version"] != "2" or report["schema_errors"]
+                or report["quick_check"] != ["ok"] or report["integrity"] != ["ok"]
+                or report["foreign_key_errors"]
+                or report["legacy_fingerprint"] != origin["legacy_fingerprint"]
+                or report["attachments"] != origin["attachments"]
+                or any(item["status"] != "verified" for item in report["attachments"])):
+            raise StorageError("隔离副本未通过恢复校验")
+        if candidate == staged_copy:
+            os.rename(staged_copy, data)
+        _write_ready_marker(destination)
+    finally:
+        guard.rollback()
+        guard.close()
     return {"status": "recovered", "destination": str(data)}
