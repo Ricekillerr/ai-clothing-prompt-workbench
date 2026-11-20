@@ -161,3 +161,12 @@ V2 备份清单记录 schema_version 和 format_version，测试 V2 恢复前保
 代码树对应 PR #10 验证提交 6eb39518535eddd347292e9601e93ba431d05d97，Release validation #608 成功。Ubuntu Python 3.12.14 共 211 项，207 通过、4 项 Windows 专用跳过；Windows Python 3.12.14 共 211 项全部通过。阶段 2 仍未完成。
 
 真实阶段 1 storage.py 的隔离恢复故障注入表明，旧程序可使用 V1 备份直接替换包含新增单品的 V2 数据库；安全备份保留，但活动库退回 V1。新版入口已阻止该覆盖，SQLite 触发器不阻止旧程序文件替换。故正式迁移继续限制在临时目录，文件级保护完成并测试前不能迁移用户数据。最小界面、HTTP API、历史单品回填、旧 JSON 和完整数据恢复门禁仍待完成。
+
+
+## 2026-11-20 阶段 2 隔离实施进展
+
+版本化 V2 数据目录与 V1 目录分离；隔离测试加载阶段 1 的真实 storage.py，执行旧备份恢复，验证 V2 单品、案例关联、原文版本和参考文件未被覆盖。该保护限于正常程序固定目录，不能阻止拥有文件系统权限的任意程序直接修改 V2 文件。中断激活会核对来源指纹、附件及原始图片哈希并进入恢复或安全阻断。已接入显式迁移、历史单品回填、知识库接口、最小界面、V2 JSON 完整备份和恢复；不代表全部验收完成。
+
+本机 Windows Python 3.12.14、隔离数据目录的全量测试 237 项：232 通过、0 失败、0 错误、5 项因本机符号链接权限跳过；最新代码的 GitHub Windows/Ubuntu CI 尚待核验。仍需解决视频附件的安全校验与导入、普通用户运行环境的 Pillow 部署、跨平台最终 CI 及完整产品验收。禁止迁移真实用户数据，PR #10 保持 Draft。
+
+CI 证据：PR #10 提交 6e4f5a3dc44bd56756ba3a4f9fffcd5f24b39acc，Release validation #632（https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/44654654885）：Windows Python 3.12.14 237/237 通过；Ubuntu Python 3.12.14 237 项中 233 通过、4 项 Windows 专用跳过，均 0 失败。后续新增的测试尚未纳入此轮 CI。

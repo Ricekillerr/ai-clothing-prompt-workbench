@@ -33,6 +33,25 @@ class ProtectedCopyTests(unittest.TestCase):
                 self.assertEqual(row[0], "sample.png")
                 self.assertEqual(row[1], hashlib.sha256((refs / "sample.png").read_bytes()).hexdigest())
 
+    def test_interrupted_activation_recovers_payload_image_and_attachment(self):
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp)
+            source = Storage(parent / "legacy")
+            refs = source.home / "references"
+            refs.mkdir(exist_ok=True)
+            Image.new("RGB", (3, 3), "blue").save(refs / "sample.png")
+            source.save_data({"cases": [{"id": "c1", "body": "原文", "image": "sample.png"}], "modules": []})
+            destination = parent / "protected"
+            with patch("storage._write_ready_marker", side_effect=OSError("interrupted")):
+                with self.assertRaisesRegex(OSError, "interrupted"):
+                    create_protected_copy(source, destination)
+            self.assertEqual(recover_protected_copy(destination, parent / ".stage2-copy-moved")["status"], "recovered")
+            with Storage(destination / "data")._session() as con:
+                self.assertEqual(con.execute("SELECT COUNT(*) FROM attachments WHERE asset_id='c1'").fetchone()[0], 1)
+            self.assertEqual((destination / "data" / "references" / "sample.png").read_bytes(),
+                             (refs / "sample.png").read_bytes())
+
     def test_selection_requires_completed_valid_v2_marker(self):
         with tempfile.TemporaryDirectory() as tmp:
             profile = Path(tmp)
