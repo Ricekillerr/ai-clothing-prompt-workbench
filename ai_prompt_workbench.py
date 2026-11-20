@@ -74,6 +74,8 @@ def _scan_source_lock(source_id):
 def scan_registered_source(source_id, force_hash=False):
     """Serialize scans for one source so an older snapshot cannot overwrite a newer one."""
     with STORAGE.operation():
+        if MIGRATION_ACTIVE.is_set():
+            raise RuntimeError("迁移进行中，已暂停扫描")
         with _scan_source_lock(source_id):
             source = next(
                 (item for item in STORAGE.list_scan_sources() if item["id"] == source_id),

@@ -17,6 +17,22 @@ from storage import Storage, StorageError, active_data_home, _activation_lock
 
 
 class ProtectedCopyTests(unittest.TestCase):
+    def test_payload_image_is_verified_and_registered_during_migration(self):
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp)
+            source = Storage(parent / "legacy")
+            refs = source.home / "references"
+            refs.mkdir(exist_ok=True)
+            Image.new("RGB", (3, 3), "red").save(refs / "sample.png")
+            source.save_data({"cases": [{"id": "c1", "body": "原文", "image": "sample.png"}], "modules": []})
+            destination = parent / "protected"
+            create_protected_copy(source, destination)
+            with Storage(destination / "data")._session() as con:
+                row = con.execute("SELECT relative_path,sha256 FROM attachments WHERE asset_id='c1'").fetchone()
+                self.assertEqual(row[0], "sample.png")
+                self.assertEqual(row[1], hashlib.sha256((refs / "sample.png").read_bytes()).hexdigest())
+
     def test_selection_requires_completed_valid_v2_marker(self):
         with tempfile.TemporaryDirectory() as tmp:
             profile = Path(tmp)
@@ -310,6 +326,19 @@ class ProtectedCopyTests(unittest.TestCase):
             self.assertFalse((destination / "stage2-ready.json").exists())
             self.assertEqual(source.load_data()["cases"][0]["body"], "迁移后旧版新增内容")
             self.assertEqual(Storage(destination / "data").load_data()["cases"][0]["body"], "原始")
+
+    def test_scan_does_not_resume_during_activation(self):
+        import ai_prompt_workbench as app
+        previous = app.STORAGE
+        with tempfile.TemporaryDirectory() as tmp:
+            app.STORAGE = Storage(Path(tmp))
+            app.MIGRATION_ACTIVE.set()
+            try:
+                with self.assertRaisesRegex(RuntimeError, "迁移进行中"):
+                    app.scan_registered_source("ignored")
+            finally:
+                app.MIGRATION_ACTIVE.clear()
+                app.STORAGE = previous
 
     def test_concurrent_activation_lock_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:

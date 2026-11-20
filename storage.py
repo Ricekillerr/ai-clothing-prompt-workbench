@@ -49,7 +49,8 @@ def _link(path):
         return True
 
 
-def _attachment_status(root, relative_path, media_type, expected):
+def _attachment_status(root, relative_path, media_type, expected, computed=None,
+                       allow_missing_hash=False):
     path = Path(relative_path)
     windows = PureWindowsPath(relative_path)
     if (not relative_path or path.is_absolute() or windows.is_absolute() or windows.drive
@@ -77,7 +78,10 @@ def _attachment_status(root, relative_path, media_type, expected):
         with current.open("rb") as stream:
             for chunk in iter(lambda: stream.read(1024 * 1024), b""):
                 digest.update(chunk)
-        if expected and digest.hexdigest() != str(expected).lower():
+        actual_hash = digest.hexdigest()
+        if computed is not None:
+            computed["sha256"] = actual_hash
+        if expected and actual_hash != str(expected).lower():
             return "hash_mismatch"
         try:
             from PIL import Image, UnidentifiedImageError
@@ -102,7 +106,7 @@ def _attachment_status(root, relative_path, media_type, expected):
         final = current.stat()
         if (initial.st_size, initial.st_mtime_ns, initial.st_ino) != (final.st_size, final.st_mtime_ns, final.st_ino):
             return "unverified"
-        return "verified" if expected else "unverified"
+        return "verified" if expected or allow_missing_hash else "unverified"
     except PermissionError:
         return "unverified"
     except OSError:
@@ -2227,7 +2231,7 @@ def inspect_database(database, references):
         legacy_tables = {"metadata", "assets", "asset_revisions", "attachments", "scan_sources",
                          "ingest_files", "generation_feedback", "retrieval_feedback", "ai_analyses"}
         fingerprint = hashlib.sha256()
-        for table in sorted(legacy_tables & tables):
+        for table in sorted((legacy_tables - {"attachments"}) & tables):
             fingerprint.update((table + "\n").encode("utf-8"))
             rows = con.execute('SELECT * FROM "' + table + '" ORDER BY rowid')
             for record in rows:
@@ -2263,12 +2267,30 @@ def inspect_database(database, references):
         kind_counts = {row["kind"]: row["total"] for row in con.execute(
             "SELECT kind, COUNT(*) AS total FROM assets GROUP BY kind")}
         prompt_hashes = []
+        payload_references = []
         for row in con.execute("SELECT id, payload_json FROM assets ORDER BY id"):
             payload = json.loads(row["payload_json"])
             body = payload.get("body")
             if isinstance(body, str):
                 prompt_hashes.append({"asset_id": row["id"],
                                       "sha256": hashlib.sha256(body.encode("utf-8")).hexdigest()})
+            raw_images = payload.get("images")
+            names = list(raw_images) if isinstance(raw_images, list) else []
+            if payload.get("image"):
+                names.append(payload["image"])
+            seen = set()
+            for name in names:
+                if not isinstance(name, str) or not name.strip():
+                    payload_references.append({"asset_id": row["id"], "relative_path": "",
+                                               "sha256": None, "status": "unsupported"})
+                    continue
+                if name in seen:
+                    continue
+                seen.add(name)
+                computed = {}
+                status = _attachment_status(references, name, "image", None, computed, True)
+                payload_references.append({"asset_id": row["id"], "relative_path": name,
+                                           "sha256": computed.get("sha256"), "status": status})
         revision_prompt_hashes = []
         if "asset_revisions" in tables:
             for row in con.execute("SELECT revision_id, asset_id, payload_json FROM asset_revisions ORDER BY revision_id"):
@@ -2291,7 +2313,7 @@ def inspect_database(database, references):
                 "quick_check": quick, "integrity": integrity,
                 "foreign_key_errors": foreign_keys, "counts": counts, "kind_counts": kind_counts,
                 "prompt_hashes": prompt_hashes, "revision_prompt_hashes": revision_prompt_hashes,
-                "attachments": attachments}
+                "attachments": attachments, "payload_references": payload_references}
     finally:
         con.close()
 
@@ -2444,7 +2466,7 @@ def migrate(store, _protected_stage=False):
         if before["schema_version"] not in {"1", "2"} or (before["integrity"] != ["ok"] or before["quick_check"] != ["ok"]):
             raise StorageError("数据库版本或完整性检查失败")
         if before["schema_errors"] or before["foreign_key_errors"] or any(
-            item["status"] != "verified" for item in before["attachments"]
+            item["status"] != "verified" for item in before["attachments"] + before["payload_references"]
         ):
             raise StorageError("附件或外键检查失败，迁移已中止")
         if before["schema_version"] == "2":
@@ -2530,6 +2552,16 @@ def migrate(store, _protected_stage=False):
                     "INSERT INTO garment_candidates(id,first_id,second_id,reason) VALUES(?,?,?,?)",
                     (uuid.uuid4().hex, candidate[0], candidate[1], "款号相同，需人工核对"),
                 )
+            for ref in before["payload_references"]:
+                exists = con.execute(
+                    "SELECT 1 FROM attachments WHERE asset_id=? AND relative_path=?",
+                    (ref["asset_id"], ref["relative_path"]),
+                ).fetchone()
+                if not exists:
+                    con.execute(
+                        "INSERT INTO attachments(asset_id,relative_path,media_type,role,sha256) VALUES(?,?,?,?,?)",
+                        (ref["asset_id"], ref["relative_path"], "image", "reference", ref["sha256"]),
+                    )
             con.execute("UPDATE metadata SET value='2' WHERE key='schema_version'")
             if con.execute("PRAGMA foreign_key_check").fetchall():
                 raise StorageError("迁移后外键检查失败")
@@ -2574,7 +2606,7 @@ def create_protected_copy(source, destination):
         if (report["schema_version"] != "1" or report["schema_errors"]
                 or report["quick_check"] != ["ok"] or report["integrity"] != ["ok"]
                 or report["foreign_key_errors"]
-                or any(item["status"] != "verified" for item in report["attachments"])):
+                or any(item["status"] != "verified" for item in report["attachments"] + report["payload_references"])):
             raise StorageError("来源预检失败")
         backup = source.create_full_backup(source.home / "references", app_version="pre-stage2")
         work = Path(tempfile.mkdtemp(prefix=".stage2-copy-", dir=destination.parent))
@@ -2587,17 +2619,20 @@ def create_protected_copy(source, destination):
                 or after["foreign_key_errors"] or after["counts"]["assets"] != report["counts"]["assets"]
                 or after["prompt_hashes"] != report["prompt_hashes"]
                 or after["legacy_fingerprint"] != report["legacy_fingerprint"]
-                or after["attachments"] != report["attachments"]):
+                or any(item not in after["attachments"] for item in report["attachments"])
+                or after["payload_references"] != report["payload_references"]):
             raise StorageError(f"隔离复制校验失败，副本保留在 {work}")
         current = inspect_database(source.db_path, source.home / "references")
         if (current["legacy_fingerprint"] != report["legacy_fingerprint"]
-                or current["attachments"] != report["attachments"]):
+                or current["attachments"] != report["attachments"]
+                or current["payload_references"] != report["payload_references"]):
             raise StorageError("迁移期间来源数据发生变化，已保留暂存副本并中止")
         origin = {
             "source_home": str(source.home.resolve()),
             "destination": str(destination.resolve()),
             "legacy_fingerprint": report["legacy_fingerprint"],
             "attachments": report["attachments"],
+            "payload_references": report["payload_references"],
         }
         with (work / "stage2-origin.json").open("x", encoding="utf-8") as stream:
             json.dump(origin, stream, ensure_ascii=False)
@@ -2664,14 +2699,16 @@ def _finish_protected_recovery(source_db, source_home, origin, candidate, staged
         source_report = inspect_database(source_db, source_home / "references")
         report = inspect_database(candidate / "prompt_library.sqlite3", candidate / "references")
         if (source_report["legacy_fingerprint"] != origin["legacy_fingerprint"]
-                or source_report["attachments"] != origin["attachments"]):
+                or source_report["attachments"] != origin["attachments"]
+                or source_report["payload_references"] != origin["payload_references"]):
             raise StorageError("来源数据在迁移中断后已变化，请保留两份数据并人工处理")
         if (report["schema_version"] != "2" or report["schema_errors"]
                 or report["quick_check"] != ["ok"] or report["integrity"] != ["ok"]
                 or report["foreign_key_errors"]
                 or report["legacy_fingerprint"] != origin["legacy_fingerprint"]
-                or report["attachments"] != origin["attachments"]
-                or any(item["status"] != "verified" for item in report["attachments"])):
+                or any(item not in report["attachments"] for item in origin["attachments"])
+                or report["payload_references"] != origin["payload_references"]
+                or any(item["status"] != "verified" for item in report["attachments"] + report["payload_references"])):
             raise StorageError("隔离副本未通过恢复校验")
         if candidate == staged_copy:
             os.rename(staged_copy, data)
