@@ -1,6 +1,7 @@
 """Exercise the staged candidate in a fresh profile and restricted PATH."""
 import json
 import hashlib
+import ctypes
 import os
 import shutil
 import sqlite3
@@ -99,9 +100,12 @@ print(json.dumps({'pillow':PIL.__version__,'ffmpeg':imageio_ffmpeg.get_ffmpeg_ve
     video = next((data_home / "references").glob("video_*.mp4"))
     video_hash = hashlib.sha256(video.read_bytes()).hexdigest()
     def counts():
-        with sqlite3.connect(data_home / "prompt_library.sqlite3") as con:
+        con = sqlite3.connect(data_home / "prompt_library.sqlite3")
+        try:
             return tuple(con.execute("SELECT COUNT(*) FROM " + table).fetchone()[0]
                          for table in ("assets", "garments", "case_garments", "prompt_sources", "attachments"))
+        finally:
+            con.close()
     before = counts()
     stage = Path(tmp) / "isolated-update"
     stage.mkdir()
@@ -113,18 +117,27 @@ print(json.dumps({'pillow':PIL.__version__,'ffmpeg':imageio_ffmpeg.get_ffmpeg_ve
                    env=env, cwd=candidate, check=True, timeout=120)
     assert counts() == before and hashlib.sha256(video.read_bytes()).hexdigest() == video_hash
     assert config.read_text(encoding="utf-8") == '{"private":"keep"}'
+    netstat = Path(os.environ["SystemRoot"]) / "System32" / "netstat.exe"
+    listing = subprocess.check_output([str(netstat), "-ano", "-p", "tcp"], text=True)
+    listeners = [line.split() for line in listing.splitlines()
+                 if "127.0.0.1:8765" in line and "LISTENING" in line]
+    if len(listeners) != 1:
+        raise RuntimeError("cannot identify updated server process")
+    server_pid = int(listeners[0][-1])
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.OpenProcess.restype = ctypes.c_void_p
+    handle = kernel.OpenProcess(0x00100000, False, server_pid)
+    if not handle:
+        raise ctypes.WinError(ctypes.get_last_error())
+    kernel.WaitForSingleObject.argtypes = (ctypes.c_void_p, ctypes.c_ulong)
+    kernel.CloseHandle.argtypes = (ctypes.c_void_p,)
     req = Request("http://127.0.0.1:8765/api/client/close", data=b"{}",
                   headers={"Content-Type": "application/json"}, method="POST")
     with opener.open(req, timeout=3) as response:
         assert json.load(response)["ok"]
-    deadline = time.monotonic() + 40
-    while time.monotonic() < deadline:
-        try:
-            with opener.open("http://127.0.0.1:8765/api/version", timeout=1):
-                pass
-        except OSError:
-            break
-        time.sleep(0.2)
-    else:
-        raise RuntimeError("updated server did not stop")
+    try:
+        if kernel.WaitForSingleObject(handle, 40000) != 0:
+            raise RuntimeError("updated server process did not stop")
+    finally:
+        kernel.CloseHandle(handle)
     print("bundled updater preserved V2 database, video and settings")
