@@ -27,7 +27,7 @@ with tempfile.TemporaryDirectory(prefix="candidate_") as tmp:
     probe = r'''
 import hashlib, json, subprocess, sys
 from pathlib import Path
-root=Path(sys.argv[1]); profile=Path(sys.argv[2]); sys.path.insert(0,str(root))
+root=Path(sys.argv[1]).resolve(); profile=Path(sys.argv[2]); sys.path.insert(0,str(root))
 import PIL, imageio_ffmpeg
 from PIL import Image
 from storage import Storage, KnowledgeStore, create_protected_copy
