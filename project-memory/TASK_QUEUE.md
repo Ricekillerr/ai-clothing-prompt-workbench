@@ -142,3 +142,14 @@ CI 证据：PR #10 提交 6e4f5a3dc44bd56756ba3a4f9fffcd5f24b39acc，Release val
 PR #10 提交 e123cb5143a7a12db46db394ffc1227a1eaebc7e 的 Release validation #637：https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/44661412953 。Windows Python 3.12.14 241 项通过；Ubuntu 241 项中 237 通过、4 项 Windows 专项跳过。该结果不包含之后的 UI 修改。本机沙箱限制回环网络，完整本机 HTTP 回归无法执行；以隔离 CI 记录为准。
 
 尚未完成：普通安装环境的 Pillow 与 FFmpeg 自包含交付、无预装依赖的干净 Windows 安装测试、正式 Windows 候选安装包、UI 真实浏览器验收和历史绝对路径视频的安全迁移。仍禁止真实用户数据迁移、合并及发布。
+
+
+## 2026-11-20 Windows 独立候选与历史视频
+
+Windows x64 候选采用独立 Python 3.12 运行目录和 C# 启动器，保留现有基于解释器和脚本的更新与重启架构。Pillow 13.0.0 和 imageio-ffmpeg 0.6.0 随包交付，CI 检查包内 FFmpeg 7.1 并实际解码图片和视频。旧数据库中的绝对路径视频只保留原始引用并创建待重新定位记录，不读取或复制未授权文件；V2 备份恢复和中断激活保留这些记录。导入已扫描素材检查每一级路径组件的符号链接和目录联接。
+
+PR #10 验证提交 fc9a72e5270664cfbb7c06e54b5b82d199fd7d7d 的 Release validation #647：https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/44671725049 。Windows Python 3.12.14 244 项通过，Ubuntu 244 项中 240 通过、4 项 Windows 专项跳过。
+
+候选构建 #10（源码 681d4e93df1f033be422668cf242359d2f6ff32c）：https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/44672168801/artifacts/14600632415 。内层 ZIP 53,810,918 字节，SHA-256 b6a848582cef3b747704684a493a2b1412a74f517a47408c18105227f9d206d4。Windows 托管运行器在受限 PATH、临时资料和中文空格路径下使用包内 Python 完成 EXE/HTTP 启停、实际图片与视频解码、视频导入和去重，以及真实更新器更新后 V2 数据库、视频和设置保护。
+
+上述运行器仍预装开发工具，并非未安装 Python 的全新 Windows 系统；未进行 OS 级离线隔离或真实 Windows 桌面体验。已提供独立干净 VM 测试脚本和 docs/WINDOWS_CANDIDATE.md 方案，尚未在此类 VM 执行。旧版历史视频仍需人工授权扫描并重新定位，旧引用不会自动覆盖。运行时依赖本身的应用内自动更新尚未实现；禁止合并、发布及迁移真实用户数据。
