@@ -1,0 +1,60 @@
+name: Windows standalone candidate
+
+on:
+  pull_request:
+    branches: ["release/**"]
+  workflow_dispatch:
+
+jobs:
+  candidate:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.14"
+          architecture: x64
+      - name: Build isolated Python runtime and dependencies
+        shell: pwsh
+        run: |
+          $candidate = Join-Path $env:RUNNER_TEMP 'Prompt Atelier 中文 空格'
+          python tools/build_windows_portable.py $candidate
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Compile standalone launcher
+        shell: powershell
+        run: |
+          $candidate = Join-Path $env:RUNNER_TEMP 'Prompt Atelier 中文 空格'
+          Add-Type -Path tools/windows_launcher.cs -ReferencedAssemblies System.Windows.Forms -OutputType WindowsApplication -OutputAssembly (Join-Path $candidate 'PromptAtelier.exe')
+          if (-not (Test-Path (Join-Path $candidate 'PromptAtelier.exe'))) { throw 'Launcher was not created' }
+      - name: Exercise isolated candidate, actual decoders and HTTP lifecycle
+        shell: pwsh
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          $candidate = Join-Path $env:RUNNER_TEMP 'Prompt Atelier 中文 空格'
+          python tools/windows_candidate_smoke.py $candidate
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Package candidate and record provenance
+        shell: pwsh
+        run: |
+          $candidate = Join-Path $env:RUNNER_TEMP 'Prompt Atelier 中文 空格'
+          $out = Join-Path $env:RUNNER_TEMP 'candidate-artifact'
+          New-Item -ItemType Directory -Path $out | Out-Null
+          $version = @{ commit = $env:GITHUB_SHA; channel = 'stage2-candidate'; built_utc = (Get-Date).ToUniversalTime().ToString('o') }
+          $version | ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $candidate 'candidate-version.json')
+          $archive = Join-Path $out 'PromptAtelier-Windows-x64-candidate.zip'
+          Compress-Archive -Path (Join-Path $candidate '*') -DestinationPath $archive -CompressionLevel Optimal
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
+          "$hash  PromptAtelier-Windows-x64-candidate.zip" | Set-Content -Encoding ascii (Join-Path $out 'SHA256SUMS.txt')
+          Copy-Item (Join-Path $candidate 'dependency-versions.json') $out
+          Copy-Item (Join-Path $candidate 'candidate-version.json') $out
+          Write-Host "Candidate size: $((Get-Item $archive).Length) bytes; SHA-256: $hash"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prompt-atelier-windows-x64-candidate
+          path: ${{ runner.temp }}/candidate-artifact/
+          if-no-files-found: error
+          retention-days: 14
