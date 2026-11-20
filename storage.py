@@ -2645,7 +2645,12 @@ def recover_protected_copy(destination, staged_copy):
                 or source_home == destination or _is_link_or_junction(source_home)
                 or Path(origin["destination"]) != destination.resolve()):
             raise ValueError("来源位置不一致")
+        if (not destination.resolve().is_relative_to(temp_root)
+                and source_home.resolve() != (Path.home() / "AI_Prompt_Asset_Workbench").resolve()):
+            raise ValueError("恢复来源不属于默认旧版目录")
         source_db = source_home / "prompt_library.sqlite3"
+        if _is_link_or_junction(source_db) or not source_db.is_file():
+            raise ValueError("恢复来源数据库无效")
         with _activation_lock(source_home):
             return _finish_protected_recovery(source_db, source_home, origin, candidate, staged_copy, data, destination)
     except (OSError, ValueError, KeyError, sqlite3.Error) as exc:

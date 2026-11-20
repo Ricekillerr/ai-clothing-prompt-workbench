@@ -69,6 +69,77 @@ class ProtectedCopyTests(unittest.TestCase):
                 self.assertEqual(con.execute("SELECT count(*) FROM prompt_sources").fetchone()[0], 2)
             self.assertEqual(image.read_bytes(), b"v2-only")
 
+    def test_http_migration_restarts_into_protected_store(self):
+        import socket
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = Path(tmp)
+            source = Storage(profile / "AI_Prompt_Asset_Workbench")
+            source.save_data({"cases": [{"id": "c1", "body": "迁移原文"}], "modules": []})
+            root = Path(__file__).resolve().parents[1]
+            env = dict(os.environ, HOME=str(profile), USERPROFILE=str(profile),
+                       PROMPT_ATELIER_NO_BROWSER="1", PYTHONDONTWRITEBYTECODE="1")
+            check = socket.socket()
+            try:
+                check.bind(("127.0.0.1", 8765))
+            finally:
+                check.close()
+            process = subprocess.Popen(
+                [sys.executable, str(root / "ai_prompt_workbench.py")], cwd=root, env=env,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            opener = build_opener(ProxyHandler({}))
+            def request(path, payload=None):
+                data = None if payload is None else json.dumps(payload).encode()
+                req = Request("http://127.0.0.1:8765" + path, data=data,
+                              headers={"Content-Type": "application/json"})
+                with opener.open(req, timeout=3) as response:
+                    return json.loads(response.read())
+            try:
+                deadline = time.monotonic() + 20
+                while True:
+                    if process.poll() is not None:
+                        self.fail("V1 工作台未能启动")
+                    try:
+                        if request("/api/version")["schema_version"] == "1":
+                            break
+                    except OSError:
+                        pass
+                    if time.monotonic() >= deadline:
+                        self.fail("V1 工作台启动超时")
+                    time.sleep(0.1)
+                result = request("/api/knowledge/migrate", {})
+                self.assertTrue(result["ok"])
+                process.wait(timeout=15)
+                deadline = time.monotonic() + 30
+                while True:
+                    try:
+                        if request("/api/version")["schema_version"] == "2":
+                            break
+                    except OSError:
+                        pass
+                    if time.monotonic() >= deadline:
+                        self.fail("V2 工作台重启超时")
+                    time.sleep(0.1)
+                self.assertEqual(request("/api/data")["cases"][0]["body"], "迁移原文")
+                self.assertTrue((profile / "AI_Prompt_Asset_Workbench" / "prompt_library.sqlite3").is_file())
+                request("/api/client/heartbeat", {})
+                request("/api/client/close", {})
+                deadline = time.monotonic() + 15
+                while time.monotonic() < deadline:
+                    probe = socket.socket()
+                    try:
+                        if probe.connect_ex(("127.0.0.1", 8765)) != 0:
+                            break
+                    finally:
+                        probe.close()
+                    time.sleep(0.2)
+                else:
+                    self.fail("V2 工作台未正常关闭")
+            finally:
+                if process.poll() is None:
+                    process.terminate()
+                    process.wait(timeout=10)
+
     def test_updater_rejects_incompatible_old_program_with_active_v2(self):
         with tempfile.TemporaryDirectory() as tmp:
             profile = Path(tmp)

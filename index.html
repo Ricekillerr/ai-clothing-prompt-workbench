@@ -975,7 +975,26 @@ async function garmentPage(){
   $("garmentNext").onclick=()=>{garmentOffset+=50;garmentPage()};
   $("garmentReviews").onclick=showGarmentReviews;
   root.querySelectorAll("[data-garment]").forEach(button=>button.onclick=()=>showGarment(button.dataset.garment));
- }catch(error){if(page==="garments")root.innerHTML='<div class="vault" role="alert">'+esc(error.message)+'</div>'}
+ }catch(error){
+  if(page!=="garments")return;
+  root.innerHTML='<div class="vault" role="alert">'+esc(error.message)+'</div>';
+  if(error.message.includes("请先完成安全迁移")){
+   const button=document.createElement("button");button.className="btn primary";
+   button.textContent="创建受保护的 V2 数据库";
+   button.onclick=async()=>{
+    if(!confirm("将先检查数据、创建完整备份，再创建独立的 V2 数据库并重启。原有数据库和图片会保留。继续吗？"))return;
+    button.disabled=true;
+    try{
+     await save();
+     const response=await fetch("/api/knowledge/migrate",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+     const result=await response.json();
+     if(!response.ok||!result.ok)throw new Error(result.error||"迁移失败");
+     root.innerHTML='<div class="vault" role="status">迁移完成，工作台正在重启…</div>';
+    }catch(failure){button.disabled=false;alert("迁移未完成："+failure.message)}
+   };
+   root.appendChild(button);
+  }
+ }
 }
 function garmentForm(item=null){
  const detail=$("garmentDetail");

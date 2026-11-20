@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """AI服装提示词资产工作台 V0.6.5。"""
-import base64, errno, hashlib, json, os, shutil, subprocess, sys, tempfile, threading, time, uuid, webbrowser
+import base64, errno, hashlib, json, os, shutil, socket, subprocess, sys, tempfile, threading, time, uuid, webbrowser
 from pathlib import Path
 from urllib.parse import unquote, quote, parse_qs, urlsplit
 from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
-from storage import Storage, KnowledgeStore, active_data_home
+from storage import Storage, KnowledgeStore, active_data_home, create_protected_copy
 from collector import scan_folder, sha256_file
 from case_matcher import rank_matches, rank_case_matches
 from ai_analyzer import analyze_pair, analyze_assets
@@ -53,6 +53,8 @@ CLIENT_HEARTBEAT_TIMEOUT_SECONDS = 15
 LOG_MAX_BYTES = 1024 * 1024
 LOG_BACKUP_COUNT = 3
 UPDATE_INSTALL_LOCK = threading.Lock()
+MIGRATION_LOCK = threading.Lock()
+MIGRATION_ACTIVE = threading.Event()
 SCAN_SOURCE_LOCKS = {}
 SCAN_SOURCE_LOCKS_LOCK = threading.Lock()
 
@@ -554,6 +556,9 @@ class Handler(BaseHTTPRequestHandler):
         global LAST_CLIENT_HEARTBEAT, CLOSE_REQUESTED_AT
         if not self._validate_local_request(require_json=self.path != "/api/backup/restore"):
             return
+        if MIGRATION_ACTIVE.is_set() and self.path not in {"/api/client/heartbeat", "/api/client/close"}:
+            self.send_json(503, {"ok": False, "error": "迁移中，请等待工作台重启"})
+            return
         try:
             n = int(self.headers.get("Content-Length", "0"))
             if self.path == "/api/backup/full-json/restore":
@@ -601,6 +606,34 @@ class Handler(BaseHTTPRequestHandler):
                 with CLIENT_HEARTBEAT_LOCK:
                     CLOSE_REQUESTED_AT = time.monotonic()
                 self.send_json(200, {"ok": True})
+                return
+            if self.path == "/api/knowledge/migrate":
+                if STORAGE.get_setting("schema_version") != "1":
+                    raise ValueError("当前数据库已经迁移")
+                if not MIGRATION_LOCK.acquire(blocking=False):
+                    raise ValueError("已有迁移任务正在运行")
+                MIGRATION_ACTIVE.set()
+                destination = Path.home() / "AI_Prompt_Asset_Workbench_v2"
+                try:
+                    result = create_protected_copy(STORAGE, destination)
+                    flags = 0
+                    if sys.platform == "win32":
+                        flags = getattr(subprocess, "DETACHED_PROCESS", 8) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 512)
+                    subprocess.Popen(
+                        [sys.executable, str(ROOT / "ai_prompt_workbench.py"), "--after-protected-migration"],
+                        cwd=str(ROOT), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL, creationflags=flags, close_fds=(sys.platform != "win32"),
+                    )
+                    self.send_json(200, {"ok": True, "status": result["status"],
+                                         "message": "迁移完成，工作台正在重启"})
+                    threading.Timer(1.0, lambda: threading.Thread(
+                        target=self.server.shutdown, daemon=True).start()).start()
+                except Exception:
+                    if not destination.exists():
+                        MIGRATION_ACTIVE.clear()
+                    raise
+                finally:
+                    MIGRATION_LOCK.release()
                 return
             with STORAGE.operation():
                 if self.path == "/api/settings/auto-update":
@@ -806,6 +839,20 @@ def _configure_console_output():
 
 def main():
     _configure_console_output()
+    if "--after-protected-migration" in sys.argv:
+        for _ in range(120):
+            probe = socket.socket()
+            probe.settimeout(0.25)
+            try:
+                busy = probe.connect_ex(("127.0.0.1", 8765)) == 0
+            finally:
+                probe.close()
+            if not busy:
+                break
+            time.sleep(0.25)
+        else:
+            print("迁移后重启失败：等待原工作台关闭超时。", file=sys.stderr)
+            return 2
     try:
         server = ThreadingHTTPServer(("127.0.0.1", 8765), Handler)
     except OSError as exc:
