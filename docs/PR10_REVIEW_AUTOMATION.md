@@ -49,6 +49,14 @@ This workflow provides the Codex read-only audit and artifact. It does not creat
 
 The separate Work task must use GitHub → Pull request activity → Commit updates, filtered to this repository and PR #10, with the exact head/base branch and open/unmerged conditions. It should independently inspect the same Head SHA, project-memory files, CI evidence, and Codex artifact. No polling substitute is configured.
 
+## One-time ChatGPT Work setup prompt
+
+In ChatGPT Work, create an event-triggered task using this instruction:
+
+> Create a GitHub event-triggered task for repository Ricekillerr/ai-clothing-prompt-workbench. Trigger only on Pull Request activity → Commit updates (pull_request synchronize). Filter to PR #10, head branch feature/stage2-knowledge-data, base branch release/v0.6.5-stabilization, state open, merged false. Revalidate the latest Head SHA before every review and skip stale events or a SHA already reviewed. Read the latest PR diff, CI checks/workflow runs, and the seven project-memory files listed in this document. Independently review code quality, functional completeness, data security, and project-specific Stage 2 risks. If the Codex artifact named pr10-review-<HEAD_SHA> is already available, compare it with your findings; if it is still running or unavailable, mark it pending and do not claim to have read it. Produce a structured review and Codex handoff tasks with execution_status WAITING_APPROVAL. Read-only only: no comments, reviews, approvals, code changes, commits, pushes, merges, releases, migrations, private data, or secrets. Do not use scheduled polling or broaden the trigger to other PRs.
+
+The Work event-source registration is separate from this GitHub Actions workflow and must be completed in ChatGPT Work.
+
 ## Activation
 
 1. Review and merge this infrastructure-only PR into `release/v0.6.5-stabilization`.
