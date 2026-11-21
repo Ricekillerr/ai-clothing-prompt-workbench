@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest import mock
 
 import updater
-from storage import Storage, migrate
+from storage import Storage, StorageError, migrate
 
 
 class RestoreGuardTests(unittest.TestCase):
@@ -59,6 +59,13 @@ class RestoreGuardTests(unittest.TestCase):
             with self.assertRaises(Exception): operation()
             self.assertEqual(self.digest(active), before)
             self.assertEqual(Storage(active.home).load_data()['cases'][0]['body'], 'active')
+
+    def test_interrupted_zip_restore_blocks_startup(self):
+        active, _ = self.fixture('active', 1, 'active')
+        before = self.digest(active)
+        (active.home / '.restore_rollback_interrupted').mkdir()
+        with self.assertRaises(StorageError): Storage(active.home)
+        self.assertEqual(self.digest(active), before)
 
     def test_corrupt_or_missing_version_rejected_without_replacement(self):
         old, archive = self.fixture('old', 1, 'backup')

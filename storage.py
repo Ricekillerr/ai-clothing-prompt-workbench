@@ -183,6 +183,8 @@ def restore_versions_compatible(active_version, backup_version):
 def _recover_pending_update(home):
     """Recover a durable updater transaction before opening the database."""
     home = Path(home)
+    if _is_link_or_junction(home):
+        raise StorageError("恢复数据目录路径不安全")
     journal = home / ".update-restore-transaction.json"
     if journal.exists() or journal.is_symlink():
         if journal.is_symlink():
@@ -192,6 +194,11 @@ def _recover_pending_update(home):
             recover_interrupted_snapshot(home)
         except Exception as exc:
             raise StorageError("更新恢复事务无法安全完成，禁止打开数据库") from exc
+    # ZIP restore currently retains its pre-swap rollback directory if killed.
+    # Its layout differs from updater transactions; block rather than opening a
+    # potentially mixed database until that recovery path is implemented.
+    if home.is_dir() and any(home.glob('.restore_rollback_*')):
+        raise StorageError("检测到未完成的 ZIP 恢复，已禁止打开数据库；请保留恢复目录")
 
 
 @contextmanager
