@@ -1,8 +1,10 @@
 import hashlib
 import json
+import os
 import sqlite3
 import subprocess
 import sys
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -225,6 +227,40 @@ updater.restore_snapshot(Storage,home,Path(sys.argv[2]))
                     self.assertEqual(connection.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
                 finally:
                     connection.close()
+
+    def test_application_startup_recovers_data_before_update_block(self):
+        old, archive = self.fixture('old', 1, 'backup')
+        profile = self.root / 'profile'
+        active, _ = self.fixture('profile/AI_Prompt_Asset_Workbench', 1, 'active')
+        before = self.digest(active)
+        code = """import os,sys,updater
+from pathlib import Path
+from storage import Storage
+home=Path(sys.argv[1]); original=updater.os.replace; calls=[]
+def crash(src,dst):
+    result=original(src,dst)
+    if Path(src).parent==home or Path(dst).parent==home:
+        calls.append(1)
+        if len(calls)==2: os._exit(71)
+    return result
+updater.os.replace=crash
+updater.restore_snapshot(Storage,home,Path(sys.argv[2]))
+"""
+        crashed = subprocess.run([sys.executable, '-c', code, str(active.home), str(archive)], timeout=30)
+        self.assertEqual(crashed.returncode, 71)
+        program = self.root / 'program'
+        program.mkdir()
+        source = Path(__file__).resolve().parents[1]
+        for name in ('ai_prompt_workbench.py', 'storage.py', 'updater.py', 'collector.py', 'case_matcher.py', 'ai_analyzer.py'):
+            shutil.copy2(source / name, program / name)
+        (program / '_update_transaction.json').write_text('{}', encoding='utf-8')
+        env = dict(os.environ, USERPROFILE=str(profile), HOME=str(profile))
+        result = subprocess.run([sys.executable, str(program / 'ai_prompt_workbench.py')], cwd=program,
+                                env=env, capture_output=True, timeout=30)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(b'_update_transaction.json', result.stderr)
+        self.assertFalse((active.home / updater.RESTORE_JOURNAL).exists())
+        self.assertEqual(self.digest(active), before)
 
 
 if __name__ == '__main__': unittest.main()

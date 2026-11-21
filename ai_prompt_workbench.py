@@ -18,9 +18,9 @@ RAW_BASE = f"https://raw.githubusercontent.com/{GITHUB_OWNER}/{GITHUB_REPO}/{GIT
 MANIFEST_URL = RAW_BASE + "update_manifest.json"
 ROOT = Path(__file__).resolve().parent
 UPDATE_JOURNAL = ROOT / "_update_transaction.json"
+HOME = active_data_home(Path.home())
 if __name__ == "__main__" and UPDATE_JOURNAL.exists() and not os.environ.get("PROMPT_ATELIER_UPDATE_CHILD"):
     raise SystemExit("检测到未完成的更新，已暂停启动。请查看 _update_transaction.json 和 _update_error.log。")
-HOME = active_data_home(Path.home())
 IMAGES = HOME / "references"
 DATA = HOME / "prompt_library.json"
 HOME.mkdir(parents=True, exist_ok=True)
