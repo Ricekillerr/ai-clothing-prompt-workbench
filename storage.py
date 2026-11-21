@@ -229,12 +229,12 @@ def active_data_home(profile: Path) -> Path:
     profile = Path(profile)
     legacy = profile / "AI_Prompt_Asset_Workbench"
     container = profile / "AI_Prompt_Asset_Workbench_v2"
-    _recover_pending_update(legacy)
-    _recover_pending_update(container / "data")
     if not container.exists() and not _is_link_or_junction(container):
+        _recover_pending_update(legacy)
         return legacy
     if _is_link_or_junction(container):
         raise StorageError("V2 数据目录不能是符号链接或目录联接")
+    _recover_pending_update(container / "data")
     marker = container / "stage2-ready.json"
     data = container / "data"
     if not marker.exists() and not _is_link_or_junction(marker):
