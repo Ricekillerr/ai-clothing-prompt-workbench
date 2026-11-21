@@ -60,13 +60,14 @@ jobs:
           import os
           from pathlib import PurePosixPath
           blocked = {"datahome", "references", "reference_images", "user_data", "backups", "_backup", "private_data", "credentials", "secrets"}
-          suffixes = {".db", ".sqlite", ".sqlite3", ".pem", ".key", ".p8", ".p12", ".pfx", ".crt", ".cer"}
+          suffixes = {".db", ".db-wal", ".db-shm", ".sqlite", ".sqlite3", ".sqlite-wal", ".sqlite-shm", ".pem", ".key", ".p8", ".p12", ".pfx", ".crt", ".cer"}
           paths = set(os.environ["ALL_PATHS"].splitlines()) | set(os.environ["CHANGED_PATHS"].splitlines())
           hits = []
           for raw in paths:
               p = PurePosixPath(raw)
               n = p.name.casefold()
-              if any(part.casefold() in blocked for part in p.parts) or p.suffix.casefold() in suffixes or n in {".env", ".npmrc", ".netrc", ".pypirc", "id_rsa", "id_ed25519", "credentials.json"}:
+              env_file = n == ".env" or (n.startswith(".env.") and n not in {".env.example", ".env.sample"})
+    if any(part.casefold() in blocked for part in p.parts) or p.suffix.casefold() in suffixes or env_file or n in {".npmrc", ".netrc", ".pypirc", "id_rsa", "id_ed25519", "credentials.json"}:
                   hits.append(raw)
           if hits:
               print("::error::Private or credential-like paths found; refusing checkout.")
@@ -169,9 +170,11 @@ jobs:
           output-schema: |
             {
               "type": "object",
-              "required": ["review_status", "reviewed_head_sha", "summary", "ci_summary", "findings", "uncompleted_acceptance", "codex_tasks", "requires_user_approval"],
+              "required": ["review_status", "repository", "pull_request", "reviewed_head_sha", "summary", "ci_summary", "findings", "uncompleted_acceptance", "codex_tasks", "requires_user_approval"],
               "properties": {
                 "review_status": {"type": "string", "enum": ["PASS", "NEEDS_CHANGES", "BLOCKED", "NEEDS_HUMAN"]},
+                "repository": {"type": "string", "enum": ["Ricekillerr/ai-clothing-prompt-workbench"]},
+                "pull_request": {"type": "integer", "enum": [10]},
                 "reviewed_head_sha": {"type": "string"},
                 "summary": {"type": "string"},
                 "ci_summary": {"type": "string"},
@@ -226,7 +229,7 @@ jobs:
             CI context contains metadata only; logs were not downloaded. Report this limitation. Distinguish CI from clean offline VM, desktop UI, real-user-data, and release acceptance.
             Every finding needs severity, path, line or null, evidence, impact, recommendation, and measurable acceptance criteria. Every Codex task needs allowed/forbidden paths, required tests, acceptance criteria, and execution_status WAITING_APPROVAL.
             Use NEEDS_HUMAN when desktop, clean-VM, real-data, or other human-only acceptance remains decisive. Do not equate green CI with release readiness.
-            Return exactly one JSON object matching the schema, with requires_user_approval=true. No Markdown fences.
+            Return exactly one JSON object matching the schema, including repository=Ricekillerr/ai-clothing-prompt-workbench and pull_request=10, with requires_user_approval=true. No Markdown fences.
           env:
             PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
             PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -251,8 +254,12 @@ jobs:
           data = json.loads(os.environ["REPORT"])
           if data.get("reviewed_head_sha") != os.environ["EXPECTED_SHA"]:
               raise SystemExit("Head SHA mismatch.")
+          if data.get("repository") != "Ricekillerr/ai-clothing-prompt-workbench" or data.get("pull_request") != 10:
+              raise SystemExit("Repository or PR number mismatch.")
           if data.get("requires_user_approval") is not True:
               raise SystemExit("Approval boundary missing.")
+          if any(task.get("execution_status") != "WAITING_APPROVAL" for task in data.get("codex_tasks", [])):
+              raise SystemExit("A Codex task is not waiting for approval.")
           Path("review-report.json").write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
           summary = [
               "# Prompt Atelier — PR #10 Codex review",
