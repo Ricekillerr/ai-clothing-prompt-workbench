@@ -104,6 +104,20 @@ storage.Storage(home).restore_full_backup(Path(sys.argv[2]))
         self.assertEqual(self.digest(active), before)
         self.assertTrue(archive.is_file())
 
+    def test_missing_version_is_rejected_without_replacement(self):
+        old, archive = self.fixture('old', 1, 'backup')
+        active, _ = self.fixture('active', 1, 'active')
+        db = sqlite3.connect(active.db_path)
+        try:
+            db.execute("DELETE FROM metadata WHERE key='schema_version'")
+            db.commit()
+        finally:
+            db.close()
+        before = self.digest(active)
+        with self.assertRaises(updater.UnsafeToRestore): updater.restore_snapshot(Storage, active.home, archive)
+        self.assertEqual(self.digest(active), before)
+        self.assertTrue(archive.is_file())
+
     def test_unreadable_active_or_invalid_backup_preserves_database(self):
         old, archive = self.fixture('old', 1, 'backup')
         active, _ = self.fixture('active', 1, 'active')
