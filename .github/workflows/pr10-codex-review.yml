@@ -1,6 +1,6 @@
 name: Prompt Atelier PR #10 Codex review
 
-on:
+"on":
   pull_request:
     types: [synchronize]
     branches:
