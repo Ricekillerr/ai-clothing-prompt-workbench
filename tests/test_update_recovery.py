@@ -102,13 +102,18 @@ class RecoveryTests(unittest.TestCase):
         self.assertFalse((self.root / "_update_transaction.json").exists())
         self.assertIsNone(self.children[-1].poll())
 
-    def test_migration_failure_restores_unreadable_database_and_reference(self):
+    def test_migration_failure_with_unreadable_database_enters_safe_recovery(self):
         self.prepare({self.entry: "from pathlib import Path\n"
             "home = Path.home() / 'AI_Prompt_Asset_Workbench'\n"
             "(home / 'prompt_library.sqlite3').write_bytes(b'broken migration')\n"
             "(home / 'references/test.png').write_bytes(b'changed')\n"
             "raise RuntimeError('migration failed')\n"})
-        self.assert_restored()
+        self.assertEqual(updater.main(), 9)
+        self.assertEqual((self.home / 'prompt_library.sqlite3').read_bytes(), b'broken migration')
+        self.assertEqual(self.image.read_bytes(), b'changed')
+        state = json.loads((self.root / '_update_transaction.json').read_text('utf8'))
+        self.assertTrue(Path(state['data_backup']).is_file())
+        self.assertEqual(state['phase'], 'rolling_back')
 
     def test_launch_error_recovers_old_process(self):
         self.prepare({"index.html": "new"})

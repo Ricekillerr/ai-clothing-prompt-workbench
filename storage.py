@@ -1788,6 +1788,8 @@ class Storage:
                     "SELECT value FROM metadata WHERE key='schema_version'"
                 ).fetchone()
                 live_version = str(row[0]) if row else ""
+            if live_version not in {"1", "2"}:
+                raise StorageError("无法确认活动数据库版本，已拒绝恢复")
             restored = sqlite3.connect(str(staged_db))
             try:
                 row = restored.execute(

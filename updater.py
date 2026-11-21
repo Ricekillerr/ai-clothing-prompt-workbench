@@ -8,6 +8,7 @@ import json
 import os
 import re
 import shutil
+import sqlite3
 import socket
 import subprocess
 import sys
@@ -205,21 +206,97 @@ def old_install(root):
     spec.loader.exec_module(module)
     return match[1], module.Storage, getattr(module, "SCHEMA_VERSION", 1)
 
+RESTORE_FILES = ("prompt_library.sqlite3-wal", "prompt_library.sqlite3-shm", "prompt_library.sqlite3-journal",
+                 "prompt_library.sqlite3", "prompt_library.json", "references")
+RESTORE_JOURNAL = ".update-restore-transaction.json"
+
+
+def restore_database_version(path):
+    """Read and validate a database without creating or replacing it."""
+    path = Path(path)
+    if path.is_symlink() or not path.is_file():
+        raise UnsafeToRestore("活动数据库不存在或路径不安全，已停止恢复")
+    try:
+        con = sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)
+        try:
+            if con.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                raise ValueError("database check failed")
+            row = con.execute("SELECT value FROM metadata WHERE key='schema_version'").fetchone()
+            if not row or str(row[0]) not in {"1", "2"}:
+                raise ValueError("unknown schema")
+            return str(row[0])
+        finally:
+            con.close()
+    except (sqlite3.Error, OSError, ValueError, TypeError, IndexError) as exc:
+        raise UnsafeToRestore("无法确认数据库版本或完整性，已停止恢复") from exc
+
+
+def recover_interrupted_snapshot(home):
+    """Reverse an interrupted replacement using the durable per-file layout."""
+    home = Path(home)
+    journal = home / RESTORE_JOURNAL
+    if not journal.exists():
+        return False
+    try:
+        state = json.loads(journal.read_text(encoding="utf-8"))
+        recovered = home / state["recovered"]
+        if (not re.fullmatch(r"\.update_recovery_[A-Za-z0-9_-]+", state["recovered"])
+                or recovered.is_symlink() or not recovered.is_dir()
+                or set(state["files"]) != set(RESTORE_FILES)):
+            raise ValueError("invalid recovery journal")
+        retained = recovered / "failed_version"
+        if retained.is_symlink() or not retained.is_dir():
+            raise ValueError("invalid recovery directory")
+        for name in RESTORE_FILES:
+            flags = state["files"][name]
+            if not isinstance(flags, dict) or set(flags) != {"live", "staged"} or any(type(v) is not bool for v in flags.values()):
+                raise ValueError("invalid recovery file state")
+        for name in reversed(RESTORE_FILES):
+            live, previous, staged = home / name, retained / name, recovered / name
+            flags = state["files"][name]
+            if previous.exists():
+                if live.exists():
+                    if staged.exists() or not flags["staged"]:
+                        raise ValueError("ambiguous recovery state")
+                    os.replace(live, staged)
+                os.replace(previous, live)
+            elif not flags["live"] and flags["staged"] and not staged.exists() and live.exists():
+                os.replace(live, staged)
+            elif flags["live"] and not live.exists():
+                raise ValueError("original data is missing")
+        journal.unlink()
+        return True
+    except Exception as exc:
+        raise UnsafeToRestore("更新数据恢复未完成，请保留恢复目录和事务记录") from exc
+
+
 def restore_snapshot(storage_type, home, snapshot):
-    # Validate into a separate store even if the failed migration made the live DB unreadable.
+    home = Path(home)
+    recover_interrupted_snapshot(home)
+    active_version = restore_database_version(home / "prompt_library.sqlite3")
     recovered = Path(tempfile.mkdtemp(prefix=".update_recovery_", dir=home))
     store = storage_type(recovered)
     store.restore_full_backup(snapshot)
+    restored_version = restore_database_version(recovered / "prompt_library.sqlite3")
+    if active_version != restored_version:
+        raise UnsafeToRestore("备份与活动数据库版本不一致，已拒绝替换")
     retained = recovered / "failed_version"
     retained.mkdir()
-    for name in ("prompt_library.sqlite3-wal", "prompt_library.sqlite3-shm", "prompt_library.sqlite3-journal",
-                 "prompt_library.sqlite3", "prompt_library.json", "references"):
-        live = home / name
-        if live.exists():
-            os.replace(live, retained / name)
-        source = recovered / name
-        if source.exists():
-            os.replace(source, live)
+    state = {"recovered": recovered.name, "files": {
+        name: {"live": (home / name).exists(), "staged": (recovered / name).exists()}
+        for name in RESTORE_FILES}}
+    journal = home / RESTORE_JOURNAL
+    with journal.open("x", encoding="utf-8") as stream:
+        json.dump(state, stream); stream.flush(); os.fsync(stream.fileno())
+    try:
+        for name in RESTORE_FILES:
+            live, source = home / name, recovered / name
+            if live.exists(): os.replace(live, retained / name)
+            if source.exists(): os.replace(source, live)
+    except BaseException:
+        recover_interrupted_snapshot(home)
+        raise
+    journal.unlink()
 
 def reopen_browser():
     if os.environ.get("PROMPT_ATELIER_NO_BROWSER") != "1":
