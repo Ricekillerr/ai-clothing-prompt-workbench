@@ -60,13 +60,13 @@ jobs:
           import os
           from pathlib import PurePosixPath
           blocked = {"datahome", "references", "reference_images", "user_data", "backups", "_backup", "private_data", "credentials", "secrets"}
-          suffixes = {".db", ".db-wal", ".db-shm", ".sqlite", ".sqlite3", ".sqlite-wal", ".sqlite-shm", ".pem", ".key", ".p8", ".p12", ".pfx", ".crt", ".cer"}
+          suffixes = {".db", ".db-wal", ".db-shm", ".db-journal", ".sqlite", ".sqlite3", ".sqlite-wal", ".sqlite-shm", ".sqlite-journal", ".sqlite3-wal", ".sqlite3-shm", ".sqlite3-journal", ".pem", ".key", ".p8", ".p12", ".pfx", ".crt", ".cer"}
           paths = set(os.environ["ALL_PATHS"].splitlines()) | set(os.environ["CHANGED_PATHS"].splitlines())
           hits = []
           for raw in paths:
               p = PurePosixPath(raw)
               n = p.name.casefold()
-              env_file = n == ".env" or (n.startswith(".env.") and n not in {".env.example", ".env.sample"})
+              env_file = n == ".env" or n.startswith(".env.") or n == ".envrc"
               if any(part.casefold() in blocked for part in p.parts) or p.suffix.casefold() in suffixes or env_file or n in {".npmrc", ".netrc", ".pypirc", "id_rsa", "id_ed25519", "credentials.json"}:
                   hits.append(raw)
           if hits:
