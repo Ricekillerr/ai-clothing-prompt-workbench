@@ -15,10 +15,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.12.14"
+      - name: Install image decoder
+        run: python -m pip install -r requirements.txt
       - name: Compile Python sources
         run: python -m compileall -q .
       - name: Report exact runtime SHA-256 values for manifest repair
@@ -114,10 +118,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.12.14"
+      - name: Install image decoder
+        run: python -m pip install -r requirements.txt
       - name: Validate release source version and update channel
         env:
           REF_NAME: ${{ github.ref_name }}
@@ -149,10 +157,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          fetch-depth: 0
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+      - name: Install Python 3.12.14
+        shell: pwsh
+        run: |
+          uv python install 3.12.14
+          $pythonPath = (uv python find --managed-python 3.12.14).Trim()
+          if (-not (Test-Path -LiteralPath $pythonPath)) { throw "Python not found" }
+          $venvPath = Join-Path $env:RUNNER_TEMP "prompt-atelier-python"
+          uv venv --seed --python $pythonPath $venvPath
+          (Join-Path $venvPath "Scripts") | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          & (Join-Path $venvPath "Scripts/python.exe") --version
+      - name: Install image decoder
+        run: python -m pip install -r requirements.txt
       - name: Run full Windows regression suite
         env:
           PYTHONIOENCODING: "utf-8"

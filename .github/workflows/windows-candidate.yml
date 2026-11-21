@@ -1,0 +1,82 @@
+name: Windows standalone candidate
+
+on:
+  pull_request:
+    branches: ["release/**"]
+  workflow_dispatch:
+
+jobs:
+  candidate:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      CANDIDATE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+      - name: Install build Python 3.12.14
+        shell: pwsh
+        run: |
+          uv python install 3.12.14
+          $pythonPath = (uv python find --managed-python 3.12.14).Trim()
+          $venvPath = Join-Path $env:RUNNER_TEMP 'candidate-build-python'
+          uv venv --seed --python $pythonPath $venvPath
+          (Join-Path $venvPath 'Scripts') | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Build isolated Python runtime and dependencies
+        shell: pwsh
+        run: |
+          $candidate = Join-Path $env:RUNNER_TEMP 'Prompt Atelier 中文 空格'
+          "CANDIDATE_DIR=$candidate" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          python tools/build_windows_portable.py $candidate
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Compile standalone launcher
+        shell: powershell
+        run: |
+          $candidate = $env:CANDIDATE_DIR
+          $launcher = Join-Path $env:RUNNER_TEMP 'PromptAtelier.exe'
+          Add-Type -Path tools/windows_launcher.cs -ReferencedAssemblies System.Windows.Forms -OutputType WindowsApplication -OutputAssembly $launcher
+          Copy-Item -LiteralPath $launcher -Destination (Join-Path $candidate 'PromptAtelier.exe')
+          if (-not (Test-Path (Join-Path $candidate 'PromptAtelier.exe'))) { throw 'Launcher was not created' }
+      - name: Exercise offline clean VM gate fault injection
+        shell: powershell
+        run: |
+          & tools/test_windows_clean_vm_gate.ps1
+      - name: Test candidate archive integrity gate
+        shell: pwsh
+        run: |
+          python tools/test_windows_candidate_archive.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Exercise isolated candidate, actual decoders and HTTP lifecycle
+        shell: pwsh
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          $candidate = $env:CANDIDATE_DIR
+          & (Join-Path $candidate 'runtime/python.exe') -I tools/windows_candidate_smoke.py $candidate
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Package candidate and record provenance
+        shell: pwsh
+        run: |
+          $candidate = $env:CANDIDATE_DIR
+          $out = Join-Path $env:RUNNER_TEMP 'candidate-artifact'
+          New-Item -ItemType Directory -Path $out | Out-Null
+          $version = @{ source_commit = $env:CANDIDATE_SOURCE_SHA; checkout_commit = $env:GITHUB_SHA; channel = 'stage2-candidate'; built_utc = (Get-Date).ToUniversalTime().ToString('o') }
+          $version | ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $candidate 'candidate-version.json')
+          $archive = Join-Path $out 'PromptAtelier-Windows-x64-candidate.zip'
+          Compress-Archive -Path (Join-Path $candidate '*') -DestinationPath $archive -CompressionLevel Optimal
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
+          "$hash  PromptAtelier-Windows-x64-candidate.zip" | Set-Content -Encoding ascii (Join-Path $out 'SHA256SUMS.txt')
+          Copy-Item (Join-Path $candidate 'dependency-versions.json') $out
+          Copy-Item (Join-Path $candidate 'candidate-version.json') $out
+          Copy-Item 'tools/windows_candidate_smoke.py' $out
+          Copy-Item 'tools/windows_clean_vm_smoke.ps1' $out
+          Copy-Item 'tools/windows_clean_vm_gate.ps1' $out
+          Write-Host "Candidate size: $((Get-Item $archive).Length) bytes; SHA-256: $hash"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prompt-atelier-windows-x64-candidate
+          path: ${{ runner.temp }}/candidate-artifact/
+          if-no-files-found: error
+          retention-days: 14

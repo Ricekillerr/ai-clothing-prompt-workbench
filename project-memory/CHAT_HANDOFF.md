@@ -82,3 +82,25 @@
 2. 若后续 CI 出现失败，读取实际证据并修复，不跳过或放宽测试；公开摘要与详细登录日志的证据等级要区分。
 3. 继续真实资料库性能、全应用键盘/读屏和真实检索指标验收。用户真实 SQLite、参考图片、配置、杀毒软件、网络和长时间运行仍需集中实机验收。
 4. 多模型联调从 `docs/MODEL_CONFIGURATION_AND_AGENT_ROADMAP.md` 的阶段 A 开始，先选一个视觉分析提供商；只有那时才引导用户配置真实模型、API Key 和测试素材。
+
+
+## 2026-11-20 Windows 独立候选与历史视频
+
+Windows x64 候选采用独立 Python 3.12 运行目录和 C# 启动器，保留现有基于解释器和脚本的更新与重启架构。Pillow 13.0.0 和 imageio-ffmpeg 0.6.0 随包交付，CI 检查包内 FFmpeg 7.1 并实际解码图片和视频。旧数据库中的绝对路径视频只保留原始引用并创建待重新定位记录，不读取或复制未授权文件；V2 备份恢复和中断激活保留这些记录。导入已扫描素材检查每一级路径组件的符号链接和目录联接。
+
+PR #10 验证提交 fc9a72e5270664cfbb7c06e54b5b82d199fd7d7d 的 Release validation #647：https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/44671725049 。Windows Python 3.12.14 244 项通过，Ubuntu 244 项中 240 通过、4 项 Windows 专项跳过。
+
+候选构建 #10（源码 681d4e93df1f033be422668cf242359d2f6ff32c）：https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/44672168801/artifacts/14600632415 。内层 ZIP 53,810,918 字节，SHA-256 b6a848582cef3b747704684a493a2b1412a74f517a47408c18105227f9d206d4。Windows 托管运行器在受限 PATH、临时资料和中文空格路径下使用包内 Python 完成 EXE/HTTP 启停、实际图片与视频解码、视频导入和去重，以及真实更新器更新后 V2 数据库、视频和设置保护。
+
+上述运行器仍预装开发工具，并非未安装 Python 的全新 Windows 系统；未进行 OS 级离线隔离或真实 Windows 桌面体验。已提供独立干净 VM 测试脚本和 docs/WINDOWS_CANDIDATE.md 方案，尚未在此类 VM 执行。旧版历史视频仍需人工授权扫描并重新定位，旧引用不会自动覆盖。运行时依赖本身的应用内自动更新尚未实现；禁止合并、发布及迁移真实用户数据。
+
+
+## 2026-11-20 阶段 2 最终隔离验收准备
+
+基准 PR #10：77ebfa0644f5ad670dc6193c2cf5c46d73073552，原候选内层 ZIP SHA-256 c94f169616c2c93356bc5e03e7bbe94d13dd51b0b24937f0fc0eb11a680f5e54。检查当前环境时未发现 Hyper-V 管理命令/服务、VMware、VirtualBox 或 QEMU 命令，也未发现连接的云计算工具；Win32 CIM 查询被环境拒绝，无法断言系统功能的全部安装状态。当前没有可用干净、可回滚且断网的 Windows VM，真实 VM 与桌面验收未执行，无截图证据。
+
+完善离线门禁：验证虚拟机身份、网卡和 IPv4/IPv6 默认路由，并在测试期间轮询；检查 Python/Launcher 注册表、Store 包、常见系统和用户安装位置、执行别名及 FFmpeg；查询失败直接阻断。校验指定原 ZIP 的固定 SHA-256，并将解压文件逐个与 ZIP 比较、拒绝额外文件和链接。门禁故障注入本机通过 1 个正常场景及 9 个拒绝场景；隔离 ZIP 测试 5 项通过。轮询与路径检查无法证明系统完全清洁或采样间隔内绝无联网，仍需可信映像、快照和外部断网证据。
+
+新增 docs/RUNTIME_UPDATE_ROLLBACK_DESIGN.md，仅为方案，未修改更新器。新增 docs/STAGE2_DESKTOP_ACCEPTANCE.md 记录 UI 验收方法和静态发现：当前媒体类型仅支持图片，案例素材区未发现视频播放控件；视频真实展示尚未通过验收。阶段 2 不得放行，PR #10 保持 Draft，未合并或发布，未操作真实用户数据。
+
+CI 补充证据：PR #10 验证提交 6aaa65e1b67f77284d6acee6c2c98155806d9ecc，[Release validation #651](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/44685540064) 在 Windows Python 3.12.14 运行 244 项全部通过，Ubuntu 运行 244 项、240 通过、4 项 Windows 专项跳过，失败和错误均为 0。[Windows candidate #13](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/44685540216) 成功运行离线门禁故障注入、5 项候选包完整性检查和受限环境独立包冒烟；该 CI 并非真实离线 VM，不能计入 VM 或桌面验收。

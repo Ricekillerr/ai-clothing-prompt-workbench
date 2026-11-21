@@ -1,0 +1,513 @@
+import hashlib
+import json
+import sys
+import os
+import time
+from urllib.request import Request, build_opener, ProxyHandler
+import updater
+import importlib.util
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+from protected_migration import create_protected_copy, recover_protected_copy
+from storage import Storage, StorageError, active_data_home, _activation_lock, legacy_divergence_status
+
+
+class ProtectedCopyTests(unittest.TestCase):
+    def test_absolute_legacy_video_is_retained_pending_without_opening_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = Storage(root / "legacy")
+            source.save_data({"cases": [{"id": "c1", "body": "原文"}], "modules": []})
+            external = root / "授权外 中文" / "视频.mp4"
+            external.parent.mkdir()
+            external.write_bytes("原始用户文件".encode("utf-8"))
+            original = external.read_bytes()
+            with source._session() as con:
+                con.execute("INSERT INTO attachments(asset_id,relative_path,media_type,role,sha256) VALUES(?,?,?,?,?)",
+                            ("c1", str(external), "video", "history_reference", "0" * 64))
+                con.execute("INSERT INTO attachments(asset_id,relative_path,media_type,role,sha256) VALUES(?,?,?,?,?)",
+                            ("c1", r"C:\\旧项目 空格\\不存在.mp4", "video", "history_reference", "1" * 64))
+            target = root / "protected"
+            result = create_protected_copy(source, target)
+            self.assertEqual(external.read_bytes(), original)
+            store = Storage(target / "data")
+            with store._session() as con:
+                attachment = con.execute("SELECT id,relative_path FROM attachments WHERE asset_id='c1' ORDER BY id").fetchone()
+                self.assertEqual(attachment["relative_path"], str(external))
+                self.assertEqual(con.execute("SELECT status FROM unresolved_video_refs WHERE attachment_id=?", (attachment["id"],)).fetchone()[0], "pending")
+                self.assertIn("重新定位", con.execute("SELECT reason FROM migration_review WHERE case_id='c1'").fetchone()[0])
+            self.assertEqual(len(result["report"]["unresolved_video_ids"]), 2)
+            backup = store.create_full_backup(store.home / "references", app_version="test")
+            store.restore_full_backup(backup)
+            self.assertEqual(external.read_bytes(), original)
+            self.assertEqual(store.load_data()["cases"][0]["body"], "原文")
+
+    def test_relative_video_traversal_still_blocks_migration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = Storage(root / "legacy")
+            source.save_data({"cases": [{"id": "c1", "body": "原文"}], "modules": []})
+            with source._session() as con:
+                con.execute("INSERT INTO attachments(asset_id,relative_path,media_type) VALUES(?,?,?)",
+                            ("c1", "../other.mp4", "video"))
+            with self.assertRaises(StorageError):
+                create_protected_copy(source, root / "protected")
+
+    def test_unresolved_legacy_video_survives_interrupted_activation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = Storage(root / "legacy")
+            source.save_data({"cases": [{"id": "c1", "body": "原文"}], "modules": []})
+            with source._session() as con:
+                con.execute("INSERT INTO attachments(asset_id,relative_path,media_type,sha256) VALUES(?,?,?,?)",
+                            ("c1", r"C:\\未知 路径\\视频.mp4", "video", "0" * 64))
+            destination = root / "protected"
+            with patch("storage._write_ready_marker", side_effect=OSError("interrupted")):
+                with self.assertRaises(OSError):
+                    create_protected_copy(source, destination)
+            self.assertEqual(recover_protected_copy(destination, root / ".stage2-copy-moved")["status"], "recovered")
+            with Storage(destination / "data")._session() as con:
+                self.assertEqual(con.execute("SELECT COUNT(*) FROM unresolved_video_refs WHERE status='pending'").fetchone()[0], 1)
+                self.assertEqual(con.execute("SELECT COUNT(*) FROM attachments WHERE asset_id='c1'").fetchone()[0], 1)
+    def test_real_legacy_write_is_detected_without_changing_v2(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = Path(tmp)
+            legacy = profile / "AI_Prompt_Asset_Workbench"
+            source = Storage(legacy)
+            source.save_data({"cases": [{"id": "c1", "body": "原始"}], "modules": []})
+            target = profile / "AI_Prompt_Asset_Workbench_v2"
+            create_protected_copy(source, target)
+            v2 = Storage(target / "data")
+            with v2._session() as con:
+                con.execute("INSERT INTO garments(id,name,category) VALUES('g1','外套','上装')")
+                con.execute("INSERT INTO case_garments(id,case_id,garment_id) VALUES('cg1','c1','g1')")
+                con.execute("INSERT INTO prompt_sources(id,case_id,version,body,sha256) VALUES('v2','c1',2,'新版','hash')")
+            self.assertEqual(legacy_divergence_status(profile)["status"], "unchanged")
+            root = Path(__file__).resolve().parents[1]
+            old_path = profile / "old_storage.py"
+            old_path.write_bytes(subprocess.check_output(["git", "show", "74c9c28:storage.py"], cwd=root))
+            spec = importlib.util.spec_from_file_location("stage1_legacy_divergence", old_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            module.Storage(legacy).save_data({"cases": [{"id": "c1", "body": "旧版新内容"}], "modules": []})
+            self.assertEqual(legacy_divergence_status(profile)["status"], "changed")
+            self.assertEqual(active_data_home(profile), target / "data")
+            with v2._session() as con:
+                self.assertEqual(con.execute("SELECT count(*) FROM garments").fetchone()[0], 1)
+                self.assertEqual(con.execute("SELECT count(*) FROM case_garments").fetchone()[0], 1)
+                self.assertEqual(con.execute("SELECT count(*) FROM prompt_sources").fetchone()[0], 2)
+    def test_payload_image_is_verified_and_registered_during_migration(self):
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp)
+            source = Storage(parent / "legacy")
+            refs = source.home / "references"
+            refs.mkdir(exist_ok=True)
+            Image.new("RGB", (3, 3), "red").save(refs / "sample.png")
+            source.save_data({"cases": [{"id": "c1", "body": "原文", "image": "sample.png"}], "modules": []})
+            destination = parent / "protected"
+            create_protected_copy(source, destination)
+            with Storage(destination / "data")._session() as con:
+                row = con.execute("SELECT relative_path,sha256 FROM attachments WHERE asset_id='c1'").fetchone()
+                self.assertEqual(row[0], "sample.png")
+                self.assertEqual(row[1], hashlib.sha256((refs / "sample.png").read_bytes()).hexdigest())
+
+    def test_interrupted_activation_recovers_payload_image_and_attachment(self):
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp)
+            source = Storage(parent / "legacy")
+            refs = source.home / "references"
+            refs.mkdir(exist_ok=True)
+            Image.new("RGB", (3, 3), "blue").save(refs / "sample.png")
+            source.save_data({"cases": [{"id": "c1", "body": "原文", "image": "sample.png"}], "modules": []})
+            destination = parent / "protected"
+            with patch("storage._write_ready_marker", side_effect=OSError("interrupted")):
+                with self.assertRaisesRegex(OSError, "interrupted"):
+                    create_protected_copy(source, destination)
+            self.assertEqual(recover_protected_copy(destination, parent / ".stage2-copy-moved")["status"], "recovered")
+            with Storage(destination / "data")._session() as con:
+                self.assertEqual(con.execute("SELECT COUNT(*) FROM attachments WHERE asset_id='c1'").fetchone()[0], 1)
+            self.assertEqual((destination / "data" / "references" / "sample.png").read_bytes(),
+                             (refs / "sample.png").read_bytes())
+
+    def test_selection_requires_completed_valid_v2_marker(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = Path(tmp)
+            legacy = profile / "AI_Prompt_Asset_Workbench"
+            source = Storage(legacy)
+            source.save_data({"cases": [{"id": "c1", "body": "原文"}], "modules": []})
+            self.assertEqual(active_data_home(profile), legacy)
+            container = profile / "AI_Prompt_Asset_Workbench_v2"
+            create_protected_copy(source, container)
+            self.assertEqual(active_data_home(profile), container / "data")
+            (container / "stage2-ready.json").write_text("bad json", encoding="utf8")
+            with self.assertRaises(StorageError):
+                active_data_home(profile)
+
+    def test_old_restore_cannot_replace_v2_data_or_references(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp)
+            old_dir = parent / "legacy"
+            old_dir.mkdir()
+            old = Storage(old_dir)
+            old.save_data({"cases": [{"id": "c1", "body": "原始提示词"}], "modules": []})
+            refs = old_dir / "references"
+            refs.mkdir()
+            old_backup = old.create_full_backup(refs, app_version="0.6.5")
+            old_backup_hash = hashlib.sha256(old_backup.read_bytes()).hexdigest()
+            new_dir = parent / "protected"
+            result = create_protected_copy(old, new_dir)
+            self.assertTrue(Path(result["migration"]["backup"]).is_file())
+            v2 = Storage(new_dir / "data")
+            image = new_dir / "data" / "references" / "v2.png"
+            image.write_bytes(b"v2-only")
+            with v2._session() as con:
+                con.execute("INSERT INTO garments(id,name,category) VALUES('g1','马甲','上装')")
+                con.execute("INSERT INTO case_garments(id,case_id,garment_id) VALUES('cg1','c1','g1')")
+                con.execute("INSERT INTO prompt_sources(id,case_id,version,body,sha256) VALUES('v2','c1',2,'新版','hash')")
+            root = Path(__file__).resolve().parents[1]
+            previous = subprocess.check_output(["git", "show", "74c9c28:storage.py"], cwd=root)
+            previous_path = parent / "previous_storage.py"
+            previous_path.write_bytes(previous)
+            spec = importlib.util.spec_from_file_location("previous_storage_protected_test", previous_path)
+            previous_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(previous_module)
+            legacy = previous_module.Storage(old_dir)
+            result = legacy.restore_full_backup(old_backup)
+            self.assertTrue(result["ok"])
+            self.assertEqual(hashlib.sha256(old_backup.read_bytes()).hexdigest(), old_backup_hash)
+            with v2._session() as con:
+                self.assertEqual(con.execute("SELECT count(*) FROM garments").fetchone()[0], 1)
+                self.assertEqual(con.execute("SELECT count(*) FROM case_garments").fetchone()[0], 1)
+                self.assertEqual(con.execute("SELECT count(*) FROM prompt_sources").fetchone()[0], 2)
+            self.assertEqual(image.read_bytes(), b"v2-only")
+
+    def test_http_migration_restarts_into_protected_store(self):
+        import socket
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = Path(tmp)
+            source = Storage(profile / "AI_Prompt_Asset_Workbench")
+            source.save_data({"cases": [{"id": "c1", "body": "迁移原文"}], "modules": []})
+            root = Path(__file__).resolve().parents[1]
+            env = dict(os.environ, HOME=str(profile), USERPROFILE=str(profile),
+                       PROMPT_ATELIER_NO_BROWSER="1", PYTHONDONTWRITEBYTECODE="1")
+            check = socket.socket()
+            try:
+                check.bind(("127.0.0.1", 8765))
+            finally:
+                check.close()
+            process = subprocess.Popen(
+                [sys.executable, str(root / "ai_prompt_workbench.py")], cwd=root, env=env,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            opener = build_opener(ProxyHandler({}))
+            def request(path, payload=None):
+                data = None if payload is None else json.dumps(payload).encode()
+                req = Request("http://127.0.0.1:8765" + path, data=data,
+                              headers={"Content-Type": "application/json"})
+                with opener.open(req, timeout=3) as response:
+                    return json.loads(response.read())
+            try:
+                deadline = time.monotonic() + 20
+                while True:
+                    if process.poll() is not None:
+                        self.fail("V1 工作台未能启动")
+                    try:
+                        if request("/api/version")["schema_version"] == "1":
+                            break
+                    except OSError:
+                        pass
+                    if time.monotonic() >= deadline:
+                        self.fail("V1 工作台启动超时")
+                    time.sleep(0.1)
+                result = request("/api/knowledge/migrate", {})
+                self.assertTrue(result["ok"])
+                process.wait(timeout=15)
+                deadline = time.monotonic() + 30
+                while True:
+                    try:
+                        if request("/api/version")["schema_version"] == "2":
+                            break
+                    except OSError:
+                        pass
+                    if time.monotonic() >= deadline:
+                        self.fail("V2 工作台重启超时")
+                    time.sleep(0.1)
+                self.assertEqual(request("/api/data")["cases"][0]["body"], "迁移原文")
+                self.assertTrue((profile / "AI_Prompt_Asset_Workbench" / "prompt_library.sqlite3").is_file())
+                request("/api/client/heartbeat", {})
+                request("/api/client/close", {})
+                deadline = time.monotonic() + 15
+                while time.monotonic() < deadline:
+                    probe = socket.socket()
+                    try:
+                        if probe.connect_ex(("127.0.0.1", 8765)) != 0:
+                            break
+                    finally:
+                        probe.close()
+                    time.sleep(0.2)
+                else:
+                    self.fail("V2 工作台未正常关闭")
+            finally:
+                if process.poll() is None:
+                    process.terminate()
+                    process.wait(timeout=10)
+
+    def test_updater_rejects_incompatible_old_program_with_active_v2(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = Path(tmp)
+            legacy = Storage(profile / "AI_Prompt_Asset_Workbench")
+            legacy.save_data({"cases": [{"id": "c1", "body": "原文"}], "modules": []})
+            protected = profile / "AI_Prompt_Asset_Workbench_v2"
+            create_protected_copy(legacy, protected)
+            v2 = Storage(protected / "data")
+            with v2._session() as con:
+                con.execute("INSERT INTO garments(id,name,category) VALUES('g1','外套','上装')")
+            program = profile / "program"
+            program.mkdir()
+            root = Path(__file__).resolve().parents[1]
+            for name in ("storage.py", "ai_prompt_workbench.py"):
+                (program / name).write_bytes(subprocess.check_output(
+                    ["git", "show", "74c9c28:" + name], cwd=root))
+            stage = profile / "stage"
+            stage.mkdir()
+            (stage / "index.html").write_bytes(b"new")
+            (stage / "update_meta.json").write_text(
+                json.dumps({"version": "0.7.0", "files": {
+                    "index.html": hashlib.sha256(b"new").hexdigest()}}), encoding="utf8")
+            args = ["updater.py", str(stage), str(program), str(program / "launcher.bat")]
+            with patch.object(sys, "argv", args), patch.object(updater.Path, "home", return_value=profile), \
+                 patch.object(updater, "service_running", return_value=False):
+                self.assertEqual(updater.main(), 9)
+            self.assertFalse((program / "index.html").exists())
+            self.assertTrue(stage.exists())
+            with v2._session() as con:
+                self.assertEqual(con.execute("SELECT name FROM garments").fetchone()[0], "外套")
+
+    def test_running_workbench_reads_protected_v2_after_old_restore(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = Path(tmp)
+            legacy_dir = profile / "AI_Prompt_Asset_Workbench"
+            old = Storage(legacy_dir)
+            old.save_data({"cases": [{"id": "c1", "body": "旧原文"}], "modules": []})
+            old_backup = old.create_full_backup(legacy_dir / "references")
+            protected = profile / "AI_Prompt_Asset_Workbench_v2"
+            create_protected_copy(old, protected)
+            v2 = Storage(protected / "data")
+            v2.save_data({"cases": [{"id": "c1", "body": "V2 新原文"}], "modules": []})
+            root = Path(__file__).resolve().parents[1]
+            previous = subprocess.check_output(["git", "show", "74c9c28:storage.py"], cwd=root)
+            path = profile / "legacy_storage.py"
+            path.write_bytes(previous)
+            spec = importlib.util.spec_from_file_location("old_storage_running_test", path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            env = dict(os.environ, HOME=str(profile), USERPROFILE=str(profile),
+                       PROMPT_ATELIER_NO_BROWSER="1", PYTHONDONTWRITEBYTECODE="1")
+            process = subprocess.Popen([sys.executable, str(root / "ai_prompt_workbench.py")],
+                                       cwd=root, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            opener = build_opener(ProxyHandler({}))
+            try:
+                deadline = time.monotonic() + 15
+                while True:
+                    if process.poll() is not None:
+                        self.fail("隔离工作台未能启动")
+                    try:
+                        with opener.open("http://127.0.0.1:8765/api/data", timeout=1) as response:
+                            data = json.loads(response.read())
+                        break
+                    except OSError:
+                        if time.monotonic() >= deadline:
+                            self.fail("隔离工作台启动超时")
+                        time.sleep(0.1)
+                self.assertEqual(data["cases"][0]["body"], "V2 新原文")
+                module.Storage(legacy_dir).restore_full_backup(old_backup)
+                with opener.open("http://127.0.0.1:8765/api/data", timeout=2) as response:
+                    after = json.loads(response.read())
+                self.assertEqual(after["cases"][0]["body"], "V2 新原文")
+                request = Request("http://127.0.0.1:8765/api/knowledge",
+                                  data=json.dumps({"action": "create_garment", "name": "马甲",
+                                                   "category": "上装"}).encode(),
+                                  headers={"Content-Type": "application/json"}, method="POST")
+                with opener.open(request, timeout=2) as response:
+                    garment_id = json.loads(response.read())["result"]
+                with opener.open("http://127.0.0.1:8765/api/knowledge?action=garment&id=" + garment_id,
+                                 timeout=2) as response:
+                    self.assertEqual(json.loads(response.read())["data"]["garment"]["name"], "马甲")
+                with opener.open("http://127.0.0.1:8765/index.html", timeout=2) as response:
+                    self.assertIn(b'data-page="garments"', response.read())
+            finally:
+                process.terminate()
+                process.wait(timeout=10)
+
+    def test_previous_updater_recovery_cannot_replace_v2_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp)
+            old_dir = parent / "legacy"
+            old_dir.mkdir()
+            old = Storage(old_dir)
+            old.save_data({"cases": [{"id": "c1", "body": "原文"}], "modules": []})
+            backup = old.create_full_backup(old_dir / "references", app_version="0.6.5")
+            digest = hashlib.sha256(backup.read_bytes()).hexdigest()
+            protected = parent / "protected"
+            create_protected_copy(old, protected)
+            v2 = Storage(protected / "data")
+            with v2._session() as con:
+                con.execute("INSERT INTO garments(id,name,category) VALUES('g1','外套','上装')")
+                con.execute("INSERT INTO case_garments(id,case_id,garment_id) VALUES('cg1','c1','g1')")
+                con.execute("INSERT INTO prompt_sources(id,case_id,version,body,sha256) VALUES('v2','c1',2,'新版本','hash')")
+            root = Path(__file__).resolve().parents[1]
+            modules = []
+            for name in ("storage", "updater"):
+                path = parent / (name + "_previous.py")
+                path.write_bytes(subprocess.check_output(["git", "show", "74c9c28:" + name + ".py"], cwd=root))
+                spec = importlib.util.spec_from_file_location("previous_" + name, path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                modules.append(module)
+            modules[1].restore_snapshot(modules[0].Storage, old_dir, backup)
+            self.assertEqual(hashlib.sha256(backup.read_bytes()).hexdigest(), digest)
+            with v2._session() as con:
+                self.assertEqual(con.execute("SELECT count(*) FROM garments").fetchone()[0], 1)
+                self.assertEqual(con.execute("SELECT count(*) FROM case_garments").fetchone()[0], 1)
+                self.assertEqual(con.execute("SELECT count(*) FROM prompt_sources").fetchone()[0], 2)
+
+    def test_interrupted_activation_leaves_unready_container_and_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = Storage(root / "legacy")
+            source.save_data({"cases": [{"id": "c1", "body": "原始"}], "modules": []})
+            destination = root / "protected"
+            with patch("storage.os.rename", side_effect=OSError("injected interruption")):
+                with self.assertRaisesRegex(OSError, "injected interruption"):
+                    create_protected_copy(source, destination)
+            self.assertTrue(destination.is_dir())
+            self.assertFalse((destination / "stage2-ready.json").exists())
+            staged = list(root.glob(".stage2-copy-*"))
+            self.assertEqual(len(staged), 1)
+            self.assertEqual(source.load_data()["cases"][0]["body"], "原始")
+            recovered = recover_protected_copy(destination, staged[0])
+            self.assertEqual(recovered["status"], "recovered")
+            recovered_store = Storage(destination / "data")
+            self.assertEqual(recovered_store.load_data()["cases"][0]["body"], "原始")
+            with self.assertRaises(StorageError):
+                recover_protected_copy(destination, staged[0])
+
+    def test_recovery_after_data_move_before_marker(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = Storage(root / "legacy")
+            source.save_data({"cases": [{"id": "c1", "body": "原始"}], "modules": []})
+            destination = root / "protected"
+            with patch("storage._write_ready_marker", side_effect=OSError("marker interruption")):
+                with self.assertRaisesRegex(OSError, "marker interruption"):
+                    create_protected_copy(source, destination)
+            self.assertTrue((destination / "data" / "prompt_library.sqlite3").is_file())
+            self.assertFalse((destination / "stage2-ready.json").exists())
+            missing_stage = root / ".stage2-copy-moved"
+            self.assertEqual(recover_protected_copy(destination, missing_stage)["status"], "recovered")
+            self.assertEqual(Storage(destination / "data").load_data()["cases"][0]["body"], "原始")
+
+    def test_recovery_refuses_when_legacy_changed_after_interruption(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = Storage(root / "legacy")
+            source.save_data({"cases": [{"id": "c1", "body": "原始"}], "modules": []})
+            destination = root / "protected"
+            with patch("storage._write_ready_marker", side_effect=OSError("interrupted")):
+                with self.assertRaises(OSError):
+                    create_protected_copy(source, destination)
+            source.save_data({"cases": [{"id": "c1", "body": "迁移后旧版新增内容"}], "modules": []})
+            with self.assertRaisesRegex(StorageError, "来源数据.*变化"):
+                recover_protected_copy(destination, root / ".stage2-copy-moved")
+            self.assertFalse((destination / "stage2-ready.json").exists())
+            self.assertEqual(source.load_data()["cases"][0]["body"], "迁移后旧版新增内容")
+            self.assertEqual(Storage(destination / "data").load_data()["cases"][0]["body"], "原始")
+
+    def test_scan_does_not_resume_during_activation(self):
+        import ai_prompt_workbench as app
+        previous = app.STORAGE
+        with tempfile.TemporaryDirectory() as tmp:
+            app.STORAGE = Storage(Path(tmp))
+            app.MIGRATION_ACTIVE.set()
+            try:
+                with self.assertRaisesRegex(RuntimeError, "迁移进行中"):
+                    app.scan_registered_source("ignored")
+            finally:
+                app.MIGRATION_ACTIVE.clear()
+                app.STORAGE = previous
+
+    def test_concurrent_activation_lock_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Storage(Path(tmp) / "legacy")
+            with _activation_lock(source.home):
+                with self.assertRaisesRegex(StorageError, "正在运行"):
+                    with _activation_lock(source.home):
+                        pass
+
+    def test_startup_recovers_interrupted_activation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = Path(tmp)
+            source = Storage(profile / "AI_Prompt_Asset_Workbench")
+            source.save_data({"cases": [{"id": "c1", "body": "原始"}], "modules": []})
+            destination = profile / "AI_Prompt_Asset_Workbench_v2"
+            with patch("storage._write_ready_marker", side_effect=OSError("interrupted")):
+                with self.assertRaises(OSError):
+                    create_protected_copy(source, destination)
+            self.assertFalse((destination / "stage2-ready.json").exists())
+            selected = active_data_home(profile)
+            self.assertEqual(selected, destination / "data")
+            self.assertTrue((destination / "stage2-ready.json").exists())
+            self.assertEqual(Storage(selected).load_data()["cases"][0]["body"], "原始")
+
+    def test_startup_recovers_before_data_move(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = Path(tmp)
+            source = Storage(profile / "AI_Prompt_Asset_Workbench")
+            source.save_data({"cases": [{"id": "c1", "body": "原始"}], "modules": []})
+            destination = profile / "AI_Prompt_Asset_Workbench_v2"
+            with patch("storage.os.rename", side_effect=OSError("interrupted")):
+                with self.assertRaises(OSError):
+                    create_protected_copy(source, destination)
+            self.assertFalse((destination / "data").exists())
+            self.assertEqual(active_data_home(profile), destination / "data")
+            self.assertEqual(Storage(destination / "data").load_data()["cases"][0]["body"], "原始")
+
+    def test_startup_refuses_recovery_after_legacy_changed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = Path(tmp)
+            source = Storage(profile / "AI_Prompt_Asset_Workbench")
+            source.save_data({"cases": [{"id": "c1", "body": "原始"}], "modules": []})
+            destination = profile / "AI_Prompt_Asset_Workbench_v2"
+            with patch("storage._write_ready_marker", side_effect=OSError("interrupted")):
+                with self.assertRaises(OSError):
+                    create_protected_copy(source, destination)
+            source.save_data({"cases": [{"id": "c1", "body": "旧版新数据"}], "modules": []})
+            with self.assertRaisesRegex(StorageError, "来源数据.*变化"):
+                active_data_home(profile)
+            self.assertFalse((destination / "stage2-ready.json").exists())
+            self.assertEqual(source.load_data()["cases"][0]["body"], "旧版新数据")
+            self.assertEqual(Storage(destination / "data").load_data()["cases"][0]["body"], "原始")
+
+    def test_failed_copy_does_not_replace_source_or_original_backup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = Storage(root / "legacy")
+            source.save_data({"cases": [{"id": "c1", "body": "原始"}], "modules": []})
+            old_backup = source.create_full_backup(source.home / "references")
+            digest = hashlib.sha256(old_backup.read_bytes()).hexdigest()
+            with patch("storage.migrate", side_effect=RuntimeError("fault")):
+                with self.assertRaisesRegex(RuntimeError, "fault"):
+                    create_protected_copy(source, root / "protected")
+            self.assertFalse((root / "protected").exists())
+            self.assertEqual(source.load_data()["cases"][0]["body"], "原始")
+            self.assertEqual(hashlib.sha256(old_backup.read_bytes()).hexdigest(), digest)
+
+
+if __name__ == "__main__":
+    unittest.main()

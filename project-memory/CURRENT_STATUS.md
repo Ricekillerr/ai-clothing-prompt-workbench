@@ -1,5 +1,16 @@
 # Prompt Atelier — 当前状态
 
+## 2026-11-19 阶段 1 本地候选改动，待 Linux 与桌面验收
+
+基线为 release/v0.6.5-stabilization 的 28a8de2，运行版本仍为 0.6.5。以下结果对应本地未发布的工程改动。
+
+- 启动器实际探测 py.exe -3 与 python.exe；应用启动失败不会触发第二次启动。
+- 更新器先等原进程退出，重新取得包含数据库和 references 的完整快照。首次替换前写入 _update_transaction.json；健康检查验证进程、版本、数据库案例/模块读取及前端。健康超时为 45 秒。
+- 启动、迁移或健康检查失败时停止候选子进程，恢复程序和版本标记，从已验证快照重建数据，再启动并检查旧服务。故障诊断进入 _update_error.log。异常中断走保守恢复方式：新版正常入口检测到事务日志会阻止启动，保留程序备份、数据快照与阶段信息，供恢复使用。
+- Windows Python 3.12.14，故障注入专项 7/7 通过；完整回归 197 项，193 通过、0 失败、0 错误、4 项因符号链接权限跳过。一次中间全量出现 BAT 关闭超时；收紧心跳与关闭时间戳相同的边界后复跑通过。
+- Windows 全新隔离 Git 检出清单索引和工作树均为 LF，再生成后仍干净，9/9 运行文件的 SHA-256 匹配。BAT 按原规范保持 CRLF。
+- WSL 未安装，未发现可用 Linux 运行时。本轮 Linux 结果待补。Windows 验证使用真实子进程、本机 HTTP、隔离数据库和测试图片；真实浏览器、生产资料副本、大图库耗时与系统断电未验收。
+
 **核对日期：** 2026-11-14（V0.6.5 双环境与远端 CI 全绿后）
 **仓库：** https://github.com/Ricekillerr/ai-clothing-prompt-workbench
 **生产分支：** main（保持不动）
@@ -136,3 +147,57 @@ CI 证明隔离环境中的代码和测试通过，不等于用户本人 Windows
 6. 发布前重新核对版本、分支、manifest、全部哈希、更新源和完整回归。
 
 **禁止：** 上述门禁完成前不合并 main、不发布正式版、不要求用户下载候选包。
+
+
+## 2026-11-19 V3 进展
+
+已在隔离测试中为 PNG、JPEG、WebP 增加真实解码及损坏测试。迁移预检检查 SQLite quick_check / integrity_check、外键、版本、基础字段、素材路径和流式哈希。新增依赖 Pillow。stage2 专项 9/9，本机预检 3 通过、1 项因符号链接权限跳过，存储历史回归 41 通过、2 项同原因跳过。
+
+V2 备份清单记录 schema_version 和 format_version，测试 V2 恢复前保留安全备份；新程序拒绝 V1 备份覆盖 V2。高于支持版本的数据库在创建写连接前拒绝。实验迁移仍限制临时目录，旧版程序的文件级替换保护、完整预检、正式迁移、JSON、历史回填和管理界面均未完成。已通过测试不能作为正式迁移验收。
+
+
+## 2026-11-19 V3 CI 与文件级风险
+
+代码树对应 PR #10 验证提交 6eb39518535eddd347292e9601e93ba431d05d97，Release validation #608 成功。Ubuntu Python 3.12.14 共 211 项，207 通过、4 项 Windows 专用跳过；Windows Python 3.12.14 共 211 项全部通过。阶段 2 仍未完成。
+
+真实阶段 1 storage.py 的隔离恢复故障注入表明，旧程序可使用 V1 备份直接替换包含新增单品的 V2 数据库；安全备份保留，但活动库退回 V1。新版入口已阻止该覆盖，SQLite 触发器不阻止旧程序文件替换。故正式迁移继续限制在临时目录，文件级保护完成并测试前不能迁移用户数据。最小界面、HTTP API、历史单品回填、旧 JSON 和完整数据恢复门禁仍待完成。
+
+
+## 2026-11-20 阶段 2 隔离实施进展
+
+版本化 V2 数据目录与 V1 目录分离；隔离测试加载阶段 1 的真实 storage.py，执行旧备份恢复，验证 V2 单品、案例关联、原文版本和参考文件未被覆盖。该保护限于正常程序固定目录，不能阻止拥有文件系统权限的任意程序直接修改 V2 文件。中断激活会核对来源指纹、附件及原始图片哈希并进入恢复或安全阻断。已接入显式迁移、历史单品回填、知识库接口、最小界面、V2 JSON 完整备份和恢复；不代表全部验收完成。
+
+本机 Windows Python 3.12.14、隔离数据目录的全量测试 237 项：232 通过、0 失败、0 错误、5 项因本机符号链接权限跳过；最新代码的 GitHub Windows/Ubuntu CI 尚待核验。仍需解决视频附件的安全校验与导入、普通用户运行环境的 Pillow 部署、跨平台最终 CI 及完整产品验收。禁止迁移真实用户数据，PR #10 保持 Draft。
+
+CI 证据：PR #10 提交 6e4f5a3dc44bd56756ba3a4f9fffcd5f24b39acc，Release validation #632（https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/44654654885）：Windows Python 3.12.14 237/237 通过；Ubuntu Python 3.12.14 237 项中 233 通过、4 项 Windows 专用跳过，均 0 失败。后续新增的测试尚未纳入此轮 CI。
+
+
+## 2026-11-20 视频素材与 V1 数据变化检查
+
+新增 V1 迁移后变化检查，通过阶段 1 真实旧版 save_data 的隔离测试；检测到变化时提示保留两份数据，不自动合并或覆盖。视频预检支持常见容器签名、大小、流式 SHA-256 和 FFmpeg 解码，缺少解码器时保守拒绝；扫描过的授权来源可经接口导入案例，以内容哈希命名并在复制校验后原子发布。测试覆盖真实短视频、损坏、错误类型、错误哈希、路径越界、重复导入和模拟导入中断。UI 增加从已扫描素材选择视频。
+
+PR #10 提交 e123cb5143a7a12db46db394ffc1227a1eaebc7e 的 Release validation #637：https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/44661412953 。Windows Python 3.12.14 241 项通过；Ubuntu 241 项中 237 通过、4 项 Windows 专项跳过。该结果不包含之后的 UI 修改。本机沙箱限制回环网络，完整本机 HTTP 回归无法执行；以隔离 CI 记录为准。
+
+尚未完成：普通安装环境的 Pillow 与 FFmpeg 自包含交付、无预装依赖的干净 Windows 安装测试、正式 Windows 候选安装包、UI 真实浏览器验收和历史绝对路径视频的安全迁移。仍禁止真实用户数据迁移、合并及发布。
+
+
+## 2026-11-20 Windows 独立候选与历史视频
+
+Windows x64 候选采用独立 Python 3.12 运行目录和 C# 启动器，保留现有基于解释器和脚本的更新与重启架构。Pillow 13.0.0 和 imageio-ffmpeg 0.6.0 随包交付，CI 检查包内 FFmpeg 7.1 并实际解码图片和视频。旧数据库中的绝对路径视频只保留原始引用并创建待重新定位记录，不读取或复制未授权文件；V2 备份恢复和中断激活保留这些记录。导入已扫描素材检查每一级路径组件的符号链接和目录联接。
+
+PR #10 验证提交 fc9a72e5270664cfbb7c06e54b5b82d199fd7d7d 的 Release validation #647：https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/44671725049 。Windows Python 3.12.14 244 项通过，Ubuntu 244 项中 240 通过、4 项 Windows 专项跳过。
+
+候选构建 #10（源码 681d4e93df1f033be422668cf242359d2f6ff32c）：https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/44672168801/artifacts/14600632415 。内层 ZIP 53,810,918 字节，SHA-256 b6a848582cef3b747704684a493a2b1412a74f517a47408c18105227f9d206d4。Windows 托管运行器在受限 PATH、临时资料和中文空格路径下使用包内 Python 完成 EXE/HTTP 启停、实际图片与视频解码、视频导入和去重，以及真实更新器更新后 V2 数据库、视频和设置保护。
+
+上述运行器仍预装开发工具，并非未安装 Python 的全新 Windows 系统；未进行 OS 级离线隔离或真实 Windows 桌面体验。已提供独立干净 VM 测试脚本和 docs/WINDOWS_CANDIDATE.md 方案，尚未在此类 VM 执行。旧版历史视频仍需人工授权扫描并重新定位，旧引用不会自动覆盖。运行时依赖本身的应用内自动更新尚未实现；禁止合并、发布及迁移真实用户数据。
+
+
+## 2026-11-20 阶段 2 最终隔离验收准备
+
+基准 PR #10：77ebfa0644f5ad670dc6193c2cf5c46d73073552，原候选内层 ZIP SHA-256 c94f169616c2c93356bc5e03e7bbe94d13dd51b0b24937f0fc0eb11a680f5e54。检查当前环境时未发现 Hyper-V 管理命令/服务、VMware、VirtualBox 或 QEMU 命令，也未发现连接的云计算工具；Win32 CIM 查询被环境拒绝，无法断言系统功能的全部安装状态。当前没有可用干净、可回滚且断网的 Windows VM，真实 VM 与桌面验收未执行，无截图证据。
+
+完善离线门禁：验证虚拟机身份、网卡和 IPv4/IPv6 默认路由，并在测试期间轮询；检查 Python/Launcher 注册表、Store 包、常见系统和用户安装位置、执行别名及 FFmpeg；查询失败直接阻断。校验指定原 ZIP 的固定 SHA-256，并将解压文件逐个与 ZIP 比较、拒绝额外文件和链接。门禁故障注入本机通过 1 个正常场景及 9 个拒绝场景；隔离 ZIP 测试 5 项通过。轮询与路径检查无法证明系统完全清洁或采样间隔内绝无联网，仍需可信映像、快照和外部断网证据。
+
+新增 docs/RUNTIME_UPDATE_ROLLBACK_DESIGN.md，仅为方案，未修改更新器。新增 docs/STAGE2_DESKTOP_ACCEPTANCE.md 记录 UI 验收方法和静态发现：当前媒体类型仅支持图片，案例素材区未发现视频播放控件；视频真实展示尚未通过验收。阶段 2 不得放行，PR #10 保持 Draft，未合并或发布，未操作真实用户数据。
+
+CI 补充证据：PR #10 验证提交 6aaa65e1b67f77284d6acee6c2c98155806d9ecc，[Release validation #651](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/44685540064) 在 Windows Python 3.12.14 运行 244 项全部通过，Ubuntu 运行 244 项、240 通过、4 项 Windows 专项跳过，失败和错误均为 0。[Windows candidate #13](https://github.com/Ricekillerr/ai-clothing-prompt-workbench/actions/runs/44685540216) 成功运行离线门禁故障注入、5 项候选包完整性检查和受限环境独立包冒烟；该 CI 并非真实离线 VM，不能计入 VM 或桌面验收。

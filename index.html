@@ -14,7 +14,7 @@
 .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:20px;background:#070a10bb;backdrop-filter:blur(8px);z-index:20}.modal.open{display:flex}.modalbox{width:min(740px,96vw);max-height:92vh;overflow:auto;padding:21px;background:#1d232e;border:1px solid #ffffff20;border-radius:16px;box-shadow:0 25px 90px #0009}.modalhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.modalhead h2{font-size:16px;margin:0}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{display:flex;flex-direction:column;gap:5px}.field.full{grid-column:1/-1}.field label{font-size:10px;color:#9ca7b7}.field textarea{min-height:115px;resize:vertical}.modalactions{display:flex;justify-content:flex-end;gap:8px;margin-top:15px}.toast{position:fixed;bottom:20px;left:50%;transform:translate(-50%,15px);opacity:0;z-index:40;background:#e3eaff;color:#1a263d;border-radius:9px;padding:9px 15px;font-size:11px;transition:.2s}.toast.show{opacity:1;transform:translate(-50%,0)}
 @media(max-width:1150px){.gallery{grid-template-columns:repeat(3,1fr)}.main{padding:20px}.app{grid-template-columns:185px 1fr}.side{padding:20px 10px}}@media(max-width:850px){.app{grid-template-columns:62px 1fr}.side{width:62px;padding:18px 7px}.brand b,.brand small,.navhead,.nav span:not(.ico),.sidefoot{display:none}.brand{padding:0 5px 25px}.nav{justify-content:center;padding:12px 4px}.stats{grid-template-columns:repeat(2,1fr)}.gallery{grid-template-columns:repeat(2,1fr)}.top{flex-wrap:wrap}.heading{width:100%}.modulegrid,.vaultgrid{grid-template-columns:repeat(2,1fr)}}@media(max-width:570px){.main{padding:14px 10px}.gallery{gap:8px}.photo{height:135px}.stats{gap:7px}.stat{padding:10px}.stat strong{font-size:20px}.actions .btn{padding:7px}.modulegrid,.vaultgrid,.compose{grid-template-columns:1fr}.formgrid{grid-template-columns:1fr}.field.full{grid-column:auto}}
 </style></head><body>
-<div class="app"><aside class="side"><div class="brand"><div class="logo">⌂</div><div><b>Prompt Atelier</b><small>AI CLOTHING WORKSPACE</small></div></div><div class="navhead">WORKSPACE</div><button type="button" class="nav active" data-page="gallery" aria-label="视觉资产库"><span class="ico">▦</span><span>视觉资产库</span></button><button type="button" class="nav" data-page="modules" aria-label="提示词模块"><span class="ico">◇</span><span>提示词模块</span></button><button type="button" class="nav" data-page="vault" aria-label="Prompt Vault"><span class="ico">▤</span><span>Prompt Vault</span></button><button type="button" class="nav" data-page="smartsearch" aria-label="智能案例检索"><span class="ico">⌕</span><span>智能案例检索</span></button><button type="button" class="nav" data-page="compose" aria-label="智能组合器"><span class="ico">✣</span><span>智能组合器</span></button><div class="navhead">CATEGORIES</div><button type="button" class="nav" data-cat="上装" aria-label="按上装筛选"><span class="ico">♧</span><span>上装</span></button><button type="button" class="nav" data-cat="下装" aria-label="按下装筛选"><span class="ico">⌑</span><span>下装</span></button><button type="button" class="nav" data-cat="鞋履" aria-label="按鞋履筛选"><span class="ico">◈</span><span>鞋履</span></button><button type="button" class="nav" data-cat="配饰" aria-label="按配饰筛选"><span class="ico">◇</span><span>配饰</span></button><div class="navhead">LIBRARY</div><button type="button" class="nav" data-page="trash" aria-label="回收站"><span class="ico">↶</span><span>回收站</span></button><button type="button" class="nav" data-page="settings" aria-label="数据与备份"><span class="ico">⚙</span><span>数据与备份</span></button><div class="sidefoot">LOCAL WORKSPACE · V0.6.5<br>仅本机保存</div></aside>
+<div class="app"><aside class="side"><div class="brand"><div class="logo">⌂</div><div><b>Prompt Atelier</b><small>AI CLOTHING WORKSPACE</small></div></div><div class="navhead">WORKSPACE</div><button type="button" class="nav active" data-page="gallery" aria-label="视觉资产库"><span class="ico">▦</span><span>视觉资产库</span></button><button type="button" class="nav" data-page="modules" aria-label="提示词模块"><span class="ico">◇</span><span>提示词模块</span></button><button type="button" class="nav" data-page="vault" aria-label="Prompt Vault"><span class="ico">▤</span><span>Prompt Vault</span></button><button type="button" class="nav" data-page="smartsearch" aria-label="智能案例检索"><span class="ico">⌕</span><span>智能案例检索</span></button><button type="button" class="nav" data-page="compose" aria-label="智能组合器"><span class="ico">✣</span><span>智能组合器</span></button><button type="button" class="nav" data-page="garments" aria-label="服装单品"><span class="ico">◈</span><span>服装单品</span></button><div class="navhead">CATEGORIES</div><button type="button" class="nav" data-cat="上装" aria-label="按上装筛选"><span class="ico">♧</span><span>上装</span></button><button type="button" class="nav" data-cat="下装" aria-label="按下装筛选"><span class="ico">⌑</span><span>下装</span></button><button type="button" class="nav" data-cat="鞋履" aria-label="按鞋履筛选"><span class="ico">◈</span><span>鞋履</span></button><button type="button" class="nav" data-cat="配饰" aria-label="按配饰筛选"><span class="ico">◇</span><span>配饰</span></button><div class="navhead">LIBRARY</div><button type="button" class="nav" data-page="trash" aria-label="回收站"><span class="ico">↶</span><span>回收站</span></button><button type="button" class="nav" data-page="settings" aria-label="数据与备份"><span class="ico">⚙</span><span>数据与备份</span></button><div class="sidefoot">LOCAL WORKSPACE · V0.6.5<br>仅本机保存</div></aside>
 <main class="main"><header class="top"><div class="heading"><h1 id="pageTitle">视觉资产库</h1><p id="pageSub">把成功经验沉淀为可复用的视觉资产</p></div><div class="search"><span>⌕</span><input id="search" aria-label="搜索案例、材质、款式和提示词标签" placeholder="搜索案例、材质、款式、提示词标签…"></div><div class="actions"><button class="btn" id="importBtn">导入</button><button class="btn" id="exportBtn">备份</button><button class="btn" id="updateBtn">检查更新</button><button class="btn primary" id="addBtn">＋ 新增资产</button></div></header>
 <section class="stats"><div class="stat"><label>成功案例</label><strong id="caseCount">0</strong><small>完整提示词资产</small></div><div class="stat"><label>可复用模块</label><strong id="moduleCount">0</strong><small>跨品类调用</small></div><div class="stat"><label>已验证案例</label><strong id="verifiedCount">0</strong><small>经过实际生成验证</small></div><div class="stat"><label>关联图片</label><strong id="imageCount">0</strong><small>参考图与效果图</small></div></section><div id="content"></div></main></div>
 <div class="overlay" id="detailOverlay"><aside class="detail"><div class="dhead"><h2>资产详情</h2><button class="close" id="closeDetail">×</button></div><div id="detailContent"></div></aside></div>
@@ -64,7 +64,7 @@ async function reconcileSaveFailure(error,rollback){
  rollback();
  return "rollback";
 }function stats(){$("caseCount").textContent=db.cases.length;$("moduleCount").textContent=db.modules.length;$("verifiedCount").textContent=db.cases.filter(x=>x.status==="已验证成功").length;$("imageCount").textContent=[...db.cases,...db.modules].filter(x=>x.image).length}
-function setTitle(t,s){$("pageTitle").textContent=t;$("pageSub").textContent=s}function render(){stats();document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.page===page));$("addBtn").style.display=page==="trash"?"none":"";if(page==="gallery"||page==="all")gallery();else if(page==="modules")modules();else if(page==="vault")vault();else if(page==="smartsearch")smartSearchPage();else if(page==="compose")compose();else if(page==="trash")trashPage();else settings()}
+function setTitle(t,s){$("pageTitle").textContent=t;$("pageSub").textContent=s}function render(){stats();document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.page===page));$("addBtn").style.display=(page==="trash"||page==="garments")?"none":"";if(page==="gallery"||page==="all")gallery();else if(page==="modules")modules();else if(page==="vault")vault();else if(page==="smartsearch")smartSearchPage();else if(page==="compose")compose();else if(page==="garments")garmentPage();else if(page==="trash")trashPage();else settings()}
 
 function smartSearchPage(){
  setTitle("智能案例检索","输入服装款号或描述，检索匹配度达到 80% 的历史成功案例");
@@ -607,7 +607,7 @@ function saveDraft(){
    :"智能组合器生成，尚待实际验证";
  openEditor("case",{name:"组合提示词草稿",category:"整套搭配",model:"通用",status:"待验证",tags:["组合草稿"],body,notes,composition});
 }
-async function exportJSON(){try{await save()}catch(error){toast("备份前保存失败："+error.message);return}let a=document.createElement("a"),u=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:"application/json"}));a.href=u;a.download="prompt_library_backup.json";a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);toast("备份已导出")}
+async function exportJSON(){try{await save()}catch(error){toast("备份前保存失败："+error.message);return}try{const r=await fetch("/api/version"),v=await r.json();if(!r.ok)throw new Error("无法读取数据库版本");if(v.schema_version==="2"){let link=document.createElement("a");link.href="/api/backup/full-json";link.download="prompt_atelier_full_backup.json";link.click();toast("正在创建完整 JSON 备份");return}}catch(error){toast("无法确认导出范围："+error.message);return}let a=document.createElement("a"),u=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:"application/json"}));a.href=u;a.download="prompt_library_backup.json";a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);toast("案例与模块 JSON 已导出")}
 async function restoreFullBackup(file){
  const status=$("restoreStatus");
  if(!file||!file.name.toLowerCase().endsWith(".zip")){if(status)status.textContent="请选择完整 ZIP 备份文件";return}
@@ -674,19 +674,53 @@ function mergeImportedAssets(data,current){
  }
  return {data:merged,added,skipped};
 }
-function importJSON(f){
- if(!f||f.size>25*1024*1024){toast("JSON 备份不能超过 25MB");return}
+function importJSON(f){return importJSONAsync(f)}
+async function importJSONAsync(f){
+ if(!f)return;
+ const prefix=await f.slice(0,64).text();
+ if(prefix.startsWith('{"format":"PromptAtelierFullBackupJSON",')){
+  if(f.size>700*1024*1024){toast("完整 JSON 备份超过大小限制");return}
+  if(!confirm("恢复完整备份将替换当前数据库和图片，恢复前会先创建安全备份。确定继续吗？"))return;
+  try{
+   await save();
+   const response=await fetch("/api/backup/full-json/restore",{method:"POST",headers:{"Content-Type":"application/json"},body:f});
+   const result=await response.json();
+   if(!response.ok||!result.ok)throw new Error(result.error||"恢复失败");
+   const current=await fetch("/api/data");
+   if(!current.ok)throw new Error("恢复后无法刷新案例");
+   db=normalizeAssetData(await current.json());
+   render();alert("完整备份已恢复。恢复前安全备份："+result.safety_backup);
+  }catch(error){alert("恢复状态未确认，请检查数据与备份："+error.message)}
+  return;
+ }
+ if(f.size>25*1024*1024){toast("旧版 JSON 备份不能超过 25MB");return}
  const reader=new FileReader();
  reader.onerror=()=>toast("JSON 文件读取失败，请检查文件是否可读后重试");
  reader.onabort=()=>toast("JSON 导入已取消");
  reader.onload=async()=>{
   const previous=JSON.parse(JSON.stringify(db));
+  let knowledgeImportStarted=false;
   try{
    const data=JSON.parse(reader.result);
+   const versionResponse=await fetch("/api/version");
+   if(!versionResponse.ok)throw new Error("无法读取数据库版本");
+   const version=await versionResponse.json();
+   if(version.schema_version==="2"){
+    knowledgeImportStarted=true;
+    const report=await knowledgeRequest("import_legacy","POST",{payload:data});
+    const current=await fetch("/api/data");
+    if(!current.ok)throw new Error("导入后无法刷新案例");
+    db=normalizeAssetData(await current.json());
+    render();
+    const summary="导入 "+report.inserted+" 条，已存在 "+report.existing+" 条，无效 "+report.errors.length+" 条，待审核 "+report.warnings.length+" 条";
+    if(report.errors.length||report.warnings.length)alert(summary+String.fromCharCode(10)+[...report.errors,...report.warnings].map(x=>x.record+"："+x.reason).join(String.fromCharCode(10)));
+    else toast(summary);
+    return;
+   }
    const merged=mergeImportedAssets(data,db);
    db=merged.data;
    await save();render();toast("导入完成："+merged.added+" 条新增，"+merged.skipped+" 条重复或无效记录已跳过");
-  }catch(error){const outcome=await reconcileSaveFailure(error,()=>db=previous);if(outcome==="server")render();alert(saveFailureMessage("导入",outcome,error))}
+  }catch(error){if(knowledgeImportStarted){alert("导入状态未确认，请刷新数据后检查："+error.message);return}const outcome=await reconcileSaveFailure(error,()=>db=previous);if(outcome==="server")render();alert(saveFailureMessage("导入",outcome,error))}
  };
  reader.readAsText(f);
 }
@@ -917,6 +951,100 @@ async function approveAiReview(id){try{const d=await scanApi("/api/ai/approve",{
 async function rejectAiReview(id){try{await scanApi("/api/ai/reject",{analysis_id:id});await loadAiReviews()}catch(e){$("scanStatus").textContent="拒绝操作失败："+e.message}}
 async function reviewScanFile(path,status){try{await scanApi("/api/scan/review",{path,status});await loadScanQueue()}catch(e){alert("审核操作失败："+e.message)}}
 
+
+let garmentOffset=0;
+async function knowledgeRequest(action,method="GET",data={}){
+ const url=method==="GET"?"/api/knowledge?"+new URLSearchParams({action,...data}):"/api/knowledge";
+ const options=method==="GET"?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action,...data})};
+ const response=await fetch(url,options), result=await response.json();
+ if(!response.ok||!result.ok)throw new Error(result.error||"操作失败");
+ return method==="GET"?result.data:result.result;
+}
+async function garmentPage(){
+ setTitle("服装单品","查看单品和关联案例");
+ const root=$("content");
+ root.innerHTML='<div class="vault" role="status">正在加载单品…</div>';
+ try{
+  const items=await knowledgeRequest("garments","GET",{offset:garmentOffset,limit:50});
+  if(page!=="garments")return;
+  root.innerHTML='<div class="section"><h2>服装单品</h2><button class="btn primary" id="garmentNew">新增单品</button></div><div id="garmentList" class="vaultgrid"></div><div style="display:flex;gap:8px;margin:16px 0"><button class="btn" id="garmentPrev">上一页</button><button class="btn" id="garmentNext">下一页</button><button class="btn" id="garmentReviews">待审核记录</button></div><div id="garmentDetail"></div>';
+  $("garmentList").innerHTML=items.map(x=>'<button type="button" class="vault" data-garment="'+esc(x.id)+'" style="text-align:left"><strong>'+esc(x.name)+'</strong><p>'+esc(x.category)+' · '+esc(x.sku||"未填写款号")+'</p></button>').join("")||'<p>暂无单品</p>';
+  $("garmentPrev").disabled=garmentOffset===0;$("garmentNext").disabled=items.length<50;
+  $("garmentNew").onclick=()=>garmentForm();
+  $("garmentPrev").onclick=()=>{garmentOffset=Math.max(0,garmentOffset-50);garmentPage()};
+  $("garmentNext").onclick=()=>{garmentOffset+=50;garmentPage()};
+  $("garmentReviews").onclick=showGarmentReviews;
+  root.querySelectorAll("[data-garment]").forEach(button=>button.onclick=()=>showGarment(button.dataset.garment));
+ }catch(error){
+  if(page!=="garments")return;
+  root.innerHTML='<div class="vault" role="alert">'+esc(error.message)+'</div>';
+  if(error.message.includes("请先完成安全迁移")){
+   const button=document.createElement("button");button.className="btn primary";
+   button.textContent="创建受保护的 V2 数据库";
+   button.onclick=async()=>{
+    if(!confirm("将先检查数据、创建完整备份，再创建独立的 V2 数据库并重启。原有数据库和图片会保留。继续吗？"))return;
+    button.disabled=true;
+    try{
+     await save();
+     const response=await fetch("/api/knowledge/migrate",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+     const result=await response.json();
+     if(!response.ok||!result.ok)throw new Error(result.error||"迁移失败");
+     root.innerHTML='<div class="vault" role="status">迁移完成，工作台正在重启…</div>';
+    }catch(failure){button.disabled=false;alert("迁移未完成："+failure.message)}
+   };
+   root.appendChild(button);
+  }
+ }
+}
+function garmentForm(item=null){
+ const detail=$("garmentDetail");
+ detail.innerHTML='<div class="vault"><h3>'+(item?"编辑单品":"新增单品")+'</h3><label>名称 <input id="gName" value="'+esc(item?.name||"")+'"></label> <label>分类 <select id="gCategory">'+["上装","外套","内搭","裤装","鞋履","配饰"].map(x=>'<option '+(item?.category===x?"selected":"")+'>'+x+'</option>').join("")+'</select></label> <label>款号 <input id="gSku" value="'+esc(item?.sku||"")+'"></label> <label>二级分类 <input id="gSubcategory" value="'+esc(item?.subcategory||"")+'"></label> <label>颜色 <input id="gColor" value="'+esc(item?.color||"")+'"></label> <label>版型 <input id="gSilhouette" value="'+esc(item?.silhouette||"")+'"></label> <label>面料 <input id="gFabric" value="'+esc(item?.fabric||"")+'"></label> <label>结构特征 <input id="gDetails" value="'+esc(item?.details||"")+'"></label> <button class="btn primary" id="gSave">保存</button><p id="gMessage" role="status"></p></div>';
+ $("gSave").onclick=async()=>{try{
+  const values={name:$("gName").value.trim(),category:$("gCategory").value,sku:$("gSku").value.trim(),subcategory:$("gSubcategory").value.trim(),color:$("gColor").value.trim(),silhouette:$("gSilhouette").value.trim(),fabric:$("gFabric").value.trim(),details:$("gDetails").value.trim()};
+  if(!values.name)throw new Error("请填写单品名称");
+  if(item)await knowledgeRequest("update_garment","POST",{id:item.id,values});
+  else await knowledgeRequest("create_garment","POST",values);
+  toast("单品已保存");await garmentPage();
+ }catch(error){$("gMessage").textContent=error.message}};
+}
+async function showGarment(id){
+ try{
+  const detail=await knowledgeRequest("garment","GET",{id});
+  if(page!=="garments"||!$("garmentDetail"))return;
+  const g=detail.garment;
+  $("garmentDetail").innerHTML='<div class="vault"><div class="section"><h3>'+esc(g.name)+'</h3><button class="btn" id="gEdit">编辑</button></div><p>'+esc(g.category)+' · '+esc(g.sku||"未填写款号")+'</p><label>关联案例 <select id="gCase">'+db.cases.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name||c.id)+'</option>').join("")+'</select></label> <button class="btn" id="gLink">关联</button><div id="gLinks"></div><div id="gCaseDetail"></div><p id="gResult" role="status"></p></div>';
+  $("gEdit").onclick=()=>garmentForm(g);
+  $("gLink").onclick=async()=>{try{if(!$("gCase").value)throw new Error("请先创建案例");await knowledgeRequest("link_case","POST",{case_id:$("gCase").value,garment_id:id});toast("案例已关联");showGarment(id)}catch(e){$("gResult").textContent=e.message}};
+  const links=$("gLinks");
+  links.innerHTML=detail.cases.map(c=>'<div style="display:flex;gap:8px;align-items:center;margin:8px 0"><button class="btn" data-case="'+esc(c.case_id)+'" data-link-id="'+esc(c.id)+'">'+esc(db.cases.find(x=>x.id===c.case_id)?.name||c.case_id)+'</button><select data-state="'+esc(c.id)+'">'+["pending","success","partial","failed"].map(v=>'<option value="'+v+'" '+(c.status===v?"selected":"")+'>'+({pending:"待验证",success:"成功",partial:"部分成功",failed:"失败"})[v]+'</option>').join("")+'</select><select data-review="'+esc(c.id)+'">'+["pending","approved","rejected"].map(v=>'<option value="'+v+'" '+(c.review_status===v?"selected":"")+'>'+({pending:"待审核",approved:"已确认",rejected:"已拒绝"})[v]+'</option>').join("")+'</select><button class="btn" data-save-link="'+esc(c.id)+'">保存状态</button></div>').join("");
+  links.querySelectorAll("[data-case]").forEach(button=>button.onclick=()=>showGarmentCase(button.dataset.case,button.dataset.linkId));
+  links.querySelectorAll("[data-save-link]").forEach(button=>button.onclick=async()=>{try{
+   const link=button.dataset.saveLink, state=[...links.querySelectorAll("[data-state]")].find(x=>x.dataset.state===link), review=[...links.querySelectorAll("[data-review]")].find(x=>x.dataset.review===link);
+   await knowledgeRequest("set_status","POST",{id:link,status:state.value,review_status:review.value});toast("状态已保存");
+  }catch(e){$("gResult").textContent=e.message}});
+ }catch(error){if($("garmentDetail"))$("garmentDetail").innerHTML='<div class="vault" role="alert">'+esc(error.message)+'</div>'}
+}
+async function showGarmentCase(id,linkId){
+ const root=$("gCaseDetail");root.innerHTML='<p role="status">正在加载案例…</p>';
+ try{
+  const [sources,notes,assets]=await Promise.all(["sources","notes","attachments"].map(action=>knowledgeRequest(action,"GET",{id,limit:50})));
+  if(!$("gCaseDetail"))return;
+  root.innerHTML='<h4>提示词历史</h4>'+sources.map(x=>'<details><summary>版本 '+esc(x.version)+'</summary><pre style="white-space:pre-wrap">'+esc(x.body)+'</pre></details>').join("")+'<h4>PS 修改记录</h4>'+notes.map(x=>'<div class="vault"><p>'+esc(x.area)+' · '+esc(x.problem)+' · '+esc(x.status)+'</p><p>预期：'+esc(x.desired||"未填写")+' · 操作：'+esc(x.operation||"未填写")+'</p><p>建议：'+esc(x.suggestion||"未填写")+'</p>'+x.assets.map(a=>'<p>'+esc(a.role==="before"?"修改前":"修改后")+'：'+esc(a.relative_path)+'</p>'+(a.media_type==="image"?'<img loading="lazy" style="max-width:220px;max-height:160px" src="/media/'+encodeURIComponent(a.relative_path.split(/[\\/]/).pop())+'" alt="'+esc(a.role==="before"?"修改前":"修改后")+'">':"")).join("")+'</div>').join("")+'<label>修改区域 <input id="psArea"></label> <label>原始问题 <input id="psProblem"></label> <label>预期效果 <input id="psDesired"></label> <label>修改操作 <input id="psOperation"></label> <label>后续建议 <input id="psSuggestion"></label> <label>修改前 <select id="psBefore"><option value="">未选择</option>'+assets.map(a=>'<option value="'+esc(a.id)+'">'+esc(a.relative_path)+'</option>').join("")+'</select></label> <label>修改后 <select id="psAfter"><option value="">未选择</option>'+assets.map(a=>'<option value="'+esc(a.id)+'">'+esc(a.relative_path)+'</option>').join("")+'</select></label> <button class="btn" id="psSave">添加记录</button><p role="status" id="psResult"></p><h4>案例素材</h4>'+assets.map(x=>'<span style="display:inline-block;margin:4px">'+esc(x.relative_path)+'</span>').join("");
+  $("psSave").onclick=async()=>{try{await knowledgeRequest("add_ps_note","POST",{case_id:id,case_garment_id:linkId,area:$("psArea").value,problem:$("psProblem").value,desired:$("psDesired").value,operation:$("psOperation").value,suggestion:$("psSuggestion").value,before_id:$("psBefore").value?Number($("psBefore").value):null,after_id:$("psAfter").value?Number($("psAfter").value):null});toast("修改记录已保存");showGarmentCase(id,linkId)}catch(e){$("psResult").textContent=e.message}};
+  const videoPanel=document.createElement("div");videoPanel.innerHTML='<h4>导入已扫描视频</h4><p>请先在历史采集里扫描已授权文件夹，再选择视频。</p><select id="caseVideo"><option value="">请选择视频</option></select> <button class="btn" id="caseVideoImport">导入视频</button><p role="status" id="caseVideoResult"></p>';root.appendChild(videoPanel);
+  try{const pending=await scanApi('/api/scan/pending');const videos=pending.items.filter(x=>x.media_type==='video'&&x.sha256);videos.forEach((video,i)=>{const option=document.createElement('option');option.value=String(i);option.textContent=video.name;$("caseVideo").appendChild(option)});$("caseVideoImport").onclick=async()=>{try{const choice=$("caseVideo").value;if(choice==='')throw new Error('请选择已扫描视频');$("caseVideoResult").textContent='正在校验并导入视频…';await knowledgeRequest('import_video','POST',{case_id:id,source_path:videos[Number(choice)].path,sha256:videos[Number(choice)].sha256});toast('视频已导入');await showGarmentCase(id,linkId)}catch(error){$("caseVideoResult").textContent=error.message}}}catch(error){$("caseVideoResult").textContent='读取扫描结果失败：'+error.message}
+ }catch(error){root.innerHTML='<p role="alert">'+esc(error.message)+'</p>'}
+}
+
+async function showGarmentReviews(){
+ try{
+  const [items,candidates]=await Promise.all(["reviews","candidates"].map(action=>knowledgeRequest(action,"GET",{limit:50})));
+  const root=$("garmentDetail");
+  root.innerHTML='<div class="vault"><h3>待审核记录</h3>'+items.map(x=>'<p>'+esc(x.case_id)+' · '+esc(x.reason)+' <button class="btn" data-resolve="'+esc(x.id)+'">确认已检查</button></p>').join("")+(items.length?"":"<p>暂无待审核记录</p>")+'<h4>同款候选</h4>'+candidates.map(x=>'<p>'+esc(x.reason)+' · '+esc(x.first_id)+' / '+esc(x.second_id)+' <button class="btn" data-reject="'+esc(x.id)+'">排除候选</button></p>').join("")+(candidates.length?"":"<p>暂无候选</p>")+'</div>';
+  root.querySelectorAll("[data-resolve]").forEach(button=>button.onclick=async()=>{try{await knowledgeRequest("resolve_review","POST",{id:button.dataset.resolve,decision:"resolved"});toast("审核状态已保存");showGarmentReviews()}catch(error){toast(error.message)}});
+  root.querySelectorAll("[data-reject]").forEach(button=>button.onclick=async()=>{try{await knowledgeRequest("resolve_review","POST",{id:button.dataset.reject,decision:"rejected",candidate:true});toast("候选已排除");showGarmentReviews()}catch(error){toast(error.message)}});
+ }catch(error){$("garmentDetail").innerHTML='<div class="vault" role="alert">'+esc(error.message)+'</div>'}
+}
 document.querySelectorAll(".nav").forEach(n=>n.onclick=()=>{if(n.dataset.cat){filter=n.dataset.cat;page="gallery"}else if(n.dataset.page){page=n.dataset.page;filter="全部";if(page==="trash")deletedAssetsCache=null}render()});$("search").oninput=render;$("addBtn").onclick=()=>openEditor(page==="modules"?"module":"case");$("importBtn").onclick=()=>$("jsonPicker").click();$("exportBtn").onclick=exportJSON;$("updateBtn").onclick=()=>{page="settings";render();checkUpdate(true)};$("jsonPicker").onchange=e=>{const file=e.target.files?.[0];e.target.value="";if(file)importJSON(file)};$("imagePicker").onchange=e=>e.target.files[0]&&uploadImage(e.target.files[0]);$("closeDetail").onclick=closeDetail;$("closeModal").onclick=closeEditor;$("detailOverlay").onclick=e=>{if(e.target===$("detailOverlay"))closeDetail()};$("editModal").onclick=e=>{if(e.target===$("editModal"))closeEditor()};
 // Keep the local server alive only while this workbench page is open.
 let heartbeatTimer=null;
@@ -928,5 +1056,7 @@ function startWorkbenchHeartbeat(){
  if(heartbeatTimer===null) heartbeatTimer=setInterval(sendWorkbenchHeartbeat,5000);
 }
 window.addEventListener("pagehide",()=>{if(heartbeatTimer!==null){clearInterval(heartbeatTimer);heartbeatTimer=null;}try{navigator.sendBeacon("/api/client/close",new Blob(["{}"],{type:"application/json"}));}catch(e){}});
-(async()=>{await load();render();startWorkbenchHeartbeat();checkUpdate(false);setInterval(()=>checkUpdate(false),15*60*1000)})();
+let legacyWarningShown=false;
+async function checkLegacyDivergence(){try{const response=await fetch('/api/legacy-divergence',{cache:'no-store'});if(!response.ok)throw new Error('核对失败');const result=await response.json();if(!legacyWarningShown&&['changed','unverified'].includes(result.status)){legacyWarningShown=true;alert((result.message||'无法核对旧版数据')+'\n请保留旧版和新版数据，不要用旧备份覆盖新版。')}}catch(error){if(!legacyWarningShown){legacyWarningShown=true;alert('无法核对旧版数据，请保留旧版和新版数据。')}}}
+(async()=>{await load();render();startWorkbenchHeartbeat();checkUpdate(false);checkLegacyDivergence();setInterval(checkLegacyDivergence,5*60*1000);setInterval(()=>checkUpdate(false),15*60*1000)})();
 </script></body></html>

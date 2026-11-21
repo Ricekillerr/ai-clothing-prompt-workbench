@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """AI服装提示词资产工作台 V0.6.5。"""
-import base64, errno, hashlib, json, os, shutil, subprocess, sys, tempfile, threading, time, uuid, webbrowser
+import base64, errno, hashlib, json, os, shutil, socket, subprocess, sys, tempfile, threading, time, uuid, webbrowser
 from pathlib import Path
 from urllib.parse import unquote, quote, parse_qs, urlsplit
 from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
-from storage import Storage
+from storage import Storage, KnowledgeStore, active_data_home, create_protected_copy, legacy_divergence_status
 from collector import scan_folder, sha256_file
 from case_matcher import rank_matches, rank_case_matches
 from ai_analyzer import analyze_pair, analyze_assets
@@ -17,7 +17,10 @@ GITHUB_BRANCH = "release/v0.6.5-stabilization"
 RAW_BASE = f"https://raw.githubusercontent.com/{GITHUB_OWNER}/{GITHUB_REPO}/{GITHUB_BRANCH}/"
 MANIFEST_URL = RAW_BASE + "update_manifest.json"
 ROOT = Path(__file__).resolve().parent
-HOME = Path.home() / "AI_Prompt_Asset_Workbench"
+UPDATE_JOURNAL = ROOT / "_update_transaction.json"
+if __name__ == "__main__" and UPDATE_JOURNAL.exists() and not os.environ.get("PROMPT_ATELIER_UPDATE_CHILD"):
+    raise SystemExit("检测到未完成的更新，已暂停启动。请查看 _update_transaction.json 和 _update_error.log。")
+HOME = active_data_home(Path.home())
 IMAGES = HOME / "references"
 DATA = HOME / "prompt_library.json"
 HOME.mkdir(parents=True, exist_ok=True)
@@ -49,6 +52,9 @@ CLOSE_REQUESTED_AT = 0.0
 CLIENT_HEARTBEAT_TIMEOUT_SECONDS = 15
 LOG_MAX_BYTES = 1024 * 1024
 LOG_BACKUP_COUNT = 3
+UPDATE_INSTALL_LOCK = threading.Lock()
+MIGRATION_LOCK = threading.Lock()
+MIGRATION_ACTIVE = threading.Event()
 SCAN_SOURCE_LOCKS = {}
 SCAN_SOURCE_LOCKS_LOCK = threading.Lock()
 
@@ -68,6 +74,8 @@ def _scan_source_lock(source_id):
 def scan_registered_source(source_id, force_hash=False):
     """Serialize scans for one source so an older snapshot cannot overwrite a newer one."""
     with STORAGE.operation():
+        if MIGRATION_ACTIVE.is_set():
+            raise RuntimeError("迁移进行中，已暂停扫描")
         with _scan_source_lock(source_id):
             source = next(
                 (item for item in STORAGE.list_scan_sources() if item["id"] == source_id),
@@ -128,7 +136,7 @@ def auto_scan_loop():
         AUTO_SCAN_WAKE.clear()
         if AUTO_SCAN_STOP.is_set():
             break
-        if not auto_scan_is_enabled():
+        if UPDATE_JOURNAL.exists() or not auto_scan_is_enabled():
             continue
         for source in STORAGE.list_scan_sources():
             if AUTO_SCAN_STOP.is_set() or not auto_scan_is_enabled():
@@ -151,7 +159,7 @@ def heartbeat_watchdog(server):
             continue
         should_close = bool(
             (last and now - last > CLIENT_HEARTBEAT_TIMEOUT_SECONDS)
-            or (close_requested and now - close_requested > 2 and last < close_requested)
+            or (close_requested and now - close_requested > 2 and last <= close_requested)
         )
         if should_close:
             threading.Thread(target=server.shutdown, daemon=True).start()
@@ -387,6 +395,55 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         with path.open("rb") as source:
             shutil.copyfileobj(source, self.wfile, length=1024 * 1024)
+    def send_full_json_backup(self, path):
+        prefix = b'{"format":"PromptAtelierFullBackupJSON","version":1,"zip_base64":"'
+        suffix = b'"}'
+        size = Path(path).stat().st_size
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Disposition", 'attachment; filename="prompt_atelier_full_backup.json"')
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(prefix) + 4 * ((size + 2) // 3) + len(suffix)))
+        self.end_headers()
+        self.wfile.write(prefix)
+        with Path(path).open("rb") as source:
+            for chunk in iter(lambda: source.read(3 * 65536), b""):
+                self.wfile.write(base64.b64encode(chunk))
+        self.wfile.write(suffix)
+
+    def restore_full_json_backup(self, size):
+        prefix = b'{"format":"PromptAtelierFullBackupJSON","version":1,"zip_base64":"'
+        if size < len(prefix) + 2 or self.rfile.read(len(prefix)) != prefix:
+            raise ValueError("完整 JSON 备份格式不正确")
+        remaining = size - len(prefix)
+        temp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(prefix="restore_json_", suffix=".zip",
+                                             dir=str(HOME), delete=False) as temp:
+                temp_path = Path(temp.name)
+                pending = b""
+                while remaining:
+                    block = self.rfile.read(min(256 * 1024, remaining))
+                    if not block:
+                        raise ValueError("完整 JSON 备份上传未完成")
+                    remaining -= len(block)
+                    pending += block
+                    usable = max(0, ((len(pending) - 6) // 4) * 4)
+                    if usable:
+                        part, pending = pending[:usable], pending[usable:]
+                        if b"=" in part:
+                            raise ValueError("完整 JSON 备份编码无效")
+                        temp.write(base64.b64decode(part, validate=True))
+                if not pending.endswith(b'"}'):
+                    raise ValueError("完整 JSON 备份结尾无效")
+                encoded = pending[:-2]
+                if encoded:
+                    temp.write(base64.b64decode(encoded, validate=True))
+            return STORAGE.restore_full_backup(temp_path)
+        finally:
+            if temp_path and temp_path.exists():
+                temp_path.unlink()
+
     def do_GET(self):
         if not self._validate_local_request():
             return
@@ -396,12 +453,41 @@ class Handler(BaseHTTPRequestHandler):
             self.send_bytes(200, f.read_bytes(), "text/html; charset=utf-8") if f.exists() else self.send_bytes(404, b"index.html missing", "text/plain")
         elif path == "/api/data":
             self.send_bytes(200, json.dumps(load_data(), ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
-        elif path == "/api/version": self.send_json(200, {"version": APP_VERSION})
+        elif path == "/api/knowledge":
+            try:
+                params = parse_qs(urlsplit(self.path).query)
+                action = str((params.get("action") or ["garments"])[0])
+                offset = int((params.get("offset") or ["0"])[0])
+                limit = int((params.get("limit") or ["50"])[0])
+                identifier = str((params.get("id") or [""])[0])
+                knowledge = KnowledgeStore(STORAGE)
+                readers = {
+                    "garments": lambda: knowledge.list_garments(offset, limit),
+                    "garment": lambda: knowledge.garment_detail(identifier),
+                    "sources": lambda: knowledge.list_sources(identifier, offset, limit),
+                    "reviews": lambda: knowledge.list_reviews(offset, limit),
+                    "candidates": lambda: knowledge.list_candidates(offset, limit),
+                    "notes": lambda: knowledge.list_ps_notes(identifier, offset, limit),
+                    "attachments": lambda: knowledge.list_attachments(identifier, offset, limit),
+                }
+                if action not in readers:
+                    raise ValueError("未知查询")
+                self.send_json(200, {"ok": True, "data": readers[action]()})
+            except Exception as exc:
+                self.send_json(400, {"ok": False, "error": str(exc)})
+        elif path == "/api/version": self.send_json(200, {"version": APP_VERSION, "schema_version": STORAGE.get_setting("schema_version")})
+        elif path == "/api/legacy-divergence": self.send_json(200, legacy_divergence_status(Path.home()))
         elif path == "/api/settings/auto-update":
             self.send_json(200, {
                 "enabled": STORAGE.get_setting("auto_update_enabled", "0") == "1",
                 "idle_minutes": 15,
             })
+        elif path == "/api/backup/full-json":
+            try:
+                archive = STORAGE.create_full_backup(IMAGES, app_version=APP_VERSION)
+                self.send_full_json_backup(archive)
+            except Exception as exc:
+                self.send_json(500, {"ok": False, "error": f"完整 JSON 备份创建失败：{exc}"})
         elif path == "/api/backup/full":
             try:
                 archive = STORAGE.create_full_backup(IMAGES, app_version=APP_VERSION)
@@ -467,13 +553,27 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_bytes(404, b"not found", "text/plain")
         else: self.send_bytes(404, b"not found", "text/plain")
     def do_POST(self):
+        if UPDATE_JOURNAL.exists():
+            self.send_json(503, {"ok": False, "error": "更新恢复中，请稍后重试"})
+            return
         global LAST_CLIENT_HEARTBEAT, CLOSE_REQUESTED_AT
         if not self._validate_local_request(require_json=self.path != "/api/backup/restore"):
             return
+        if MIGRATION_ACTIVE.is_set() and self.path not in {"/api/client/heartbeat", "/api/client/close"}:
+            self.send_json(503, {"ok": False, "error": "迁移中，请等待工作台重启"})
+            return
         try:
             n = int(self.headers.get("Content-Length", "0"))
-            max_request = 500 * 1024 * 1024 if self.path == "/api/backup/restore" else 25 * 1024 * 1024
+            if self.path == "/api/backup/full-json/restore":
+                max_request = 700 * 1024 * 1024
+            elif self.path == "/api/backup/restore":
+                max_request = 500 * 1024 * 1024
+            else:
+                max_request = 25 * 1024 * 1024
             if n <= 0 or n > max_request: raise ValueError("请求内容为空或超过大小限制")
+            if self.path == "/api/backup/full-json/restore":
+                self.send_json(200, self.restore_full_json_backup(n))
+                return
             if self.path == "/api/backup/restore":
                 if "application/zip" not in self.headers.get("Content-Type", "").lower():
                     raise ValueError("恢复文件必须是 ZIP 格式")
@@ -510,6 +610,34 @@ class Handler(BaseHTTPRequestHandler):
                     CLOSE_REQUESTED_AT = time.monotonic()
                 self.send_json(200, {"ok": True})
                 return
+            if self.path == "/api/knowledge/migrate":
+                if STORAGE.get_setting("schema_version") != "1":
+                    raise ValueError("当前数据库已经迁移")
+                if not MIGRATION_LOCK.acquire(blocking=False):
+                    raise ValueError("已有迁移任务正在运行")
+                MIGRATION_ACTIVE.set()
+                destination = Path.home() / "AI_Prompt_Asset_Workbench_v2"
+                try:
+                    result = create_protected_copy(STORAGE, destination)
+                    flags = 0
+                    if sys.platform == "win32":
+                        flags = getattr(subprocess, "DETACHED_PROCESS", 8) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 512)
+                    subprocess.Popen(
+                        [sys.executable, str(ROOT / "ai_prompt_workbench.py"), "--after-protected-migration"],
+                        cwd=str(ROOT), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL, creationflags=flags, close_fds=(sys.platform != "win32"),
+                    )
+                    self.send_json(200, {"ok": True, "status": result["status"],
+                                         "message": "迁移完成，工作台正在重启"})
+                    threading.Timer(1.0, lambda: threading.Thread(
+                        target=self.server.shutdown, daemon=True).start()).start()
+                except Exception:
+                    if not destination.exists():
+                        MIGRATION_ACTIVE.clear()
+                    raise
+                finally:
+                    MIGRATION_LOCK.release()
+                return
             with STORAGE.operation():
                 if self.path == "/api/settings/auto-update":
                     enabled = d.get("enabled")
@@ -517,6 +645,49 @@ class Handler(BaseHTTPRequestHandler):
                         raise ValueError("自动更新设置必须是布尔值")
                     STORAGE.set_setting("auto_update_enabled", "1" if enabled else "0")
                     self.send_json(200, {"ok": True, "enabled": enabled})
+                elif self.path == "/api/knowledge":
+                    if not isinstance(d, dict):
+                        raise ValueError("请求格式无效")
+                    knowledge = KnowledgeStore(STORAGE)
+                    action = d.get("action")
+                    if action == "create_garment":
+                        result = knowledge.create_garment(
+                            d.get("name", ""), d.get("category", ""), d.get("sku", ""),
+                            d.get("subcategory", ""), d.get("color", ""), d.get("silhouette", ""),
+                            d.get("fabric", ""), d.get("details", ""),
+                        )
+                    elif action == "update_garment":
+                        knowledge.update_garment(d.get("id", ""), d.get("values", {}))
+                        result = d.get("id", "")
+                    elif action == "link_case":
+                        result = knowledge.link_case(d.get("case_id", ""), d.get("garment_id", ""), d.get("instance_key", ""), d.get("role", ""))
+                    elif action == "set_status":
+                        knowledge.set_case_status(d.get("id", ""), d.get("status", ""), d.get("review_status", ""))
+                        result = d.get("id", "")
+                    elif action == "append_source":
+                        result = knowledge.append_source(d.get("case_id", ""), d.get("body"))
+                    elif action == "add_segment":
+                        result = knowledge.add_segment(d.get("source_id", ""), d.get("dimension", ""), d.get("start"), d.get("end"), d.get("case_garment_id"))
+                    elif action == "add_reference":
+                        result = knowledge.add_segment_reference(d.get("segment_id", ""), d.get("attachment_id"), d.get("marker", ""))
+                    elif action == "add_ps_note":
+                        result = knowledge.add_ps_note(d.get("case_id", ""), d.get("area", ""), d.get("problem", ""), d.get("case_garment_id"), d.get("desired", ""), d.get("operation", ""), d.get("suggestion", ""), d.get("before_id"), d.get("after_id"))
+                    elif action == "add_ps_asset":
+                        knowledge.add_ps_asset(d.get("note_id", ""), d.get("attachment_id"), d.get("role", ""))
+                        result = d.get("note_id", "")
+                    elif action == "resolve_review":
+                        candidate = d.get("candidate", False)
+                        if not isinstance(candidate, bool):
+                            raise ValueError("审核类型必须为布尔值")
+                        knowledge.resolve_review(d.get("id", ""), d.get("decision", ""), candidate)
+                        result = d.get("id", "")
+                    elif action == "import_legacy":
+                        result = knowledge.import_legacy_json(d.get("payload"))
+                    elif action == "import_video":
+                        result = knowledge.import_video(d.get("case_id", ""), d.get("source_path", ""), d.get("sha256", ""))
+                    else:
+                        raise ValueError("未知知识库操作")
+                    self.send_json(200, {"ok": True, "result": result})
                 elif self.path == "/api/data":
                     if not isinstance(d, dict): raise ValueError("数据格式不正确")
                     d.setdefault("cases", []); d.setdefault("modules", []); save_data(d)
@@ -630,25 +801,31 @@ class Handler(BaseHTTPRequestHandler):
                     STORAGE.set_setting("auto_update_skipped_version", version)
                     self.send_json(200, {"ok": True, "skipped_version": version})
                 elif self.path == "/api/update/apply":
-                    # Preserve a verified snapshot of the user's database and local
-                    # reference images before any program update is staged or applied.
-                    pre_update_backup = STORAGE.create_full_backup(IMAGES, app_version=APP_VERSION)
-                    stage, latest = stage_update()
-                    # Bootstrap from the verified staged updater. Older installs may not
-                    # contain updater.py or the launcher yet; both are included in the
-                    # manifest and installed by the updater transaction.
-                    updater = stage / "updater.py"
-                    launcher = ROOT / "启动AI服装提示词工作台.bat"
-                    if not updater.is_file():
-                        shutil.rmtree(stage, ignore_errors=True)
-                        raise ValueError("更新包缺少经过校验的 updater.py，已安全取消更新")
-                    flags = 0
-                    if sys.platform == "win32": flags = getattr(subprocess, "DETACHED_PROCESS", 8) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 512)
-                    subprocess.Popen([sys.executable, str(updater), str(stage), str(ROOT), str(launcher)], cwd=str(ROOT),
-                        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                        creationflags=flags, close_fds=(sys.platform != "win32"))
-                    self.send_json(200, {"ok": True, "message": f"已下载并校验 V{latest}；更新前完整备份已保存为 {pre_update_backup.name}。工作台即将关闭并自动更新。"})
-                    threading.Timer(1.0, lambda: threading.Thread(target=self.server.shutdown, daemon=True).start()).start()
+                    if not UPDATE_INSTALL_LOCK.acquire(blocking=False):
+                        raise ValueError("已有更新任务正在执行")
+                    try:
+                        # Preserve a verified snapshot of the user's database and local
+                        # reference images before any program update is staged or applied.
+                        pre_update_backup = STORAGE.create_full_backup(IMAGES, app_version=APP_VERSION)
+                        stage, latest = stage_update()
+                        # Bootstrap from the verified staged updater. Older installs may not
+                        # contain updater.py or the launcher yet; both are included in the
+                        # manifest and installed by the updater transaction.
+                        updater = stage / "updater.py"
+                        launcher = ROOT / "启动AI服装提示词工作台.bat"
+                        if not updater.is_file():
+                            shutil.rmtree(stage, ignore_errors=True)
+                            raise ValueError("更新包缺少经过校验的 updater.py，已安全取消更新")
+                        flags = 0
+                        if sys.platform == "win32": flags = getattr(subprocess, "DETACHED_PROCESS", 8) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 512)
+                        subprocess.Popen([sys.executable, str(updater), str(stage), str(ROOT), str(launcher), str(os.getpid())], cwd=str(ROOT),
+                            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                            creationflags=flags, close_fds=(sys.platform != "win32"))
+                        self.send_json(200, {"ok": True, "message": f"已下载并校验 V{latest}；更新前完整备份已保存为 {pre_update_backup.name}。工作台即将关闭并自动更新。"})
+                        threading.Timer(1.0, lambda: threading.Thread(target=self.server.shutdown, daemon=True).start()).start()
+                    except Exception:
+                        UPDATE_INSTALL_LOCK.release()
+                        raise
                 else: self.send_json(404, {"ok": False, "error": "接口不存在"})
         except Exception as e:
             log_api_error(self.path, e)
@@ -667,6 +844,20 @@ def _configure_console_output():
 
 def main():
     _configure_console_output()
+    if "--after-protected-migration" in sys.argv:
+        for _ in range(120):
+            probe = socket.socket()
+            probe.settimeout(0.25)
+            try:
+                busy = probe.connect_ex(("127.0.0.1", 8765)) == 0
+            finally:
+                probe.close()
+            if not busy:
+                break
+            time.sleep(0.25)
+        else:
+            print("迁移后重启失败：等待原工作台关闭超时。", file=sys.stderr)
+            return 2
     try:
         server = ThreadingHTTPServer(("127.0.0.1", 8765), Handler)
     except OSError as exc:

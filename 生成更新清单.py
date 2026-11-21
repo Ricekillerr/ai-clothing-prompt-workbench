@@ -20,11 +20,7 @@ RELEASE_FILES = [
 ]
 
 def sha256(path):
-    # Text checkouts may use CRLF on Windows. BAT files are intentionally
-    # stored as CRLF with -text so raw downloads and updates remain executable.
-    content = path.read_bytes()
-    normalized = content if path.suffix.lower() == ".bat" else content.replace(b"\r\n", b"\n")
-    return hashlib.sha256(normalized).hexdigest()
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 def main():
     source = MAIN.read_text(encoding="utf-8-sig")
@@ -47,7 +43,7 @@ def main():
         "sha256": {name: hashes[name] for name in hash_order},
     }
     manifest_path.write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n"
     )
     print(f"已生成更新清单：V{version}")
     print(f"已校验并记录 {len(RELEASE_FILES)} 个发布文件的 SHA-256。")
