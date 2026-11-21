@@ -67,6 +67,29 @@ class RestoreGuardTests(unittest.TestCase):
         with self.assertRaises(StorageError): Storage(active.home)
         self.assertEqual(self.digest(active), before)
 
+    def test_real_zip_restore_interruption_enters_safe_block(self):
+        code = """import os,sys
+from pathlib import Path
+import storage
+home=Path(sys.argv[1]); original=storage.os.replace
+def crash(src,dst):
+    result=original(src,dst)
+    if (sys.argv[3]=='refs' and Path(dst).name=='old_references') or (sys.argv[3]=='db' and Path(src).parent.name=='database' and Path(dst).name=='prompt_library.sqlite3'):
+        os._exit(71)
+    return result
+storage.os.replace=crash
+storage.Storage(home).restore_full_backup(Path(sys.argv[2]))
+"""
+        old, archive = self.fixture('backup', 1, 'backup')
+        for kind in ('refs', 'db'):
+            with self.subTest(kind=kind):
+                active, _ = self.fixture('active-' + kind, 1, 'active')
+                result = subprocess.run([sys.executable, '-c', code, str(active.home), str(archive), kind], timeout=30)
+                self.assertEqual(result.returncode, 71)
+                with self.assertRaises(StorageError): Storage(active.home)
+                self.assertTrue(list(active.home.glob('.restore_rollback_*')))
+                self.assertTrue(archive.is_file())
+
     def test_corrupt_or_missing_version_rejected_without_replacement(self):
         old, archive = self.fixture('old', 1, 'backup')
         active, _ = self.fixture('active', 1, 'active')
