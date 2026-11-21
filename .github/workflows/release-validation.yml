@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "release/**"
+      - "verify/**"
   pull_request:
     branches:
       - main

@@ -174,6 +174,26 @@ class StorageError(RuntimeError):
     pass
 
 
+def restore_versions_compatible(active_version, backup_version):
+    """Fail closed for missing, unknown or cross-version database restores."""
+    return (isinstance(active_version, str) and isinstance(backup_version, str)
+            and active_version in {"1", "2"} and active_version == backup_version)
+
+
+def _recover_pending_update(home):
+    """Recover a durable updater transaction before opening the database."""
+    home = Path(home)
+    journal = home / ".update-restore-transaction.json"
+    if journal.exists() or journal.is_symlink():
+        if journal.is_symlink():
+            raise StorageError("恢复事务记录路径不安全")
+        try:
+            from updater import recover_interrupted_snapshot
+            recover_interrupted_snapshot(home)
+        except Exception as exc:
+            raise StorageError("更新恢复事务无法安全完成，禁止打开数据库") from exc
+
+
 @contextmanager
 def _activation_lock(source_home):
     """Hold an OS-released lock across protected-copy activation or recovery."""
@@ -209,6 +229,8 @@ def active_data_home(profile: Path) -> Path:
     profile = Path(profile)
     legacy = profile / "AI_Prompt_Asset_Workbench"
     container = profile / "AI_Prompt_Asset_Workbench_v2"
+    _recover_pending_update(legacy)
+    _recover_pending_update(container / "data")
     if not container.exists() and not _is_link_or_junction(container):
         return legacy
     if _is_link_or_junction(container):
@@ -307,6 +329,7 @@ class Storage:
         self._maintenance_depth = 0
         self.home = Path(home)
         self.home.mkdir(parents=True, exist_ok=True)
+        _recover_pending_update(self.home)
         self.db_path = self.home / "prompt_library.sqlite3"
         self.legacy_json = Path(legacy_json) if legacy_json else self.home / "prompt_library.json"
         self._check_existing_schema()
@@ -1788,6 +1811,8 @@ class Storage:
                     "SELECT value FROM metadata WHERE key='schema_version'"
                 ).fetchone()
                 live_version = str(row[0]) if row else ""
+            if live_version not in {"1", "2"}:
+                raise StorageError("无法确认活动数据库版本，已拒绝恢复")
             restored = sqlite3.connect(str(staged_db))
             try:
                 row = restored.execute(
@@ -1803,8 +1828,10 @@ class Storage:
                     raise StorageError("备份清单与数据库版本不一致")
             elif restored_version != "1":
                 raise StorageError("V2 数据库必须使用版本 2 备份格式")
-            if live_version == "2" and restored_version != "2":
-                raise StorageError("不能使用旧版本备份覆盖 V2 数据库；请先在隔离目录恢复并迁移")
+            if not restore_versions_compatible(live_version, restored_version):
+                if live_version == "2" and restored_version == "1":
+                    raise StorageError("不能使用旧版本备份覆盖 V2 数据库；请先在隔离目录恢复并迁移")
+                raise StorageError("备份与活动数据库版本不一致，已拒绝恢复")
 
             safety_backup = self.create_full_backup(
                 self.home / "references", app_version="pre-restore"

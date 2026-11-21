@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """AI服装提示词资产工作台 V0.6.5。"""
-import base64, errno, hashlib, json, os, shutil, socket, subprocess, sys, tempfile, threading, time, uuid, webbrowser
+import base64, errno, hashlib, json, os, re, shutil, socket, subprocess, sys, tempfile, threading, time, uuid, webbrowser
 from pathlib import Path
 from urllib.parse import unquote, quote, parse_qs, urlsplit
 from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
-from storage import Storage, KnowledgeStore, active_data_home, create_protected_copy, legacy_divergence_status
+from storage import Storage, KnowledgeStore, active_data_home, create_protected_copy, legacy_divergence_status, _attachment_status
 from collector import scan_folder, sha256_file
 from case_matcher import rank_matches, rank_case_matches
 from ai_analyzer import analyze_pair, analyze_assets
@@ -35,6 +35,7 @@ MEDIA_MIME_TYPES = {
     ".gif": "image/gif",
     ".bmp": "image/bmp",
 }
+VIDEO_MIME_TYPES = {".mp4": "video/mp4", ".m4v": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm", ".avi": "video/x-msvideo"}
 
 # Keep the legacy JSON intact; migrate it transactionally into SQLite on first launch.
 LEGACY_DATA = DATA if DATA.exists() else next(
@@ -453,6 +454,55 @@ class Handler(BaseHTTPRequestHandler):
             self.send_bytes(200, f.read_bytes(), "text/html; charset=utf-8") if f.exists() else self.send_bytes(404, b"index.html missing", "text/plain")
         elif path == "/api/data":
             self.send_bytes(200, json.dumps(load_data(), ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
+        elif path == "/api/case-video":
+            params = parse_qs(urlsplit(self.path).query)
+            case_id = (params.get("case_id") or [""])[0]
+            attachment_id = (params.get("attachment_id") or [""])[0]
+            if not attachment_id.isascii() or not attachment_id.isdecimal() or len(attachment_id) > 18:
+                self.send_bytes(404, b"not found", "text/plain")
+                return
+            with STORAGE.operation():
+                with STORAGE._session() as con:
+                    row = con.execute("SELECT a.relative_path,a.sha256 FROM attachments a JOIN assets c ON c.id=a.asset_id WHERE a.id=? AND a.asset_id=? AND a.media_type='video' AND c.kind='case'", (attachment_id, case_id)).fetchone()
+                root = _safe_reference_root()
+                if not row or root is None or _attachment_status(root, row["relative_path"], "video", row["sha256"]) != "verified":
+                    self.send_bytes(404, b"not found", "text/plain")
+                    return
+                name = row["relative_path"]
+                mime = VIDEO_MIME_TYPES.get(Path(name).suffix.lower())
+                if not mime:
+                    self.send_bytes(404, b"not found", "text/plain")
+                    return
+                video = root / name
+                size = video.stat().st_size
+                start, end = 0, size - 1
+                requested = self.headers.get("Range")
+                if requested:
+                    match = re.fullmatch(r"bytes=(\d*)-(\d*)", requested.strip())
+                    if not match or not (match.group(1) or match.group(2)):
+                        self.send_response(416); self.send_header("Content-Range", f"bytes */{size}"); self.send_header("Content-Length", "0"); self.end_headers(); return
+                    if match.group(1):
+                        start = int(match.group(1)); end = min(int(match.group(2)), end) if match.group(2) else end
+                    else:
+                        length = int(match.group(2)); start = max(0, size - length)
+                    if start >= size or start > end:
+                        self.send_response(416); self.send_header("Content-Range", f"bytes */{size}"); self.send_header("Content-Length", "0"); self.end_headers(); return
+                self.send_response(206 if requested else 200)
+                self.send_header("Content-Type", mime)
+                if (params.get("download") or [""])[0] == "1":
+                    self.send_header("Content-Disposition", f'attachment; filename="video-{int(attachment_id)}{Path(name).suffix.lower()}"')
+                self.send_header("Accept-Ranges", "bytes")
+                self.send_header("Content-Length", str(end - start + 1))
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("X-Content-Type-Options", "nosniff")
+                if requested: self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+                self.end_headers()
+                with video.open("rb") as stream:
+                    stream.seek(start); remaining = end - start + 1
+                    while remaining:
+                        block = stream.read(min(256 * 1024, remaining))
+                        if not block: break
+                        self.wfile.write(block); remaining -= len(block)
         elif path == "/api/knowledge":
             try:
                 params = parse_qs(urlsplit(self.path).query)
