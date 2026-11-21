@@ -1851,16 +1851,45 @@ class Storage:
             old_refs = rollback_dir / "old_references"
             references_dir = self.home / "references"
             staged_refs = stage_dir / "references"
+            # Forensic record for interrupted ZIP restores. It is deliberately
+            # not treated as an automatic recovery protocol yet: a crash may
+            # occur between a filesystem operation and a phase update.
+            def digest_file(path):
+                digest = hashlib.sha256()
+                with path.open("rb") as stream:
+                    for block in iter(lambda: stream.read(1024 * 1024), b""):
+                        digest.update(block)
+                return digest.hexdigest()
+            journal_state = {
+                "format": "PromptAtelierZipRestoreEvidence", "version": 1,
+                "schema_version": live_version, "backup_schema_version": restored_version,
+                "live_database_sha256": digest_file(self.db_path),
+                "snapshot_database_sha256": digest_file(old_db),
+                "incoming_database_sha256": digest_file(staged_db),
+                "safety_backup": safety_backup.name, "safety_backup_sha256": digest_file(safety_backup),
+                "stage_directory": stage_dir.name, "phase": "prepared",
+            }
+            def record_zip_phase(phase):
+                journal_state["phase"] = phase
+                temporary = rollback_dir / "restore_transaction.tmp"
+                with temporary.open("w", encoding="utf-8") as stream:
+                    json.dump(journal_state, stream, ensure_ascii=False)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary, rollback_dir / "restore_transaction.json")
+            record_zip_phase("prepared")
             if references_dir.is_dir():
                 os.replace(references_dir, old_refs)
             swapped_refs = True
             try:
+                record_zip_phase("previous_references_retained")
                 if references_dir.exists():
                     shutil.rmtree(references_dir)
                 if staged_refs.is_dir():
                     os.replace(staged_refs, references_dir)
                 else:
                     references_dir.mkdir(parents=True, exist_ok=True)
+                record_zip_phase("references_replaced")
 
                 for suffix in ("-wal", "-shm"):
                     sidecar = Path(str(self.db_path) + suffix)
@@ -1868,8 +1897,10 @@ class Storage:
                         sidecar.unlink()
                 os.replace(staged_db, self.db_path)
                 swapped_db = True
+                record_zip_phase("database_replaced")
                 os.replace(staged_json, self.legacy_json)
                 swapped_json = True
+                record_zip_phase("json_replaced")
 
                 # Re-apply additive schema migrations so older backups gain new tables/indexes.
                 self._initialize()
@@ -1878,6 +1909,7 @@ class Storage:
                     raise StorageError("恢复后案例数量与备份清单不一致")
                 if len(verified.get("modules", [])) != len(restored_json["modules"]):
                     raise StorageError("恢复后模块数量与备份清单不一致")
+                record_zip_phase("verified")
             except Exception as exc:
                 rollback_errors = []
                 if swapped_db:
