@@ -67,7 +67,7 @@ jobs:
               p = PurePosixPath(raw)
               n = p.name.casefold()
               env_file = n == ".env" or (n.startswith(".env.") and n not in {".env.example", ".env.sample"})
-    if any(part.casefold() in blocked for part in p.parts) or p.suffix.casefold() in suffixes or env_file or n in {".npmrc", ".netrc", ".pypirc", "id_rsa", "id_ed25519", "credentials.json"}:
+              if any(part.casefold() in blocked for part in p.parts) or p.suffix.casefold() in suffixes or env_file or n in {".npmrc", ".netrc", ".pypirc", "id_rsa", "id_ed25519", "credentials.json"}:
                   hits.append(raw)
           if hits:
               print("::error::Private or credential-like paths found; refusing checkout.")
