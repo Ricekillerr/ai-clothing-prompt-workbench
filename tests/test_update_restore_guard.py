@@ -93,10 +93,39 @@ storage.Storage(home).restore_full_backup(Path(sys.argv[2]))
                 self.assertEqual(len(rollback), 1)
                 evidence = json.loads((rollback[0] / 'restore_transaction.json').read_text(encoding='utf-8'))
                 self.assertEqual(evidence['schema_version'], '1')
+                self.assertEqual(evidence['transaction_id'], rollback[0].name)
                 self.assertEqual(evidence['snapshot_database_sha256'], hashlib.sha256((rollback[0] / 'old.sqlite3').read_bytes()).hexdigest())
                 safety = active.home / 'backups' / evidence['safety_backup']
                 self.assertEqual(evidence['safety_backup_sha256'], hashlib.sha256(safety.read_bytes()).hexdigest())
                 self.assertTrue(archive.is_file())
+
+    def test_zip_phase_interruption_preserves_diagnostics_and_blocks_startup(self):
+        code = """import os,sys
+from pathlib import Path
+import storage
+home=Path(sys.argv[1]); original=storage.os.replace; phases=[]
+def crash(src,dst):
+    result=original(src,dst)
+    if Path(dst).name=='restore_transaction.json':
+        phases.append(1)
+        if len(phases)==int(sys.argv[3]): os._exit(71)
+    return result
+storage.os.replace=crash
+storage.Storage(home).restore_full_backup(Path(sys.argv[2]))
+"""
+        old, archive = self.fixture('zip-source', 1, 'backup')
+        for phase in range(1, 7):
+            with self.subTest(phase=phase):
+                active, _ = self.fixture('zip-target-' + str(phase), 1, 'active')
+                result = subprocess.run([sys.executable, '-c', code, str(active.home), str(archive), str(phase)], timeout=30)
+                self.assertEqual(result.returncode, 71)
+                with self.assertRaises(StorageError): Storage(active.home)
+                with self.assertRaises(StorageError): Storage(active.home)
+                rollback = list(active.home.glob('.restore_rollback_*'))
+                self.assertEqual(len(rollback), 1)
+                evidence = json.loads((rollback[0] / 'restore_transaction.json').read_text(encoding='utf-8'))
+                self.assertEqual(evidence['snapshot_database_sha256'], hashlib.sha256((rollback[0] / 'old.sqlite3').read_bytes()).hexdigest())
+                self.assertTrue(archive.exists())
 
     def test_corrupt_or_missing_version_rejected_without_replacement(self):
         old, archive = self.fixture('old', 1, 'backup')

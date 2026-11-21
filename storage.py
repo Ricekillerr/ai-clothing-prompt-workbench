@@ -1862,6 +1862,7 @@ class Storage:
                 return digest.hexdigest()
             journal_state = {
                 "format": "PromptAtelierZipRestoreEvidence", "version": 1,
+                "transaction_id": rollback_dir.name,
                 "schema_version": live_version, "backup_schema_version": restored_version,
                 "live_database_sha256": digest_file(self.db_path),
                 "snapshot_database_sha256": digest_file(old_db),
