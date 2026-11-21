@@ -12,6 +12,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from PIL import Image
 
 from protected_migration import create_protected_copy, recover_protected_copy
 from storage import Storage, StorageError, active_data_home, _activation_lock, legacy_divergence_status
@@ -389,8 +390,14 @@ class ProtectedCopyTests(unittest.TestCase):
             protected = parent / 'protected'
             create_protected_copy(old, protected)
             v2 = Storage(protected / 'data')
+            refs = v2.home / 'references'
+            refs.mkdir(exist_ok=True)
+            image = refs / 'synthetic.png'
+            Image.new('RGB', (8, 8), 'blue').save(image)
+            image_hash = hashlib.sha256(image.read_bytes()).hexdigest()
             with v2._session() as con:
                 con.execute("INSERT INTO garments(id,name,category) VALUES('g1','外套','上装')")
+                con.execute("INSERT INTO attachments(asset_id,relative_path,media_type,sha256) VALUES('c1','synthetic.png','image',?)", (image_hash,))
             root = Path(__file__).resolve().parents[1]
             modules = []
             for name in ('storage', 'updater'):
@@ -408,6 +415,8 @@ class ProtectedCopyTests(unittest.TestCase):
                 db.close()
             retained = list(v2.home.glob('.update_recovery_*/failed_version/prompt_library.sqlite3'))
             self.assertEqual(len(retained), 1)
+            retained_image = retained[0].parent / 'references' / 'synthetic.png'
+            self.assertEqual(hashlib.sha256(retained_image.read_bytes()).hexdigest(), image_hash)
             db = sqlite3.connect(retained[0])
             try:
                 self.assertEqual(db.execute("SELECT count(*) FROM garments WHERE id='g1'").fetchone()[0], 1)
