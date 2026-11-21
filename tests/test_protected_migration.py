@@ -7,6 +7,7 @@ from urllib.request import Request, build_opener, ProxyHandler
 import updater
 import importlib.util
 import subprocess
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -376,6 +377,42 @@ class ProtectedCopyTests(unittest.TestCase):
                 self.assertEqual(con.execute("SELECT count(*) FROM garments").fetchone()[0], 1)
                 self.assertEqual(con.execute("SELECT count(*) FROM case_garments").fetchone()[0], 1)
                 self.assertEqual(con.execute("SELECT count(*) FROM prompt_sources").fetchone()[0], 2)
+
+    def test_previous_updater_explicit_v2_path_can_replace_active_v2(self):
+        """Document the old updater's file-level bypass using isolated synthetic data."""
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp)
+            legacy_dir = parent / 'legacy'
+            old = Storage(legacy_dir)
+            old.save_data({'cases': [{'id': 'c1', 'body': '旧原文'}], 'modules': []})
+            backup = old.create_full_backup(old.home / 'references', app_version='0.6.5')
+            protected = parent / 'protected'
+            create_protected_copy(old, protected)
+            v2 = Storage(protected / 'data')
+            with v2._session() as con:
+                con.execute("INSERT INTO garments(id,name,category) VALUES('g1','外套','上装')")
+            root = Path(__file__).resolve().parents[1]
+            modules = []
+            for name in ('storage', 'updater'):
+                path = parent / (name + '_previous.py')
+                path.write_bytes(subprocess.check_output(['git', 'show', '74c9c28:' + name + '.py'], cwd=root))
+                spec = importlib.util.spec_from_file_location('adversarial_previous_' + name, path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                modules.append(module)
+            modules[1].restore_snapshot(modules[0].Storage, v2.home, backup)
+            db = sqlite3.connect(v2.db_path)
+            try:
+                self.assertEqual(db.execute("SELECT value FROM metadata WHERE key='schema_version'").fetchone()[0], '1')
+            finally:
+                db.close()
+            retained = list(v2.home.glob('.update_recovery_*/failed_version/prompt_library.sqlite3'))
+            self.assertEqual(len(retained), 1)
+            db = sqlite3.connect(retained[0])
+            try:
+                self.assertEqual(db.execute("SELECT count(*) FROM garments WHERE id='g1'").fetchone()[0], 1)
+            finally:
+                db.close()
 
     def test_interrupted_activation_leaves_unready_container_and_source(self):
         with tempfile.TemporaryDirectory() as tmp:
