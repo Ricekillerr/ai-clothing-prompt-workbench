@@ -5,7 +5,7 @@ from pathlib import Path
 from urllib.parse import unquote, quote, parse_qs, urlsplit
 from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
-from storage import Storage, KnowledgeStore, active_data_home, create_protected_copy, legacy_divergence_status, _attachment_status
+from storage import Storage, DataService, KnowledgeStore, active_data_home, create_protected_copy, legacy_divergence_status, _attachment_status
 from collector import scan_folder, sha256_file
 from case_matcher import rank_matches, rank_case_matches
 from ai_analyzer import analyze_pair, analyze_assets
@@ -185,14 +185,10 @@ def _is_link_or_junction(path):
 
 def _safe_reference_root():
     """Return the canonical references directory only when it remains inside HOME."""
-    if _is_link_or_junction(IMAGES):
-        return None
     try:
-        home_root = HOME.resolve(strict=True)
-        image_root = IMAGES.resolve(strict=True)
-        if image_root.parent != home_root or not image_root.is_dir():
+        if STORAGE.home.resolve(strict=True) != HOME.resolve(strict=True) or IMAGES != HOME / "references":
             return None
-        return image_root
+        return DataService(STORAGE).asset_root()
     except (OSError, RuntimeError):
         return None
 
@@ -204,18 +200,12 @@ def _safe_reference_image_path(name):
     mime = MEDIA_MIME_TYPES.get(Path(name).suffix.lower())
     if not mime:
         return None
-    root = _safe_reference_root()
-    if root is None:
-        return None
-    candidate = root / name
-    if _is_link_or_junction(candidate):
-        return None
     try:
-        resolved = candidate.resolve(strict=True)
-        resolved.relative_to(root)
+        if _safe_reference_root() is None:
+            return None
+        return DataService(STORAGE).get_asset(name)
     except (OSError, RuntimeError, ValueError):
         return None
-    return resolved if resolved.is_file() else None
 
 
 def _validated_ingest_file_path(record):
@@ -440,7 +430,7 @@ class Handler(BaseHTTPRequestHandler):
                 encoded = pending[:-2]
                 if encoded:
                     temp.write(base64.b64decode(encoded, validate=True))
-            return STORAGE.restore_full_backup(temp_path)
+            return DataService(STORAGE).restore_backup(temp_path)
         finally:
             if temp_path and temp_path.exists():
                 temp_path.unlink()
@@ -462,7 +452,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_bytes(404, b"not found", "text/plain")
                 return
             with STORAGE.operation():
-                with STORAGE._session() as con:
+                with DataService(STORAGE).get_database() as con:
                     row = con.execute("SELECT a.relative_path,a.sha256 FROM attachments a JOIN assets c ON c.id=a.asset_id WHERE a.id=? AND a.asset_id=? AND a.media_type='video' AND c.kind='case'", (attachment_id, case_id)).fetchone()
                 root = _safe_reference_root()
                 if not row or root is None or _attachment_status(root, row["relative_path"], "video", row["sha256"]) != "verified":
@@ -473,7 +463,11 @@ class Handler(BaseHTTPRequestHandler):
                 if not mime:
                     self.send_bytes(404, b"not found", "text/plain")
                     return
-                video = root / name
+                try:
+                    video = DataService(STORAGE).resolve_asset(name)
+                except RuntimeError:
+                    self.send_bytes(404, b"not found", "text/plain")
+                    return
                 size = video.stat().st_size
                 start, end = 0, size - 1
                 requested = self.headers.get("Range")
@@ -534,13 +528,13 @@ class Handler(BaseHTTPRequestHandler):
             })
         elif path == "/api/backup/full-json":
             try:
-                archive = STORAGE.create_full_backup(IMAGES, app_version=APP_VERSION)
+                archive = DataService(STORAGE).create_backup(app_version=APP_VERSION)
                 self.send_full_json_backup(archive)
             except Exception as exc:
                 self.send_json(500, {"ok": False, "error": f"完整 JSON 备份创建失败：{exc}"})
         elif path == "/api/backup/full":
             try:
-                archive = STORAGE.create_full_backup(IMAGES, app_version=APP_VERSION)
+                archive = DataService(STORAGE).create_backup(app_version=APP_VERSION)
                 self.send_file_download(archive, archive.name)
             except Exception as e:
                 self.send_json(500, {"ok": False, "error": f"完整备份创建失败：{e}"})
@@ -639,7 +633,7 @@ class Handler(BaseHTTPRequestHandler):
                                 raise ValueError("恢复文件上传未完成")
                             temp_file.write(chunk)
                             remaining -= len(chunk)
-                    result = STORAGE.restore_full_backup(temp_path)
+                    result = DataService(STORAGE).restore_backup(temp_path)
                     self.send_json(200, result)
                 finally:
                     if temp_path and temp_path.exists():
@@ -839,8 +833,7 @@ class Handler(BaseHTTPRequestHandler):
                     if reference_root is None:
                         raise ValueError("参考图片目录不安全或已被替换，拒绝写入")
                     name = uuid.uuid4().hex[:16] + ext
-                    with (reference_root / name).open("xb") as target:
-                        target.write(content)
+                    DataService(STORAGE).save_asset(name, content)
                     self.send_json(200, {"path": name})
                 elif self.path == "/api/update/auto":
                     enabled = bool(d.get("enabled", False))
@@ -856,7 +849,7 @@ class Handler(BaseHTTPRequestHandler):
                     try:
                         # Preserve a verified snapshot of the user's database and local
                         # reference images before any program update is staged or applied.
-                        pre_update_backup = STORAGE.create_full_backup(IMAGES, app_version=APP_VERSION)
+                        pre_update_backup = DataService(STORAGE).create_backup(app_version=APP_VERSION)
                         stage, latest = stage_update()
                         # Bootstrap from the verified staged updater. Older installs may not
                         # contain updater.py or the launcher yet; both are included in the

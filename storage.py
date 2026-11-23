@@ -418,6 +418,10 @@ class Storage:
                 self._maintenance_depth += 1
             else:
                 while self._restoring:
+                    # A caller already holding a shared lease must not wait
+                    # behind another upgrader that is waiting for that lease.
+                    if self._active_by_thread.get(owner, 0):
+                        raise StorageError("另一个备份或恢复正在进行，请稍后重试")
                     condition.wait()
                 self._restoring = True
                 self._maintenance_owner = owner
@@ -1526,7 +1530,9 @@ class Storage:
 
     def create_full_backup(self, references_dir: Path | None = None,
                            app_version: str = "unknown") -> Path:
-        with self.operation():
+        # Keep database and related reference files stable for the whole ZIP.
+        # exclusive_operation is re-entrant for restore and update callers.
+        with self.exclusive_operation():
             with self._db_lock:
                 return self._create_full_backup_locked(references_dir, app_version)
 
@@ -1969,6 +1975,91 @@ class Storage:
 
 def _id():
     return uuid.uuid4().hex
+
+
+class DataService:
+    """Small in-process data access facade over the existing Storage instance."""
+
+    def __init__(self, store):
+        self.store = store
+
+    @contextmanager
+    def get_database(self):
+        with self.store._session() as connection:
+            yield connection
+
+    def asset_root(self):
+        root = self.store.home / "references"
+        if _is_link_or_junction(root):
+            raise StorageError("素材目录不安全")
+        try:
+            home = self.store.home.resolve(strict=True)
+            resolved = root.resolve(strict=True)
+            if resolved.parent != home or not resolved.is_dir():
+                raise StorageError("素材目录不安全")
+            return resolved
+        except (OSError, RuntimeError) as exc:
+            raise StorageError("素材目录不可访问") from exc
+
+    def get_asset(self, name):
+        if (not isinstance(name, str) or not name or name in {".", ".."} or "/" in name
+                or "\\" in name or ":" in name or "\x00" in name or name.endswith((".", " "))):
+            raise StorageError("素材标识无效")
+        root = self.asset_root()
+        path = root / name
+        if _is_link_or_junction(path):
+            raise StorageError("素材路径不安全")
+        try:
+            resolved = path.resolve(strict=True)
+            if resolved.parent != root or not resolved.is_file():
+                raise StorageError("素材不存在或路径不安全")
+            return resolved
+        except (OSError, RuntimeError) as exc:
+            raise StorageError("素材不可访问") from exc
+
+    def resolve_asset(self, relative_path):
+        if not isinstance(relative_path, str) or not relative_path or "\\" in relative_path or "\x00" in relative_path:
+            raise StorageError("素材路径无效")
+        path, windows = Path(relative_path), PureWindowsPath(relative_path)
+        if path.is_absolute() or windows.is_absolute() or windows.drive or any(p in {".", ".."} or ":" in p for p in path.parts):
+            raise StorageError("素材路径无效")
+        root = self.asset_root()
+        candidate = root
+        for part in path.parts:
+            candidate = candidate / part
+            if _is_link_or_junction(candidate):
+                raise StorageError("素材路径不安全")
+        try:
+            resolved = candidate.resolve(strict=True)
+            if not resolved.is_relative_to(root) or not resolved.is_file():
+                raise StorageError("素材不存在或路径不安全")
+            return resolved
+        except (OSError, RuntimeError) as exc:
+            raise StorageError("素材不可访问") from exc
+
+    def save_asset(self, name, content):
+        if (not isinstance(name, str) or not name or name in {".", ".."} or "/" in name
+                or "\\" in name or ":" in name or "\x00" in name or name.endswith((".", " "))):
+            raise StorageError("素材标识无效")
+        if not isinstance(content, bytes) or not content:
+            raise StorageError("素材内容无效")
+        with self.store.operation():
+            target = self.asset_root() / name
+            created = False
+            try:
+                with target.open("xb") as stream:
+                    created = True
+                    stream.write(content)
+            except Exception:
+                if created: target.unlink(missing_ok=True)
+                raise
+            return name
+
+    def create_backup(self, app_version="unknown"):
+        return self.store.create_full_backup(self.asset_root(), app_version=app_version)
+
+    def restore_backup(self, archive):
+        return self.store.restore_full_backup(archive)
 
 
 class KnowledgeStore:
