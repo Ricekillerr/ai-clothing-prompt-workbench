@@ -10,7 +10,7 @@ import imageio_ffmpeg
 from PIL import Image
 
 from generation_result_schema import install_test_schema
-from storage import KnowledgeStore, Storage, StorageError, migrate
+from storage import DataService, KnowledgeStore, Storage, StorageError, migrate
 
 
 class GenerationBackupBoundaryTests(unittest.TestCase):
@@ -44,6 +44,7 @@ class GenerationBackupBoundaryTests(unittest.TestCase):
             link = knowledge.link_case('c1', garment)
             source = knowledge.list_sources('c1')[0]
             archive = v1.create_full_backup(refs)
+            self.assertTrue(DataService(v1).verify_backup(archive)['ok'])
 
             restored = Storage(root / 'v2-restore')
             migrate(restored)
