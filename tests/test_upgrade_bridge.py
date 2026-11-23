@@ -59,8 +59,8 @@ class V065IntegrationTests(unittest.TestCase):
 
     def test_backend_connects_storage_and_exposes_ingestion_routes(self):
         self.assertIn("STORAGE = Storage(", self.app)
-        self.assertIn("create_full_backup", self.app)
-        self.assertIn("pre_update_backup = STORAGE.create_full_backup", self.app)
+        self.assertIn("pre_update_backup = DataService(STORAGE).create_backup", self.app)
+        self.assertIn("self.store.create_full_backup(self.asset_root()", (self.root / "storage.py").read_text(encoding="utf-8"))
         self.assertIn("analyze_assets", self.app)
         self.assertIn("AUTO_SCAN_INTERVAL_SECONDS = 60", self.app)
         self.assertIn("def auto_scan_loop", self.app)
