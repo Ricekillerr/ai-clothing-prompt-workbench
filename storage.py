@@ -194,6 +194,14 @@ def _recover_pending_update(home):
             recover_interrupted_snapshot(home)
         except Exception as exc:
             raise StorageError("更新恢复事务无法安全完成，禁止打开数据库") from exc
+    # Generations are an opt-in snapshot store; they do not change the live data path.
+    generation_journal = home / "generations" / "transaction.json"
+    if generation_journal.exists() or _is_link_or_junction(generation_journal):
+        try:
+            with _activation_lock(home):
+                DataService._recover_generation_at(home)
+        except Exception as exc:
+            raise StorageError("Generation 事务无法安全恢复，禁止打开数据库") from exc
     # ZIP restore currently retains its pre-swap rollback directory if killed.
     # Its layout differs from updater transactions; block rather than opening a
     # potentially mixed database until that recovery path is implemented.
@@ -1656,6 +1664,218 @@ class Storage:
             with self._db_lock:
                 return self._restore_full_backup_locked(archive_path)
 
+    def _verify_backup_staged(self, archive_path, stage_dir):
+        """Read and validate a backup without invoking any restore operation."""
+        archive_path = Path(archive_path)
+        if not archive_path.is_file() or archive_path.stat().st_size > 500 * 1024 * 1024:
+            raise StorageError("备份文件不存在或超过安全大小限制")
+        with zipfile.ZipFile(archive_path, "r") as archive:
+            infos = archive.infolist()
+            if len(infos) > 20000:
+                raise StorageError("备份文件数量超过安全上限")
+            names = [info.filename for info in infos]
+            if len(names) != len(set(names)):
+                raise StorageError("备份中存在重复文件路径")
+            if "backup_manifest.json" not in names:
+                raise StorageError("缺少备份清单，无法确认备份来源")
+            manifest_info = archive.getinfo("backup_manifest.json")
+            if manifest_info.file_size > 5 * 1024 * 1024:
+                raise StorageError("备份清单异常过大")
+            manifest = json.loads(archive.read("backup_manifest.json").decode("utf-8"))
+            if (not isinstance(manifest, dict)
+                    or manifest.get("format") != "PromptAtelierFullBackup"
+                    or manifest.get("format_version") not in (1, 2)
+                    or not isinstance(manifest.get("files"), dict)):
+                raise StorageError("备份格式或版本不受支持")
+            expected_files = manifest["files"]
+            actual_files = [name for name in names if name != "backup_manifest.json"]
+            if set(actual_files) != set(expected_files):
+                raise StorageError("备份清单与压缩包文件列表不一致")
+            required = {
+                "database/prompt_library.sqlite3",
+                "data/prompt_library.json",
+            }
+            if not required.issubset(expected_files):
+                raise StorageError("备份缺少数据库或 JSON 数据文件")
+
+            total_size = 0
+            normalized_paths = set()
+            for info in infos:
+                if info.filename == "backup_manifest.json":
+                    continue
+                name = info.filename
+                relative = PurePosixPath(name)
+                raw_parts = name.split("/")
+                windows_reserved = {"CON", "PRN", "AUX", "NUL"} | {
+                    f"{prefix}{number}" for prefix in ("COM", "LPT") for number in range(1, 10)
+                }
+                unsafe_component = any(
+                    not part or part in {".", ".."} or part.endswith((".", " "))
+                    or any(char in part for char in '<>:"|?*')
+                    or part.split(".", 1)[0].upper() in windows_reserved
+                    for part in raw_parts
+                )
+                normalized_key = name.casefold()
+                unix_mode = (info.external_attr >> 16) & 0xFFFF
+                if (not name or "\\" in name or "\x00" in name
+                        or relative.is_absolute() or unsafe_component
+                        or info.is_dir() or stat.S_ISLNK(unix_mode)
+                        or normalized_key in normalized_paths
+                        or not (name in required or name.startswith("references/"))):
+                    raise StorageError(f"备份包含不安全的文件路径：{name[:120]}")
+                normalized_paths.add(normalized_key)
+                if info.file_size > 1024 * 1024 * 1024:
+                    raise StorageError(f"备份单个文件超过 1GB：{name[:120]}")
+                total_size += info.file_size
+                if total_size > 2 * 1024 * 1024 * 1024:
+                    raise StorageError("备份解压总量超过 2GB，拒绝恢复")
+                expected_hash = str(expected_files.get(name) or "").lower()
+                if len(expected_hash) != 64 or any(ch not in "0123456789abcdef" for ch in expected_hash):
+                    raise StorageError(f"备份清单中的 SHA-256 格式无效：{name[:120]}")
+
+                target = stage_dir.joinpath(*relative.parts)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                digest = hashlib.sha256()
+                staged_target = (target.with_name("." + target.name + "." + uuid.uuid4().hex + ".tmp")
+                                 if name == "data/prompt_library.json" else target)
+                with archive.open(info, "r") as source, staged_target.open("wb") as destination:
+                    for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                        digest.update(chunk)
+                        destination.write(chunk)
+                    if staged_target != target:
+                        destination.flush()
+                        os.fsync(destination.fileno())
+                if digest.hexdigest() != expected_hash:
+                    raise StorageError(f"备份文件 SHA-256 校验失败：{name}")
+                if staged_target != target:
+                    os.replace(staged_target, target)
+
+        staged_db = stage_dir / "database" / "prompt_library.sqlite3"
+        staged_json = stage_dir / "data" / "prompt_library.json"
+        try:
+            check = sqlite3.connect(str(staged_db))
+            integrity = check.execute("PRAGMA integrity_check").fetchone()[0]
+            tables = {row[0] for row in check.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()}
+            foreign_key_errors = check.execute("PRAGMA foreign_key_check").fetchall()
+            check.close()
+        except sqlite3.DatabaseError as exc:
+            raise StorageError("备份数据库无法打开或已损坏") from exc
+        if integrity != "ok" or foreign_key_errors or not {"assets", "metadata"}.issubset(tables):
+            raise StorageError("备份数据库完整性、外键或结构检查未通过")
+        if manifest.get("format_version") == 2:
+            inspection = sqlite3.connect(str(staged_db))
+            try:
+                records = inspection.execute(
+                    "SELECT id,relative_path,media_type,sha256 FROM attachments"
+                ).fetchall()
+                names = {row[0] for row in inspection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                pending = ({row[0] for row in inspection.execute(
+                    "SELECT attachment_id FROM unresolved_video_refs WHERE status='pending'")}
+                    if "unresolved_video_refs" in names else set())
+            finally:
+                inspection.close()
+            for attachment_id, relative_path, media_type, digest in records:
+                status = _attachment_status(stage_dir / "references", relative_path, media_type, digest)
+                if attachment_id in pending and _is_legacy_absolute_video({
+                        "relative_path": relative_path, "media_type": media_type, "status": status}):
+                    continue
+                if status != "verified":
+                    raise StorageError("备份素材未通过验证：" + str(status))
+
+        try:
+            restored_json = json.loads(staged_json.read_text(encoding="utf-8"))
+        except Exception as exc:
+            raise StorageError("备份 JSON 数据无法解析") from exc
+        if (not isinstance(restored_json, dict)
+                or not isinstance(restored_json.get("cases"), list)
+                or not isinstance(restored_json.get("modules"), list)):
+            raise StorageError("备份 JSON 数据结构不正确")
+        seen_ids = set()
+        for key in ("cases", "modules"):
+            for item in restored_json[key]:
+                if not isinstance(item, dict) or not str(item.get("id") or "").strip():
+                    raise StorageError(f"备份 {key} 中存在无效资产记录")
+                asset_id = str(item["id"]).strip()
+                if asset_id in seen_ids:
+                    raise StorageError(f"备份中存在重复资产 ID：{asset_id}")
+                seen_ids.add(asset_id)
+
+        # The ZIP checksum only proves internal consistency, not that the
+        # JSON and SQLite payloads describe the same library. Verify both.
+        try:
+            verify_db = sqlite3.connect(str(staged_db))
+            has_tombstones = verify_db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='case_tombstones'"
+            ).fetchone() is not None
+            where = " WHERE id NOT IN (SELECT case_id FROM case_tombstones)" if has_tombstones else ""
+            rows = verify_db.execute(
+                "SELECT kind,payload_json FROM assets" + where + " ORDER BY updated_at DESC, rowid DESC"
+            ).fetchall()
+            verify_db.close()
+            database_payload = {"version": 3, "cases": [], "modules": []}
+            for kind, payload_json in rows:
+                item = json.loads(payload_json)
+                database_payload["cases" if kind == "case" else "modules"].append(item)
+        except Exception as exc:
+            raise StorageError("备份数据库资产内容无法完整读取") from exc
+        if (restored_json.get("cases") != database_payload["cases"]
+                or restored_json.get("modules") != database_payload["modules"]):
+            raise StorageError("备份数据库与 JSON 内容不一致，拒绝恢复")
+
+        # Never replace a V2 store with a V1 backup. The old application
+        # cannot apply this check, so file-level downgrade protection remains
+        # a separate release gate.
+        # Verification must not open the active database in write mode.
+        live = sqlite3.connect(self.db_path.resolve().as_uri() + "?mode=ro", uri=True)
+        try:
+            row = live.execute(
+                "SELECT value FROM metadata WHERE key='schema_version'"
+            ).fetchone()
+            live_version = str(row[0]) if row else ""
+        finally:
+            live.close()
+        if live_version not in {"1", "2"}:
+            raise StorageError("无法确认活动数据库版本，已拒绝恢复")
+        restored = sqlite3.connect(str(staged_db))
+        try:
+            row = restored.execute(
+                "SELECT value FROM metadata WHERE key='schema_version'"
+            ).fetchone()
+            restored_version = str(row[0]) if row else ""
+        finally:
+            restored.close()
+        if restored_version not in {"1", "2"}:
+            raise StorageError("备份数据库版本不受支持")
+        if manifest.get("format_version") == 2:
+            if manifest.get("schema_version") != int(restored_version):
+                raise StorageError("备份清单与数据库版本不一致")
+        elif restored_version != "1":
+            raise StorageError("V2 数据库必须使用版本 2 备份格式")
+        if not restore_versions_compatible(live_version, restored_version):
+            if live_version == "2" and restored_version == "1":
+                raise StorageError("不能使用旧版本备份覆盖 V2 数据库；请先在隔离目录恢复并迁移")
+            raise StorageError("备份与活动数据库版本不一致，已拒绝恢复")
+
+        inspection = inspect_database(staged_db, stage_dir / "references")
+        if (inspection["schema_errors"] or inspection["foreign_key_errors"]
+                or inspection["integrity"] != ["ok"] or inspection["quick_check"] != ["ok"]
+                or any(item.get("status") != "verified" for item in inspection["attachments"])
+                or any(item.get("status") != "verified" for item in inspection["payload_references"])):
+            raise StorageError("备份数据库或引用素材未通过完整性检查")
+        for name, expected in manifest["files"].items():
+            if not name.startswith("references/"):
+                continue
+            relative = name[len("references/"):]
+            extension = Path(relative).suffix.lower()
+            media = "image" if extension in FORMATS else "video" if extension in VIDEO_FORMATS else None
+            if media and _attachment_status(stage_dir / "references", relative, media, expected) != "verified":
+                raise StorageError("备份素材未通过验证")
+        return {"ok": True, "schema_version": restored_version,
+                "cases": len(restored_json["cases"]), "modules": len(restored_json["modules"]),
+                "references": sum(name.startswith("references/") for name in manifest["files"])}
+
     def _restore_full_backup_locked(self, archive_path: Path) -> dict:
         """Verify a full backup completely, then atomically replace local data and references."""
         archive_path = Path(archive_path).resolve()
@@ -2059,38 +2279,247 @@ class DataService:
         return self.store.create_full_backup(self.asset_root(), app_version=app_version)
 
     def verify_backup(self, archive):
-        """Validate a ZIP in a disposable same-schema store without touching live data."""
+        """Validate independently in a temporary directory; never restore live data."""
         try:
-            version = str(self.store.get_setting("schema_version", ""))
-            if version not in {"1", "2"}:
-                raise StorageError("活动数据库版本无效")
             with tempfile.TemporaryDirectory(prefix="prompt_atelier_verify_") as directory:
-                isolated = Storage(Path(directory) / "data")
-                if version == "2":
-                    migrate(isolated)
-                result = isolated.restore_full_backup(Path(archive))
-                inspection = inspect_database(isolated.db_path, isolated.home / "references")
-                if (inspection["schema_errors"] or inspection["foreign_key_errors"]
-                        or inspection["integrity"] != ["ok"] or inspection["quick_check"] != ["ok"]
-                        or any(item.get("status") != "verified" for item in inspection["attachments"])
-                        or any(item.get("status") != "verified" for item in inspection["payload_references"])):
-                    raise StorageError("备份内容未通过完整性检查")
-                # A backup may include unreferenced media. Validate those too,
-                # without assuming that every reference file is an image.
-                with zipfile.ZipFile(archive, "r") as source:
-                    manifest = json.loads(source.read("backup_manifest.json").decode("utf-8"))
-                for name, expected in manifest["files"].items():
-                    if not name.startswith("references/"):
-                        continue
+                return self.store._verify_backup_staged(archive, Path(directory))
+        except (StorageError, OSError, ValueError, KeyError, TypeError, sqlite3.Error, zipfile.BadZipFile) as exc:
+            return {"ok": False, "error": "BACKUP_VALIDATION_FAILED", "error_type": type(exc).__name__,
+                    "message": "备份校验失败：" + (str(exc) if isinstance(exc, StorageError) else "文件损坏或格式无效")}
+
+    @staticmethod
+    def _generation_atomic_write(path, data):
+        temp = path.with_name("." + path.name + "." + uuid.uuid4().hex + ".tmp")
+        with temp.open("xb") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temp, path)
+        if os.name != "nt":
+            fd = os.open(path.parent, os.O_RDONLY)
+            try:
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+
+    @staticmethod
+    def _generation_root(home, create=False):
+        root = Path(home) / "generations"
+        if _is_link_or_junction(root):
+            raise StorageError("Generation 目录不安全")
+        if create:
+            root.mkdir(exist_ok=True)
+        if root.exists() and not root.is_dir():
+            raise StorageError("Generation 目录无效")
+        return root
+
+    @staticmethod
+    def _generation_id(value):
+        return isinstance(value, str) and len(value) == 32 and all(c in "0123456789abcdef" for c in value)
+
+    @staticmethod
+    def _generation_hash(path):
+        result = hashlib.sha256()
+        with path.open("rb") as stream:
+            for block in iter(lambda: stream.read(1024 * 1024), b""):
+                result.update(block)
+        return result.hexdigest()
+
+    @classmethod
+    def _validate_generation_at(cls, home, generation_id):
+        if not cls._generation_id(generation_id):
+            raise StorageError("Generation 标识无效")
+        root = cls._generation_root(home)
+        folder = root / ("generation_" + generation_id)
+        if _is_link_or_junction(folder) or not folder.is_dir():
+            raise StorageError("Generation 不存在或路径不安全")
+        manifest_path = folder / "manifest.json"
+        if _is_link_or_junction(manifest_path):
+            raise StorageError("Generation 清单路径不安全")
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            files = manifest["files"]
+            if (manifest["format"] != "PromptAtelierGeneration1" or manifest["id"] != generation_id
+                    or manifest["schema_version"] not in ("1", "2")
+                    or not isinstance(manifest["created_at"], str) or not isinstance(files, dict)):
+                raise ValueError("invalid manifest")
+            required = {"database/prompt_library.sqlite3", "data/prompt_library.json"}
+            if not required.issubset(files):
+                raise ValueError("missing files")
+            found = set()
+            for item in folder.rglob("*"):
+                if _is_link_or_junction(item):
+                    raise StorageError("Generation 包含链接")
+                if item.is_file() and item != manifest_path:
+                    found.add(item.relative_to(folder).as_posix())
+            if found != set(files):
+                raise StorageError("Generation 文件清单不一致")
+            for name, digest in files.items():
+                parts = name.split("/")
+                if (not isinstance(name, str) or not isinstance(digest, str)
+                        or any(part in ("", ".", "..") or "\\" in part or ":" in part for part in parts)
+                        or not (name in required or name.startswith("references/"))
+                        or cls._generation_hash(folder.joinpath(*parts)) != digest):
+                    raise StorageError("Generation 文件哈希或路径无效")
+            db = folder / "database" / "prompt_library.sqlite3"
+            report = inspect_database(db, folder / "references")
+            if (str(report["schema_version"]) != manifest["schema_version"]
+                    or report["schema_errors"] or report["foreign_key_errors"]
+                    or report["integrity"] != ["ok"] or report["quick_check"] != ["ok"]
+                    or any(x.get("status") != "verified" for x in report["attachments"])
+                    or any(x.get("status") != "verified" for x in report["payload_references"])):
+                raise StorageError("Generation 数据库或素材验证失败")
+            for name, digest in files.items():
+                if name.startswith("references/"):
                     relative = name[len("references/"):]
-                    extension = Path(relative).suffix.lower()
-                    media = "image" if extension in FORMATS else "video" if extension in VIDEO_FORMATS else None
-                    if media and _attachment_status(isolated.home / "references", relative, media, expected) != "verified":
-                        raise StorageError("备份素材未通过验证")
-                return {"ok": True, "schema_version": version, "cases": result["cases"],
-                        "modules": result["modules"], "references": result["references"]}
-        except (StorageError, OSError, ValueError, KeyError, TypeError, sqlite3.Error, zipfile.BadZipFile):
-            return {"ok": False, "error": "备份无效、版本不兼容或无法完成验证"}
+                    ext = Path(relative).suffix.lower()
+                    media = "image" if ext in FORMATS else "video" if ext in VIDEO_FORMATS else None
+                    if media and _attachment_status(folder / "references", relative, media, digest) != "verified":
+                        raise StorageError("Generation 媒体验证失败")
+            payload = json.loads((folder / "data" / "prompt_library.json").read_text(encoding="utf-8"))
+            con = sqlite3.connect(db.resolve().as_uri() + "?mode=ro", uri=True)
+            try:
+                tombstones = con.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='case_tombstones'").fetchone()
+                where = " WHERE id NOT IN (SELECT case_id FROM case_tombstones)" if tombstones else ""
+                rows = con.execute("SELECT kind,payload_json FROM assets" + where + " ORDER BY updated_at DESC, rowid DESC").fetchall()
+            finally:
+                con.close()
+            cases, modules = [], []
+            for kind, text in rows:
+                (cases if kind == "case" else modules).append(json.loads(text))
+            if not isinstance(payload, dict) or payload.get("cases") != cases or payload.get("modules") != modules:
+                raise StorageError("Generation JSON 与数据库不一致")
+            return manifest
+        except (OSError, ValueError, KeyError, TypeError, sqlite3.Error) as exc:
+            raise StorageError("Generation 无效或无法验证") from exc
+
+    @classmethod
+    def _generation_pointer(cls, home):
+        path = cls._generation_root(home) / "CURRENT"
+        if _is_link_or_junction(path):
+            raise StorageError("CURRENT 路径不安全")
+        if not path.exists():
+            return None
+        value = path.read_text(encoding="ascii").strip()
+        if not cls._generation_id(value):
+            raise StorageError("CURRENT 无效")
+        return value
+
+    @classmethod
+    def _recover_generation_at(cls, home):
+        root = cls._generation_root(home)
+        journal = root / "transaction.json"
+        if _is_link_or_junction(journal):
+            raise StorageError("Generation 事务路径不安全")
+        if not journal.exists():
+            current = cls._generation_pointer(home)
+            if current is not None:
+                cls._validate_generation_at(home, current)
+            return current
+        try:
+            record = json.loads(journal.read_text(encoding="utf-8"))
+            old, new, state = record["old"], record["new"], record["state"]
+            if (set(record) != {"old", "new", "state"} or not cls._generation_id(new)
+                    or (old is not None and not cls._generation_id(old)) or state not in {"PREPARED", "COMMITTED"}):
+                raise ValueError("invalid transaction")
+            pointer = cls._generation_pointer(home)
+            if pointer not in (old, new):
+                raise StorageError("Generation 指针与事务不一致")
+            target = new if state == "COMMITTED" else old
+            if target is not None:
+                cls._validate_generation_at(home, target)
+                cls._generation_atomic_write(root / "CURRENT", (target + "\n").encode("ascii"))
+            elif pointer is not None:
+                (root / "CURRENT").unlink()
+            if cls._generation_pointer(home) != target:
+                raise StorageError("Generation 恢复验证失败")
+            journal.unlink()
+            if os.name != "nt":
+                fd = os.open(root, os.O_RDONLY)
+                try:
+                    os.fsync(fd)
+                finally:
+                    os.close(fd)
+            return target
+        except (ValueError, KeyError, TypeError, OSError) as exc:
+            raise StorageError("Generation 事务损坏，已保留恢复资料") from exc
+
+    def create_generation(self):
+        from datetime import datetime, timezone
+        home = self.store.home
+        with _activation_lock(home):
+            with self.store.exclusive_operation():
+                root = self._generation_root(home, create=True)
+                self._recover_generation_at(home)
+                # Existing backup implementation uses SQLite Online Backup and
+                # holds this same re-entrant data lock while copying assets.
+                archive = self.create_backup("generation")
+                ident = uuid.uuid4().hex
+                folder = root / ("generation_" + ident)
+                folder.mkdir()
+                result = self.store._verify_backup_staged(archive, folder)
+                # A standalone immutable snapshot must not depend on WAL/SHM
+                # sidecars created while inspecting the staged backup.
+                snapshot = sqlite3.connect(str(folder / "database" / "prompt_library.sqlite3"))
+                try:
+                    if snapshot.execute("PRAGMA journal_mode=DELETE").fetchone()[0].lower() != "delete":
+                        raise StorageError("无法封存 Generation 数据库")
+                finally:
+                    snapshot.close()
+                # Persist the candidate's payload before publishing its manifest.
+                for item in folder.rglob("*"):
+                    if item.is_file():
+                        with item.open("r+b") as stream:
+                            os.fsync(stream.fileno())
+                if os.name != "nt":
+                    for directory in sorted((p for p in folder.rglob("*") if p.is_dir()),
+                                            key=lambda p: len(p.parts), reverse=True):
+                        fd = os.open(directory, os.O_RDONLY)
+                        try:
+                            os.fsync(fd)
+                        finally:
+                            os.close(fd)
+                files = {item.relative_to(folder).as_posix(): self._generation_hash(item)
+                         for item in folder.rglob("*") if item.is_file()}
+                manifest = {"format": "PromptAtelierGeneration1", "id": ident,
+                            "created_at": datetime.now(timezone.utc).isoformat(),
+                            "schema_version": result["schema_version"], "files": files}
+                self._generation_atomic_write(folder / "manifest.json",
+                    json.dumps(manifest, ensure_ascii=False, sort_keys=True).encode("utf-8"))
+                self._validate_generation_at(home, ident)
+                return ident
+
+    def verify_generation(self, generation_id):
+        return self._validate_generation_at(self.store.home, generation_id)
+
+    def get_current_generation(self):
+        with _activation_lock(self.store.home):
+            return self._recover_generation_at(self.store.home)
+
+    def recover_pending_generation(self):
+        with _activation_lock(self.store.home):
+            return self._recover_generation_at(self.store.home)
+
+    def activate_generation(self, generation_id):
+        home = self.store.home
+        with _activation_lock(home):
+            root = self._generation_root(home, create=True)
+            old = self._recover_generation_at(home)
+            self._validate_generation_at(home, generation_id)
+            if old == generation_id:
+                return generation_id
+            record = {"old": old, "new": generation_id, "state": "PREPARED"}
+            journal = root / "transaction.json"
+            self._generation_atomic_write(journal, json.dumps(record, sort_keys=True).encode("utf-8"))
+            try:
+                self._generation_atomic_write(root / "CURRENT", (generation_id + "\n").encode("ascii"))
+                self._validate_generation_at(home, generation_id)
+                record["state"] = "COMMITTED"
+                self._generation_atomic_write(journal, json.dumps(record, sort_keys=True).encode("utf-8"))
+                return self._recover_generation_at(home)
+            except Exception:
+                self._recover_generation_at(home)
+                raise
 
     def restore_backup(self, archive):
         return self.store.restore_full_backup(archive)

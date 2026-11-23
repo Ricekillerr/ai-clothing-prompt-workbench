@@ -5,6 +5,8 @@ import zipfile
 import threading
 import time
 import unittest
+import subprocess
+import imageio_ffmpeg
 from pathlib import Path
 from unittest.mock import patch
 from PIL import Image
@@ -67,7 +69,9 @@ class DataServiceFacadeTests(unittest.TestCase):
         self.store.save_data({'cases': [{'id': 'case1', 'body': '原文', 'image': 'valid.png'}], 'modules': []})
         archive = self.service.create_backup('test')
         before = hashlib.sha256(self.store.db_path.read_bytes()).hexdigest()
-        result = self.service.verify_backup(archive)
+        with patch.object(Storage, 'restore_full_backup', side_effect=AssertionError('restore invoked')), \
+             patch.object(DataService, 'restore_backup', side_effect=AssertionError('restore invoked')):
+            result = self.service.verify_backup(archive)
         self.assertTrue(result['ok'])
         self.assertEqual(result['cases'], 1)
         self.assertEqual(hashlib.sha256(self.store.db_path.read_bytes()).hexdigest(), before)
@@ -115,6 +119,40 @@ class DataServiceFacadeTests(unittest.TestCase):
         self.assertEqual(self.service.verify_backup(v2)['schema_version'], '2')
         self.assertFalse(self.service.verify_backup(v1)['ok'])
         self.assertEqual(self.store.get_setting('schema_version'), '2')
+
+    def test_verify_video_and_missing_entries_without_restoring(self):
+        refs = self.store.home / 'references'
+        video = refs / 'result.mp4'
+        subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), '-v', 'error', '-f', 'lavfi',
+                        '-i', 'color=c=blue:s=16x16:d=0.2', '-pix_fmt', 'yuv420p',
+                        '-y', str(video)], check=True, capture_output=True)
+        self.store.save_data({'cases': [{'id': 'case1', 'body': '原文'}], 'modules': []})
+        archive = self.service.create_backup('test')
+        current = self.store.home / 'CURRENT'
+        current.write_text('unchanged', encoding='utf-8')
+        tracked = [self.store.db_path, self.store.legacy_json, video, current]
+        digest = lambda p: hashlib.sha256(p.read_bytes()).hexdigest() if p.exists() else None
+        before = {p: digest(p) for p in tracked}
+        with patch.object(Storage, 'restore_full_backup', side_effect=AssertionError('restore invoked')), \
+             patch.object(DataService, 'restore_backup', side_effect=AssertionError('restore invoked')):
+            self.assertTrue(self.service.verify_backup(archive)['ok'])
+            corrupted = self.store.home / 'corrupt-video.zip'
+            with zipfile.ZipFile(archive) as source, zipfile.ZipFile(corrupted, 'w') as target:
+                manifest = json.loads(source.read('backup_manifest.json'))
+                bad = b'not a video despite a valid hash'
+                manifest['files']['references/result.mp4'] = hashlib.sha256(bad).hexdigest()
+                for info in source.infolist():
+                    data = (json.dumps(manifest).encode('utf-8') if info.filename == 'backup_manifest.json'
+                            else bad if info.filename == 'references/result.mp4' else source.read(info))
+                    target.writestr(info, data)
+            self.assertFalse(self.service.verify_backup(corrupted)['ok'])
+            missing = self.store.home / 'missing-video.zip'
+            with zipfile.ZipFile(archive) as source, zipfile.ZipFile(missing, 'w') as target:
+                for info in source.infolist():
+                    if info.filename != 'references/result.mp4':
+                        target.writestr(info, source.read(info))
+            self.assertFalse(self.service.verify_backup(missing)['ok'])
+        self.assertEqual(before, {p: digest(p) for p in tracked})
 
 
 if __name__ == '__main__': unittest.main()
