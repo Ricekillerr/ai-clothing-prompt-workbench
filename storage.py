@@ -2058,6 +2058,40 @@ class DataService:
     def create_backup(self, app_version="unknown"):
         return self.store.create_full_backup(self.asset_root(), app_version=app_version)
 
+    def verify_backup(self, archive):
+        """Validate a ZIP in a disposable same-schema store without touching live data."""
+        try:
+            version = str(self.store.get_setting("schema_version", ""))
+            if version not in {"1", "2"}:
+                raise StorageError("活动数据库版本无效")
+            with tempfile.TemporaryDirectory(prefix="prompt_atelier_verify_") as directory:
+                isolated = Storage(Path(directory) / "data")
+                if version == "2":
+                    migrate(isolated)
+                result = isolated.restore_full_backup(Path(archive))
+                inspection = inspect_database(isolated.db_path, isolated.home / "references")
+                if (inspection["schema_errors"] or inspection["foreign_key_errors"]
+                        or inspection["integrity"] != ["ok"] or inspection["quick_check"] != ["ok"]
+                        or any(item.get("status") != "verified" for item in inspection["attachments"])
+                        or any(item.get("status") != "verified" for item in inspection["payload_references"])):
+                    raise StorageError("备份内容未通过完整性检查")
+                # A backup may include unreferenced media. Validate those too,
+                # without assuming that every reference file is an image.
+                with zipfile.ZipFile(archive, "r") as source:
+                    manifest = json.loads(source.read("backup_manifest.json").decode("utf-8"))
+                for name, expected in manifest["files"].items():
+                    if not name.startswith("references/"):
+                        continue
+                    relative = name[len("references/"):]
+                    extension = Path(relative).suffix.lower()
+                    media = "image" if extension in FORMATS else "video" if extension in VIDEO_FORMATS else None
+                    if media and _attachment_status(isolated.home / "references", relative, media, expected) != "verified":
+                        raise StorageError("备份素材未通过验证")
+                return {"ok": True, "schema_version": version, "cases": result["cases"],
+                        "modules": result["modules"], "references": result["references"]}
+        except (StorageError, OSError, ValueError, KeyError, TypeError, sqlite3.Error, zipfile.BadZipFile):
+            return {"ok": False, "error": "备份无效、版本不兼容或无法完成验证"}
+
     def restore_backup(self, archive):
         return self.store.restore_full_backup(archive)
 

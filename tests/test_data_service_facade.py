@@ -1,11 +1,15 @@
 import tempfile
+import hashlib
+import json
+import zipfile
 import threading
 import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from PIL import Image
 
-from storage import DataService, Storage, StorageError
+from storage import DataService, Storage, StorageError, migrate
 
 
 class DataServiceFacadeTests(unittest.TestCase):
@@ -57,6 +61,36 @@ class DataServiceFacadeTests(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertTrue(done.is_set())
 
+    def test_verify_backup_is_independent_and_rejects_corruption(self):
+        image = self.store.home / 'references' / 'valid.png'
+        Image.new('RGB', (8, 8), 'blue').save(image)
+        self.store.save_data({'cases': [{'id': 'case1', 'body': '原文', 'image': 'valid.png'}], 'modules': []})
+        archive = self.service.create_backup('test')
+        before = hashlib.sha256(self.store.db_path.read_bytes()).hexdigest()
+        result = self.service.verify_backup(archive)
+        self.assertTrue(result['ok'])
+        self.assertEqual(result['cases'], 1)
+        self.assertEqual(hashlib.sha256(self.store.db_path.read_bytes()).hexdigest(), before)
+        damaged = self.store.home / 'damaged.zip'
+        with zipfile.ZipFile(archive) as source, zipfile.ZipFile(damaged, 'w') as target:
+            for info in source.infolist():
+                data = source.read(info.filename)
+                if info.filename == 'references/valid.png': data += b'corruption'
+                target.writestr(info.filename, data)
+        self.assertFalse(self.service.verify_backup(damaged)['ok'])
+        self.assertEqual(hashlib.sha256(self.store.db_path.read_bytes()).hexdigest(), before)
+        unsafe = self.store.home / 'unsafe.zip'
+        with zipfile.ZipFile(archive) as source, zipfile.ZipFile(unsafe, 'w') as target:
+            manifest = json.loads(source.read('backup_manifest.json'))
+            manifest['files']['references/../escape.png'] = hashlib.sha256(b'bad').hexdigest()
+            for info in source.infolist():
+                data = (json.dumps(manifest).encode('utf-8') if info.filename == 'backup_manifest.json'
+                        else source.read(info.filename))
+                target.writestr(info.filename, data)
+            target.writestr('references/../escape.png', b'bad')
+        self.assertFalse(self.service.verify_backup(unsafe)['ok'])
+        self.assertEqual(hashlib.sha256(self.store.db_path.read_bytes()).hexdigest(), before)
+
     def test_two_simultaneous_backup_upgrades_do_not_deadlock(self):
         barrier = threading.Barrier(2); outcomes = []
         def attempt():
@@ -72,6 +106,15 @@ class DataServiceFacadeTests(unittest.TestCase):
         for thread in threads: thread.join(10)
         self.assertTrue(all(not thread.is_alive() for thread in threads))
         self.assertCountEqual(outcomes, ['success', 'busy'])
+
+    def test_verify_backup_v2_and_version_mismatch(self):
+        self.store.save_data({'cases': [{'id': 'case1', 'body': '原文'}], 'modules': []})
+        v1 = self.service.create_backup('v1')
+        migrate(self.store)
+        v2 = self.service.create_backup('v2')
+        self.assertEqual(self.service.verify_backup(v2)['schema_version'], '2')
+        self.assertFalse(self.service.verify_backup(v1)['ok'])
+        self.assertEqual(self.store.get_setting('schema_version'), '2')
 
 
 if __name__ == '__main__': unittest.main()
